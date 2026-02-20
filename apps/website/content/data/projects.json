@@ -1,0 +1,16 @@
+[
+  {
+    "id": "project-1",
+    "title": "Community Labs",
+    "status": "active",
+    "summary": "Placeholder summary for project.",
+    "year": 2026
+  },
+  {
+    "id": "project-2",
+    "title": "Civic Data Fellowship",
+    "status": "planned",
+    "summary": "Placeholder summary for project.",
+    "year": 2027
+  }
+]

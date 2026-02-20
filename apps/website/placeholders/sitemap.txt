@@ -1,0 +1,7 @@
+# Placeholder sitemap list
+/
+/about
+/team
+/projects
+/apply
+/contact
