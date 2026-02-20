@@ -1,0 +1,16 @@
+[
+  {
+    "id": "member-1",
+    "name": "Alex Morgan",
+    "role": "Executive Director",
+    "bio": "Placeholder bio for team member.",
+    "email": "alex@example.org"
+  },
+  {
+    "id": "member-2",
+    "name": "Jordan Lee",
+    "role": "Program Manager",
+    "bio": "Placeholder bio for team member.",
+    "email": "jordan@example.org"
+  }
+]

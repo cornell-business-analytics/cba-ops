@@ -1,0 +1,5 @@
+# Placeholder security contact information
+Contact: mailto:security@example.org
+Expires: 2027-12-31T23:59:59Z
+Preferred-Languages: en
+Canonical: https://example.org/.well-known/security.txt

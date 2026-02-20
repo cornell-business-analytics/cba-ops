@@ -1,0 +1,5 @@
+# Placeholder robots policy
+User-agent: *
+Allow: /
+
+Sitemap: https://example.org/sitemap.xml

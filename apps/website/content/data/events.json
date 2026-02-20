@@ -1,0 +1,16 @@
+[
+  {
+    "id": "event-1",
+    "name": "Open House",
+    "date": "2026-05-15",
+    "location": "TBD",
+    "description": "Placeholder event description."
+  },
+  {
+    "id": "event-2",
+    "name": "Community Workshop",
+    "date": "2026-07-10",
+    "location": "TBD",
+    "description": "Placeholder event description."
+  }
+]
