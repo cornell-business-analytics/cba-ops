@@ -1,0 +1,3 @@
+# Architecture (Placeholder)
+
+Scaffold only.
