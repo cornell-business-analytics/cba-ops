@@ -1,0 +1,10 @@
+{
+  "name": "cba-platform-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo scaffold-only",
+    "lint": "echo scaffold-only",
+    "typecheck": "echo scaffold-only"
+  }
+}
