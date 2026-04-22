@@ -1,6 +1,58 @@
+# Claude
+.claude/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+coverage.xml
+uv.lock
+
+# Node
 node_modules/
+.pnpm-store/
+
+# Next.js
 .next/
+out/
+
+# Turbo
+.turbo/
+
+# Environment files
 .env
+.env.local
+.env.*.local
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+playwright-report/
+test-results/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Build artifacts
+dist/

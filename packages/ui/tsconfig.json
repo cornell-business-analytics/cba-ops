@@ -1,0 +1,7 @@
+{
+  "extends": "@cba/config/tsconfig",
+  "compilerOptions": {
+    "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo"
+  },
+  "include": ["src"]
+}

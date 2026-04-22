@@ -1,0 +1,22 @@
+{
+  "name": "@cba/ui",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./button": "./src/Button.tsx",
+    "./badge": "./src/Badge.tsx",
+    "./avatar": "./src/Avatar.tsx",
+    "./card": "./src/Card.tsx",
+    "./spinner": "./src/Spinner.tsx"
+  },
+  "devDependencies": {
+    "@cba/config": "workspace:*",
+    "typescript": "^5.7.3",
+    "react": "^19.0.0",
+    "@types/react": "^19.0.0"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19"
+  }
+}
