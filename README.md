@@ -66,3 +66,6 @@ You'll need a `.env.local` in each Next.js app and a `.env` in `apps/backend`. S
 ## Docs
 
 - [`docs/swe-concepts.md`](docs/swe-concepts.md) — engineering concepts used throughout the codebase (auth, migrations, async, RBAC, etc.)
+
+##Curent State 
+- Working on the internal tool, experimenting with AUTH tokenization and database migrations
