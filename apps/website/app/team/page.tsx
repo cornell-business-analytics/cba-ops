@@ -15,7 +15,6 @@ export default async function TeamPage() {
     <>
       <Hero
         heading="Meet the team"
-        subheading="Our members come from every corner of Cornell, united by a passion for data and a drive to make an impact."
       />
       <TeamGrid exec={exec} analysts={analysts} />
     </>

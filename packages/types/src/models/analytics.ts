@@ -1,8 +1,13 @@
 export interface AnalyticsOverview {
-  totalMembers: number;
-  activeCandidates: number;
-  publishedPages: number;
-  eventsThisSemester: number;
+  total_members: number;
+  active_candidates: number;
+  published_pages: number;
+  events_this_semester: number;
+}
+
+export interface RecruitmentAnalytics {
+  cycle_id: string | null;
+  funnel: Record<string, number>;
 }
 
 export interface RecruitmentFunnelStage {
@@ -10,15 +15,7 @@ export interface RecruitmentFunnelStage {
   count: number;
 }
 
-export interface RecruitmentAnalytics {
-  cycleId: string;
-  cycleName: string;
-  funnel: RecruitmentFunnelStage[];
-  totalApplied: number;
-  conversionRate: number;
-}
-
 export interface CohortGrowthPoint {
-  cohort: string;
-  memberCount: number;
+  semester: string;
+  count: number;
 }

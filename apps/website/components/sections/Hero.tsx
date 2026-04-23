@@ -2,7 +2,7 @@ import Link from "next/link";
 
 interface HeroProps {
   heading: string;
-  subheading: string;
+  subheading?: string;
   ctaLabel?: string;
   ctaHref?: string;
   image?: string;
@@ -33,7 +33,7 @@ export function Hero({ heading, subheading, ctaLabel, ctaHref, image }: HeroProp
           <h1 className="font-display text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
             {heading}
           </h1>
-          <p className="mt-6 text-lg leading-relaxed text-gray-200 sm:text-xl">{subheading}</p>
+          {subheading && <p className="mt-6 text-lg leading-relaxed text-gray-200 sm:text-xl">{subheading}</p>}
           {ctaLabel && ctaHref && (
             <div className="mt-10 flex flex-wrap gap-4">
               <Link

@@ -1,10 +1,11 @@
 export type { User, UserRole, UserSession } from "./models/user";
-export type { Cohort, Member, MemberPublic } from "./models/member";
+export type { Cohort, Membership, MembershipDetail, Member, MemberPublic, ProfileEditRequest } from "./models/member";
 export type {
   CandidateStatus,
-  CycleStatus,
   ApplicationCycle,
   Candidate,
+  CoffeeChat,
+  InterviewScore,
 } from "./models/candidate";
 export type { EventType, Event, EventPublic } from "./models/event";
 export type {
@@ -31,21 +32,18 @@ export type {
 } from "./models/analytics";
 
 export interface ApiError {
-  code: string;
-  message: string;
-  details?: Record<string, unknown>;
+  detail: string;
 }
 
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
   page: number;
-  pageSize: number;
-  hasMore: boolean;
+  page_size: number;
 }
 
 export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
 }
