@@ -19,20 +19,46 @@ export default function HomePage() {
       />
 
       {/* Mission */}
-      <section className="border-b border-gray-100 bg-cba-gray" aria-label="Mission">
-        <div className="container-section py-16">
-          <div className="max-w-2xl">
-            <h2 className="text-3xl font-bold text-cba-dark">Our mission</h2>
-            <p className="mt-4 text-lg leading-relaxed text-gray-600">
-              Data-driven decision-making is central to how successful organizations operate. CBA
-              exists to give Cornell students real project experience and a rigorous education in
-              business analytics — and to foster a community of students committed to the field.
-            </p>
-          </div>
-        
+      <section className="bg-cba-gray" aria-label="Mission">
+        <div className="container-section py-24 text-center">
+          <p className="text-xs font-semibold uppercase tracking-widest text-cba-green">Our mission</p>
+          <p className="mx-auto mt-6 max-w-3xl font-display text-3xl font-bold leading-snug text-cba-dark sm:text-4xl lg:text-5xl">
+            Data-driven decision-making is central to how successful organizations operate.
+          </p>
         </div>
       </section>
 
+
+      {/* Pillars */}
+      {[
+        {
+          title: "Turning Data Into Decisions",
+          image: "/pillar-consulting.jpg",
+          alt: "CBA members presenting analysis to a client",
+        },
+        {
+          title: "Developing Analytical Leaders",
+          image: "/pillar-education.jpg",
+          alt: "CBA workshop session",
+        },
+        {
+          title: "Building Lasting Community",
+          image: "/pillar-community.jpg",
+          alt: "CBA members at a social event",
+        },
+      ].map(({ title, image, alt }, i) => (
+        <section key={title} className="flex flex-col md:flex-row min-h-[50vh]">
+          <div className={`relative w-full md:w-1/2 min-h-[40vw] md:min-h-0 bg-cba-gray ${i % 2 === 1 ? "md:order-2" : ""}`}>
+            <img src={image} alt={alt} className="absolute inset-0 h-full w-full object-cover" />
+          </div>
+          <div className={`w-full md:w-1/2 flex items-center bg-white ${i % 2 === 1 ? "md:order-1" : ""}`}>
+            <div className="px-8 py-14 md:px-16 lg:px-20">
+              <p className="text-xs font-semibold uppercase tracking-widest text-cba-green">0{i + 1}</p>
+              <h2 className="mt-3 font-display text-3xl font-bold text-cba-dark lg:text-4xl">{title}</h2>
+            </div>
+          </div>
+        </section>
+      ))}
 
       {/* CTA */}
       <section className="bg-cba-green text-white" aria-label="Call to action">

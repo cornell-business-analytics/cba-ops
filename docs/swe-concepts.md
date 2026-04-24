@@ -777,6 +777,201 @@ Frontend enforcement is UX — it hides controls that don't apply. Backend enfor
 
 ---
 
+## 26. PKCE — What It Is and Why It Broke on Localhost
+
+**PKCE** (Proof Key for Code Exchange, pronounced "pixy") is a security extension to OAuth 2.0. It's designed to prevent a class of attack where a malicious app on the same device intercepts the authorization code Google sends back after login.
+
+### The flow without PKCE
+
+```
+Browser → Google (with client_id) → Google redirects back with ?code=XYZ
+Browser → Server: POST /auth/callback { code: XYZ, client_secret }
+Server → Google: exchange code for tokens
+```
+
+The problem: any app on your computer could register the same redirect URI and steal `?code=XYZ`.
+
+### The flow with PKCE
+
+```
+Before redirecting to Google:
+  Server generates: code_verifier = random 32-byte string
+  Server computes:  code_challenge = base64(sha256(code_verifier))
+  Server stores code_verifier in a cookie
+  Server redirects to Google with ?code_challenge=...
+
+When Google redirects back:
+  Server reads code_verifier from cookie
+  Server sends code_verifier to Google alongside the authorization code
+  Google verifies: sha256(code_verifier) == code_challenge from step 1
+  If they match, tokens are issued
+```
+
+An attacker who steals the `?code=XYZ` can't use it — they don't have the `code_verifier` that was stored in your server's cookie.
+
+### Why it broke on localhost
+
+Auth.js stores `code_verifier` in a cookie. In production (HTTPS), it sets the cookie with `Secure=true` and potentially a `__Secure-` prefix (which browsers enforce strict Secure requirements for). On `http://localhost`, the browser may reject or mismatch these cookies, or Auth.js may look for the wrong cookie name during the callback.
+
+**The fix:** disable PKCE for the Google provider and use `checks: ["state"]` instead. A **state parameter** is a random value included in the initial redirect to Google — Google echoes it back in the callback URL, and Auth.js verifies it matches. This prevents CSRF attacks (a different threat than what PKCE covers). Since you have a `client_secret` (confidential client), state-based protection is sufficient.
+
+```typescript
+Google({
+  checks: ["state"],  // use state CSRF check, not PKCE cookie
+}),
+```
+
+**What to remember:** PKCE = extra security for public clients (mobile apps, SPAs without a backend). For a server-side Next.js app with a `client_secret`, PKCE is redundant. Auth.js defaults to PKCE for all providers, which causes localhost friction you wouldn't have on a simple server-side OAuth flow.
+
+---
+
+## 27. Cookies — SameSite, Secure, HttpOnly, and the __Secure- Prefix
+
+Cookies have attributes that control where and how browsers send them. This comes up constantly in auth.
+
+**`HttpOnly`**  
+The cookie is not accessible to JavaScript (`document.cookie`). Auth session cookies should always be HttpOnly — if a script can read the session cookie, an XSS attack can steal it.
+
+**`Secure`**  
+The cookie is only sent over HTTPS. The browser silently drops Secure cookies on `http://localhost`. This is why auth libraries sometimes behave differently in dev vs production.
+
+**`SameSite`**  
+Controls when the browser sends the cookie on cross-site requests:
+| Value | Behavior |
+|---|---|
+| `Strict` | Never sent cross-site (most secure, breaks some flows) |
+| `Lax` | Sent on top-level navigations (links, form submits), not on fetches |
+| `None` | Always sent — requires `Secure=true` |
+
+Auth cookies should be `SameSite=Lax` — this allows the OAuth callback redirect (a top-level navigation) to include the cookie, but protects against CSRF from embedded images/scripts.
+
+**`__Secure-` prefix**  
+If a cookie name starts with `__Secure-`, browsers enforce `Secure=true` and reject it if set over HTTP. Auth.js v5 automatically adds this prefix in production. On localhost (HTTP), setting a `__Secure-` cookie doesn't work — hence the PKCE failure.
+
+**`__Host-` prefix**  
+Even stricter: requires `Secure=true`, `Path=/`, and no `Domain=` attribute. Prevents subdomain attacks. Not relevant for your current setup but you'll see it referenced in security docs.
+
+**How to configure in Auth.js:**
+```typescript
+cookies: {
+  pkceCodeVerifier: {
+    name: "authjs.pkce.code_verifier",  // no __Secure- prefix
+    options: {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: process.env.NODE_ENV === "production",  // false on localhost
+    },
+  },
+},
+```
+
+---
+
+## 28. Next.js Dynamic APIs — params and searchParams Are Now Async
+
+In Next.js 15, `params` and `searchParams` in page/layout components became **async** (Promises). This was a breaking change from Next.js 14.
+
+**Old (Next.js 14):**
+```typescript
+export default function Page({ searchParams }: { searchParams: { error?: string } }) {
+  const error = searchParams.error;  // synchronous access
+}
+```
+
+**New (Next.js 15):**
+```typescript
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;  // must await
+}
+```
+
+Same applies to `params`:
+```typescript
+// Route: /members/[id]/page.tsx
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+}
+```
+
+**Why did Next.js make this change?**  
+Dynamic APIs like `searchParams`, `cookies()`, and `headers()` opt the page into dynamic rendering (no static generation). Making them async signals this clearly to the developer, and allows Next.js to optimize more aggressively at the edge. It's part of a broader move toward explicit opt-in to dynamic behavior.
+
+**How to spot the error:**  
+`Error: Route "/login" used 'searchParams.error'. searchParams should be awaited before using its properties.`
+
+---
+
+## 29. SVG for UI — Stroke-Dasharray and Inline Icons
+
+SVG (Scalable Vector Graphics) is XML that describes shapes mathematically. Unlike raster images (PNG/JPG), SVGs scale perfectly at any size. You used two SVG techniques today.
+
+### Inline icon SVGs
+
+For the past clients grid, each icon is an inline SVG using standard path commands. The `viewBox` defines the coordinate system — `viewBox="0 0 24 24"` means a 24×24 unit grid. The actual rendered size is controlled by CSS (`w-12 h-12`).
+
+Common SVG shape elements:
+- `<circle cx="12" cy="12" r="5" />` — center x, center y, radius
+- `<rect x="5" y="2" width="14" height="20" rx="2" />` — position, size, corner radius
+- `<line x1="3" y1="22" x2="21" y2="22" />` — from point to point
+- `<path d="M2 13l3.5-6h13L22 13v3H2v-3z" />` — arbitrary shape via path commands
+
+Path commands: `M` = move to, `L` = line to, `H` = horizontal line, `V` = vertical line, `A` = arc, `Z` = close path. Lowercase = relative coordinates, uppercase = absolute.
+
+### Stroke-dasharray for the donut chart
+
+`stroke-dasharray` controls the dash pattern of a stroked path. For a circle:
+
+```svg
+<circle
+  r={70}
+  strokeDasharray={`${arcLength} ${circumference - arcLength}`}
+  strokeDashoffset={startOffset}
+  transform="rotate(-90 100 100)"
+/>
+```
+
+- **`circumference`** = 2π × radius (the total length of the circle's perimeter)
+- **`strokeDasharray="arcLen remainder"`** — draw `arcLen` pixels of stroke, then `remainder` pixels of gap. Setting remainder ≥ circumference means only one arc segment shows
+- **`strokeDashoffset`** — shifts the start of the dash pattern. Negative offset shifts clockwise
+- **`transform="rotate(-90 100 100)"`** — SVG circles start at the 3 o'clock position; rotating -90° puts the start at 12 o'clock
+
+The donut chart is just a `<circle>` with `fill="none"` and a thick `strokeWidth`. Two overlapping circles with different `strokeDasharray` values create the two-color arc.
+
+---
+
+## 30. CSS Grid — Centering Odd Numbers of Items
+
+When you have N items in a grid and the last row isn't full, you need a trick to center the remaining items. The standard approach: **use twice as many columns as your visual column count**.
+
+```css
+/* Visual: 3 columns, but implemented as 6 */
+grid-template-columns: repeat(6, 1fr);
+```
+
+Each item spans 2 columns (`col-span-2`). For 5 items in a "3-column" grid:
+- Row 1: items 1, 2, 3 → occupy columns 1-2, 3-4, 5-6 (fills perfectly)
+- Row 2: items 4, 5 → need to center in the 6-column grid
+
+To center item 4 (second row, first item) — start it at column 2:
+```jsx
+className={`col-span-2${i === 3 ? " lg:col-start-2" : i === 4 ? " lg:col-start-4" : ""}`}
+```
+
+Item 4 occupies columns 2-3. Item 5 occupies columns 4-5. Columns 1 and 6 are empty gaps, visually centering the two items.
+
+**Why 6-column specifically?**  
+With 6 columns and 2-wide items, you can place items at columns 1, 2, 3, 4, or 5 and they'll fit within the grid (2 + col_start ≤ 7). This gives maximum placement flexibility. The same trick works for 2-column layouts using 4-column grids, or 4-column using 8-column.
+
+**Alternatives:**  
+`justify-items: center` on the grid + `grid-column: span N` on the last item. Or `flexbox` with `justify-content: center` on the last row using a wrapper. The multi-column trick is cleanest when you need pixel-perfect alignment with the rows above.
+
+---
+
 ## Full Schema Relationship Diagram
 
 ```

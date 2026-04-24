@@ -3,11 +3,35 @@ import Google from "next-auth/providers/google";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
+const useSecureCookies = process.env.NODE_ENV === "production";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
+  cookies: {
+    pkceCodeVerifier: {
+      name: `${useSecureCookies ? "__Secure-" : ""}authjs.pkce.code_verifier`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        path: "/",
+        secure: useSecureCookies,
+      },
+    },
+    state: {
+      name: `${useSecureCookies ? "__Secure-" : ""}authjs.state`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        path: "/",
+        secure: useSecureCookies,
+      },
+    },
+  },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      checks: ["state"],
       authorization: {
         params: { hd: "cornell.edu", prompt: "select_account" },
       },

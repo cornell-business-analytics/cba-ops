@@ -1,11 +1,12 @@
 import { signIn } from "@/auth";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string };
+  searchParams: Promise<{ error?: string }>;
 }) {
-  const isExpired = searchParams.error === "SessionExpired";
+  const { error } = await searchParams;
+  const isExpired = error === "SessionExpired";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">

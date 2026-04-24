@@ -18,7 +18,7 @@
 
 @layer utilities {
   .container-section {
-    @apply mx-auto max-w-6xl px-4 sm:px-6 lg:px-8;
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16;
   }
 }
 
