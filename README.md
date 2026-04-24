@@ -4,16 +4,16 @@ Custom platform for [Cornell Business Analytics](https://cornellbusinessanalytic
 
 ## What this is
 
-CBA is a project-based consulting club at Cornell. This platform has two parts:
+This platform has two parts:
 
-**Public website** (`apps/website`) — replaces cornellbusinessanalytics.org. Serves pages managed through the internal CMS: home, about, team directory, client work, recruitment info, and contact. Statically generated with on-demand revalidation when content is published.
+**Public website** (`apps/website`) — replaces cornellbusinessanalytics.org. Serves pages managed through the internal CMS: home, about, team directory, client work, recruitment info, and contact. On-demand revalidation. 
 
 **Ops tool** (`apps/frontend`) — internal dashboard for club leadership. Covers:
 - Recruitment pipeline (application cycles, candidate tracking, coffee chats, interviews)
 - Member directory and profile management
 - CMS for website content (block-based page editor, draft → review → publish workflow)
 - Events management
-- Analytics (recruitment funnel, member cohort growth)
+- Analytics (recruitment data, member cohort)
 
 ## Stack
 
@@ -24,7 +24,7 @@ CBA is a project-based consulting club at Cornell. This platform has two parts:
 | API | FastAPI (Python), async SQLAlchemy 2.0, asyncpg |
 | Database | PostgreSQL 16 |
 | Auth | Google SSO (cornell.edu only) → backend RS256 JWT |
-| File storage | Cloudflare R2 (presigned uploads) |
+| File storage | Cloudflare R2 |
 | Background jobs | RQ + Redis |
 | Monorepo | pnpm workspaces + Turborepo |
 
@@ -66,3 +66,6 @@ You'll need a `.env.local` in each Next.js app and a `.env` in `apps/backend`. S
 ## Docs
 
 - [`docs/swe-concepts.md`](docs/swe-concepts.md) — engineering concepts used throughout the codebase (auth, migrations, async, RBAC, etc.)
+
+##Curent State 
+- Working on the internal tool, experimenting with AUTH tokenization and database migrations
