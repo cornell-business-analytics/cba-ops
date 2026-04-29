@@ -15,7 +15,7 @@ export default function HomePage() {
         subheading="Cornell Business Analytics is the first student-run analytics consulting organization delivering data-backed insights to real clients."
         ctaLabel="Apply now"
         ctaHref="/recruitment"
-        image="/group.JPG"
+        image="/group.jpg"
       />
 
       {/* Mission */}
