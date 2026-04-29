@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <>
-      <Hero heading="Get in touch" subheading="We'd love to hear from you — whether you're a prospective client, a prospective member, or just curious about what we do." />
+      <Hero heading="Get in touch" subheading="We'd love to hear from you!" />
 
       <section className="container-section py-16">
         <div className="grid gap-12 lg:grid-cols-2">

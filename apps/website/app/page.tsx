@@ -33,17 +33,17 @@ export default function HomePage() {
       {[
         {
           title: "Turning Data Into Decisions",
-          image: "/pillar-consulting.jpg",
+          image: "/front/pillar-consulting.jpg",
           alt: "CBA members presenting analysis to a client",
         },
         {
           title: "Developing Analytical Leaders",
-          image: "/pillar-education.jpg",
+          image: "/front/pillar-education.jpg",
           alt: "CBA workshop session",
         },
         {
           title: "Building Lasting Community",
-          image: "/pillar-community.jpg",
+          image: "/front/pillar-community.jpg",
           alt: "CBA members at a social event",
         },
       ].map(({ title, image, alt }, i) => (

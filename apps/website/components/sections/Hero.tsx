@@ -6,19 +6,19 @@ interface HeroProps {
   ctaLabel?: string;
   ctaHref?: string;
   image?: string;
+  compact?: boolean;
 }
 
-export function Hero({ heading, subheading, ctaLabel, ctaHref, image }: HeroProps) {
+export function Hero({ heading, subheading, ctaLabel, ctaHref, image, compact }: HeroProps) {
   return (
-    <section className="relative text-white" aria-label="Hero">
+    <section className={`relative text-white${compact ? " h-[92vh]" : ""}`} aria-label="Hero">
       {image ? (
         <>
-          {/* Image sets the section height — no cropping */}
           <img
             src={image}
             alt=""
             aria-hidden="true"
-            className="block w-full h-auto"
+            className={compact ? "w-full h-full object-cover object-bottom" : "block w-full h-auto"}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-cba-dark/85 via-cba-dark/60 to-cba-dark/30" />
           <div className="absolute inset-0 flex items-center">

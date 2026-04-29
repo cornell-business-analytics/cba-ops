@@ -17,7 +17,9 @@ export default async function RecruitmentPage() {
     <>
       <Hero
         heading="Join CBA"
-        subheading="We recruit the most curious and driven analysts at Cornell. If that sounds like you, we'd love to meet."
+        subheading= "Check back in the fall for recruitment details and events!"
+        image="/recruitment/recruitFront.jpg"
+        compact
       />
 
       <section className="container-section py-16">

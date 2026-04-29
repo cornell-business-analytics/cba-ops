@@ -8,10 +8,10 @@ export function MemberCard({ member }: MemberCardProps) {
   return (
     <div className="flex flex-col items-center text-center">
       <div className="h-24 w-24 overflow-hidden rounded-full bg-cba-dark/10 ring-2 ring-cba-dark/20">
-        {member.headshotUrl ? (
+        {member.headshot_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={member.headshotUrl}
+            src={member.headshot_url}
             alt={member.name}
             className="h-full w-full object-cover"
           />
@@ -26,17 +26,7 @@ export function MemberCard({ member }: MemberCardProps) {
         )}
       </div>
       <p className="mt-3 font-semibold text-cba-dark">{member.name}</p>
-      <p className="mt-0.5 text-sm text-gray-500">{member.roleTitle}</p>
-      {member.linkedinUrl && (
-        <a
-          href={member.linkedinUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-1 text-xs text-cba-green hover:underline"
-        >
-          LinkedIn
-        </a>
-      )}
+      <p className="mt-0.5 text-sm text-gray-500">{member.role_title}</p>
     </div>
   );
 }

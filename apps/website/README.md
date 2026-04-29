@@ -1,33 +1,40 @@
-# Website App Scaffold
+# @cba/website
 
-This folder is a **scaffold for a future public website app**.
+Public-facing marketing website for Cornell Business Analytics, built with Next.js 15 and Tailwind CSS.
 
-## Purpose
+## Pages
 
-- Provide a clean starting point for website planning and content modeling.
-- Organize content and operational docs before implementation begins.
-- Keep design and deployment planning documented early.
+- `/` — Homepage with hero, mission statement, and three pillar sections
+- `/about` — Organization overview
+- `/team` — Current members
+- `/clients` — Past and current clients
+- `/recruitment` — Recruitment process and upcoming events
+- `/contact` — Contact form
 
-## Planned Tech
+## Development
 
-Implementation stack is **TBD**.
+```bash
+# From the repo root
+make dev-website
 
-Potential options (to be decided later):
-- Static site generator
-- SSR framework
-- CMS integration
+# Or directly
+pnpm --filter @cba/website dev
+```
 
-## Content Organization
+Runs on `http://localhost:3001`.
 
-- `content/pages/`: page-level markdown placeholders and outlines.
-- `content/data/`: structured JSON datasets (team, projects, events).
-- `assets/`: future image and downloadable file assets.
-- `design/`: brand and token planning docs.
-- `ops/`: deployment and launch readiness docs.
-- `placeholders/`: operational text placeholders (sitemap, robots, security).
+## Tech
 
-## Status
+- **Next.js 15** (App Router)
+- **Tailwind CSS**
+- **Sentry** for error monitoring
+- Shares types and UI components from `@cba/types` and `@cba/ui`
 
-**No application code yet.**
+## Environment
 
-This directory intentionally contains planning artifacts and placeholders only.
+Copy `.env.local.example` to `.env.local` and fill in values:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+REVALIDATE_SECRET=...
+```
