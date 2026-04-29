@@ -21,10 +21,10 @@ export async function getMembers(): Promise<{ exec: MemberPublic[]; analysts: Me
     return { exec: PLACEHOLDER_EXEC, analysts: PLACEHOLDER_ANALYSTS };
   }
   const exec = data.filter((m) =>
-    ["President", "Vice President"].some((t) => m.roleTitle.startsWith(t)),
+    ["President", "Vice President"].some((t) => m.role_title.startsWith(t)),
   );
   const analysts = data.filter(
-    (m) => !["President", "Vice President"].some((t) => m.roleTitle.startsWith(t)),
+    (m) => !["President", "Vice President"].some((t) => m.role_title.startsWith(t)),
   );
   return { exec, analysts };
 }
