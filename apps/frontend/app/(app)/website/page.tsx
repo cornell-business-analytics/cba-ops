@@ -94,7 +94,7 @@ export default function WebsitePage() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {new Date(page.updated_at).toLocaleDateString()}
+                    {new Date(page.updatedAt).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link

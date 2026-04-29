@@ -109,10 +109,10 @@ export default function PageEditorPage() {
   const [blocks, setBlocks] = useState<Block[]>([]);
 
   // Sync blocks from server on first load
-  const initialized = blocks.length > 0 || (page && (page.blocks as Block[]).length === 0);
+  const initialized = blocks.length > 0 || (page && (page.blocks as unknown as Block[]).length === 0);
   if (page && !initialized) {
     setBlocks(
-      (page.blocks as Block[]).map((b, i) => ({
+      (page.blocks as unknown as Block[]).map((b, i) => ({
         ...b,
         id: (b.id as string) ?? String(i),
       })),

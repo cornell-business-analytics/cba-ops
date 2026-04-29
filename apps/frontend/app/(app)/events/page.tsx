@@ -61,9 +61,9 @@ export default function EventsPage() {
       slug: event.slug,
       description: event.description ?? "",
       location: event.location ?? "",
-      event_date: event.event_date.slice(0, 16),
+      event_date: event.eventDate.slice(0, 16),
       type: event.type,
-      is_published: event.is_published,
+      is_published: event.isPublished,
     });
     setOpen(true);
   }
@@ -152,14 +152,14 @@ export default function EventsPage() {
                 <tr key={event.id} className="hover:bg-muted/30">
                   <td className="px-4 py-3 font-medium">{event.title}</td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {new Date(event.event_date).toLocaleDateString()}
+                    {new Date(event.eventDate).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant="secondary">{event.type}</Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={event.is_published ? "success" : "outline"}>
-                      {event.is_published ? "Published" : "Draft"}
+                    <Badge variant={event.isPublished ? "success" : "outline"}>
+                      {event.isPublished ? "Published" : "Draft"}
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
