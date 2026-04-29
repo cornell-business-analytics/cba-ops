@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 interface HeroProps {
@@ -11,14 +12,16 @@ interface HeroProps {
 
 export function Hero({ heading, subheading, ctaLabel, ctaHref, image, compact }: HeroProps) {
   return (
-    <section className={`relative text-white${compact ? " h-[92vh]" : ""}`} aria-label="Hero">
+    <section className={`relative text-white${compact ? " h-[92vh]" : " min-h-[60vh]"}`} aria-label="Hero">
       {image ? (
         <>
-          <img
+          <Image
             src={image}
             alt=""
             aria-hidden="true"
-            className={compact ? "w-full h-full object-cover object-bottom" : "block w-full h-auto"}
+            fill
+            priority
+            className={`object-cover${compact ? " object-bottom" : " object-center"}`}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-cba-dark/85 via-cba-dark/60 to-cba-dark/30" />
           <div className="absolute inset-0 flex items-center">

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { Hero } from "@/components/sections/Hero";
 export const metadata: Metadata = {
@@ -49,7 +50,7 @@ export default function HomePage() {
       ].map(({ title, image, alt }, i) => (
         <section key={title} className="flex flex-col md:flex-row min-h-[50vh]">
           <div className={`relative w-full md:w-1/2 min-h-[40vw] md:min-h-0 bg-cba-gray ${i % 2 === 1 ? "md:order-2" : ""}`}>
-            <img src={image} alt={alt} className="absolute inset-0 h-full w-full object-cover" />
+            <Image src={image} alt={alt} fill className="object-cover" />
           </div>
           <div className={`w-full md:w-1/2 flex items-center bg-white ${i % 2 === 1 ? "md:order-1" : ""}`}>
             <div className="px-8 py-14 md:px-16 lg:px-20">

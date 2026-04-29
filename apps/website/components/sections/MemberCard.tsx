@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { MemberPublic } from "@cba/types";
 
 interface MemberCardProps {
@@ -7,13 +8,13 @@ interface MemberCardProps {
 export function MemberCard({ member }: MemberCardProps) {
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="h-24 w-24 overflow-hidden rounded-full bg-cba-dark/10 ring-2 ring-cba-dark/20">
+      <div className="relative h-24 w-24 overflow-hidden rounded-full bg-cba-dark/10 ring-2 ring-cba-dark/20">
         {member.headshot_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={member.headshot_url}
             alt={member.name}
-            className="h-full w-full object-cover"
+            fill
+            className="object-cover"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-cba-dark text-xl font-bold text-white">
