@@ -67,5 +67,33 @@ You'll need a `.env.local` in each Next.js app and a `.env` in `apps/backend`. S
 
 - [`docs/swe-concepts.md`](docs/swe-concepts.md) — engineering concepts used throughout the codebase (auth, migrations, async, RBAC, etc.)
 
-##Curent State 
-- Working on the internal tool, experimenting with AUTH tokenization and database migrations
+## Current State (as of April 28, 2025)
+
+### Done
+- Full backend built: FastAPI, async SQLAlchemy, Alembic migrations, JWT (RS256), Google OAuth, CORS, R2 file storage config, Sentry, OpenTelemetry
+- Ops tool frontend built: auth (NextAuth v5 + Google SSO), full recruitment pipeline UI, member directory, CMS page editor (block-based, drag-and-drop, draft/review/publish), events CRUD, shared types package
+- Backend Dockerized and deploying to Railway (Postgres + Redis provisioned)
+- Public website scaffolded (`apps/website`)
+
+### Blocked / In Progress
+- **Railway backend deployment crashing** — the backend is failing to start on Railway because pydantic-settings can't parse the `ALLOWED_ORIGINS` env var. The value set in Railway needs to be valid JSON, e.g. `["https://your-site.vercel.app"]` (square brackets, quoted strings). A code-side fix (`env_ignore_empty=True`) was also applied to handle the case where the var is left blank.
+
+### Left To Do
+
+**Deployment**
+- Get Railway backend running (fix `ALLOWED_ORIGINS` format in Railway env vars)
+- Generate Railway public domain on port `8000`
+- Set RS256 key pair in Railway: `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`
+- Set Cloudflare R2 credentials in Railway: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
+- Deploy ops frontend (`apps/frontend`) to Vercel — root directory `apps/frontend`, env vars: `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXT_PUBLIC_API_URL`, `JWT_PUBLIC_KEY`
+- Add production ops URL as an authorized redirect URI in Google OAuth console
+- Update `NEXT_PUBLIC_API_URL` on the website Vercel project to the Railway backend URL
+
+**Public website**
+- Build out page templates that render the CMS blocks (hero, rich_text, cta, team_list, event_list, faq)
+- Connect to backend API for live content
+
+**Features still missing**
+- File/image uploads (R2 integration in the CMS)
+- FAQ block item editing (currently shows a placeholder)
+- Analytics section in the ops tool
