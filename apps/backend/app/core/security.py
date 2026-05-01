@@ -1,16 +1,16 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import hashlib
+import hmac
+
 import httpx
 import structlog
 from jose import jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
 
 logger = structlog.get_logger()
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = "RS256"
 GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
@@ -33,11 +33,11 @@ def decode_token(token: str) -> dict[str, Any]:
 
 
 def hash_token(token: str) -> str:
-    return pwd_context.hash(token)
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def verify_token_hash(token: str, hashed: str) -> bool:
-    return pwd_context.verify(token, hashed)
+    return hmac.compare_digest(hashlib.sha256(token.encode()).hexdigest(), hashed)
 
 
 async def verify_google_id_token(id_token: str) -> dict[str, Any]:

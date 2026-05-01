@@ -382,14 +382,47 @@ session = UserSession(refresh_token_hash=hash_token(raw_refresh))
 ## 12. Google OAuth / OIDC
 
 When a user clicks "Sign in with Google":
-1. Google's JS SDK runs in the browser and authenticates the user
+1. Google's OAuth flow runs in the browser
 2. Google returns an **`id_token`** — a JWT signed by Google's private key
-3. Your frontend sends that `id_token` to `POST /ops/v1/auth/google`
-4. Your backend fetches Google's public keys (JWKS) and verifies the signature
-5. The `hd` (hosted domain) claim is checked — only `@cornell.edu` allowed
-6. Your backend upserts a `User` record and issues its own JWT pair
+3. NextAuth sends that `id_token` server-side to `POST /ops/v1/auth/google`
+4. Your backend verifies the token and checks the `hd` claim — only `@cornell.edu` allowed
+5. Your backend upserts a `User` record and issues its own JWT pair
 
 The `google_sub` field is Google's unique identifier for that user — it never changes even if they change their email. That's why you upsert on `google_sub`, not email.
+
+### Local JWKS verification vs. Google's tokeninfo API
+
+The naive approach to verifying a Google ID token is to fetch Google's public keys (JWKS) and verify the JWT signature locally using a library like `python-jose`:
+
+```python
+# What NOT to do
+certs = await client.get("https://www.googleapis.com/oauth2/v3/certs")
+payload = jwt.decode(id_token, certs.json(), algorithms=["RS256"], audience=client_id)
+```
+
+This breaks in practice because Google ID tokens include an **`at_hash` claim** — a hash of the OAuth access token, used to bind the ID token to the access token. JWT libraries that are strict about claims require you to pass the access token so they can verify this hash. If you only have the ID token (not the access token), the library throws an error.
+
+**The fix: use Google's tokeninfo endpoint instead.**
+
+```python
+resp = await client.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": id_token})
+payload = resp.json()  # Google validates everything — signature, expiry, at_hash
+```
+
+Google's tokeninfo API validates the token on their end and returns the decoded claims. You then just check `aud` (must match your client ID) and `hd` (hosted domain). No cryptographic operations on your side.
+
+**Tradeoff:** tokeninfo makes an extra HTTP round-trip to Google on every login. For a login flow this is acceptable — logins are infrequent compared to normal API requests.
+
+### The `hd` claim
+
+`hd` (hosted domain) is a claim Google includes in ID tokens for Google Workspace accounts. `hd: "cornell.edu"` means the account belongs to Cornell's Google Workspace.
+
+```python
+if payload.get("hd") != settings.ALLOWED_HD:
+    raise ValueError("Only @cornell.edu accounts are allowed")
+```
+
+The frontend passes `hd: "cornell.edu"` as a hint to Google's OAuth screen to pre-filter the account picker — but this is UI only. The backend check is the real enforcement. Always validate `hd` on the backend; never trust the frontend to restrict which accounts can authenticate.
 
 ---
 
@@ -969,6 +1002,78 @@ With 6 columns and 2-wide items, you can place items at columns 1, 2, 3, 4, or 5
 
 **Alternatives:**  
 `justify-items: center` on the grid + `grid-column: span N` on the last item. Or `flexbox` with `justify-content: center` on the last row using a wrapper. The multi-column trick is cleanest when you need pixel-perfect alignment with the rows above.
+
+---
+
+## 31. Deployment Environment Variables — What Goes Where
+
+When an app is split across multiple services (frontend on Vercel, backend on Railway), environment variables must be set in the right place and in the right format.
+
+### Server-side vs client-side auth calls
+
+The NextAuth JWT callback runs **server-side on Vercel**, not in the browser. When a user signs in, Vercel's server calls your Railway backend directly:
+
+```
+Browser → Google OAuth → Vercel server (NextAuth jwt callback)
+                                  ↓
+                    POST https://your-backend.railway.app/ops/v1/auth/google
+```
+
+This has two important consequences:
+
+1. **CORS doesn't apply.** CORS is a browser mechanism — it blocks browser JavaScript from calling foreign origins. A server-to-server call has no `Origin` header and is never blocked by CORS, regardless of your `ALLOWED_ORIGINS` setting.
+
+2. **`BACKEND_URL` must be set in Vercel.** If the env var is missing, `auth.ts` falls back to `http://localhost:8000`. Vercel's server tries to call its own localhost — which has nothing running — and the request silently fails. Railway never receives any traffic, so no logs appear.
+
+### CORS origin format
+
+CORS origins must not have a trailing slash:
+```
+# Wrong
+["https://your-app.vercel.app/"]
+
+# Correct
+["https://your-app.vercel.app"]
+```
+
+Browsers send `Origin: https://your-app.vercel.app` (no slash). If your `ALLOWED_ORIGINS` list has the slash, the comparison fails and the browser blocks the request.
+
+### Turborepo env var pipeline
+
+Turborepo caches build outputs. For the cache key to be correct, Turborepo needs to know which environment variables affect the build. Variables that aren't declared in `turbo.json` are **not forwarded to the build process** — they're treated as irrelevant to caching and stripped out.
+
+```json
+// turbo.json
+{
+  "tasks": {
+    "build": {
+      "env": ["NEXTAUTH_SECRET", "NEXTAUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "BACKEND_URL"]
+    }
+  }
+}
+```
+
+If `BACKEND_URL` isn't listed here, Vercel will warn during build:
+```
+Warning: BACKEND_URL is set on your project but missing from turbo.json.
+This variable WILL NOT be available to your application.
+```
+
+And your built app will have `BACKEND_URL = undefined` at runtime, causing the `http://localhost:8000` fallback.
+
+**Rule:** any env var that your Next.js app reads at build time (in `next.config.mjs`, in server components, or in `auth.ts`) must be declared in `turbo.json`'s `env` array.
+
+### URL format matters
+
+```
+# Wrong — missing scheme
+cba-ops-production.up.railway.app
+
+# Correct
+https://cba-ops-production.up.railway.app
+```
+
+A URL without `https://` is not a valid URL — `fetch()` will throw `ERR_INVALID_URL` before the request is even sent. Always include the scheme in `BACKEND_URL`.
 
 ---
 
