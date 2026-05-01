@@ -1077,6 +1077,81 @@ A URL without `https://` is not a valid URL — `fetch()` will throw `ERR_INVALI
 
 ---
 
+## 32. Postgres Type Casting — JSONB in Migrations
+
+Postgres is strict about types. When you insert data using a parameterized SQL statement, the database driver sends the value as a plain string (`character varying`). If the column is `jsonb`, Postgres refuses — it won't silently coerce a string to JSON.
+
+**The error:**
+```
+asyncpg.exceptions.DatatypeMismatchError: column "value" is of type jsonb
+but expression is of type character varying
+HINT: You will need to rewrite or cast the expression.
+```
+
+**The fix:** explicitly cast the bind parameter to `jsonb` in the SQL:
+
+```python
+# Wrong — passes the JSON string as varchar
+op.execute(
+    sa.text("INSERT INTO site_settings (key, value) VALUES (:key, :value)").bindparams(
+        key="recruitment_steps",
+        value=json.dumps(DEFAULT_STEPS),
+    )
+)
+
+# Correct — ::jsonb tells Postgres to parse the string as JSON
+op.execute(
+    sa.text("INSERT INTO site_settings (key, value) VALUES (:key, :value::jsonb)").bindparams(
+        key="recruitment_steps",
+        value=json.dumps(DEFAULT_STEPS),
+    )
+)
+```
+
+`::jsonb` is Postgres cast syntax — `expression::type` converts the expression to the target type. Other common casts: `::integer`, `::boolean`, `::timestamp`.
+
+**Why this only happens with raw SQL:** When you insert via SQLAlchemy ORM (`db.add(SiteSetting(value=[...]))`), SQLAlchemy knows the column is JSONB and handles the serialization automatically. Raw `sa.text()` statements bypass that — you're talking directly to the DB driver, which just sees Python strings.
+
+---
+
+## 33. TypeScript Build-Time Type Errors vs Runtime Errors
+
+TypeScript catches type errors at **build time** — before any code runs. This is fundamentally different from Python, which only fails at runtime.
+
+**The error:**
+```
+Type error: Property 'put' does not exist on type
+'{ get: ...; post: ...; patch: ...; delete: ...; }'
+```
+
+The `createApi()` function returned an object with `get`, `post`, `patch`, and `delete` — but not `put`. The recruitment steps editor called `api().put(...)`, which TypeScript flagged as a compile error. The build failed before the app was ever deployed.
+
+**Why this is valuable:** Without TypeScript, this would be a silent runtime error — the app would deploy, a user would click "Save", and it would crash with `api().put is not a function`. TypeScript surfaces it immediately during the build, before any user sees it.
+
+**The fix:** add the missing method to the API client:
+
+```typescript
+// lib/api.ts
+export function createApi(accessToken: string | undefined) {
+  return {
+    get: ...,
+    post: ...,
+    put: <T>(path: string, body: unknown) =>         // ← added
+      request<T>(path, accessToken, { method: "PUT", body: JSON.stringify(body) }),
+    patch: ...,
+    delete: ...,
+  };
+}
+```
+
+**`PUT` vs `PATCH`:** both update a resource, but with a semantic difference:
+- `PUT` replaces the entire resource with what you send — if you omit a field, it's gone
+- `PATCH` applies a partial update — only the fields you send are changed
+
+Your recruitment steps endpoint uses `PUT` because you're always sending the complete list of steps, not a diff.
+
+---
+
 ## Full Schema Relationship Diagram
 
 ```

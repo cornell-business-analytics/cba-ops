@@ -41,6 +41,8 @@ export function createApi(accessToken: string | undefined) {
     get: <T>(path: string) => request<T>(path, accessToken),
     post: <T>(path: string, body: unknown) =>
       request<T>(path, accessToken, { method: "POST", body: JSON.stringify(body) }),
+    put: <T>(path: string, body: unknown) =>
+      request<T>(path, accessToken, { method: "PUT", body: JSON.stringify(body) }),
     patch: <T>(path: string, body: unknown) =>
       request<T>(path, accessToken, { method: "PATCH", body: JSON.stringify(body) }),
     delete: <T>(path: string) => request<T>(path, accessToken, { method: "DELETE" }),
