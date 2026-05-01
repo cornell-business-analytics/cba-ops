@@ -8,10 +8,12 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
+logger = structlog.get_logger()
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = "RS256"
-GOOGLE_CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs"
+GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 
 
 def create_access_token(subject: str, extra: dict[str, Any] | None = None) -> str:
@@ -38,22 +40,24 @@ def verify_token_hash(token: str, hashed: str) -> bool:
     return pwd_context.verify(token, hashed)
 
 
-GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
-
-
 async def verify_google_id_token(id_token: str) -> dict[str, Any]:
     async with httpx.AsyncClient() as client:
         resp = await client.get(GOOGLE_TOKENINFO_URL, params={"id_token": id_token})
 
     if not resp.is_success:
+        logger.warning("google_token_invalid", status=resp.status_code)
         raise ValueError("Invalid Google token")
 
     payload = resp.json()
 
     if payload.get("aud") != settings.GOOGLE_CLIENT_ID:
+        logger.warning("google_token_audience_mismatch", aud=payload.get("aud"))
         raise ValueError("Invalid Google token: audience mismatch")
 
-    if payload.get("hd") != settings.ALLOWED_HD:
+    hd = payload.get("hd")
+    if hd != settings.ALLOWED_HD:
+        logger.warning("google_hd_rejected", hd=hd, allowed=settings.ALLOWED_HD)
         raise ValueError("Only @cornell.edu accounts are allowed")
 
+    logger.info("google_token_verified", email=payload.get("email"), hd=hd)
     return payload
