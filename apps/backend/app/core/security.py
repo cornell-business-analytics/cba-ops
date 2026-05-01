@@ -2,7 +2,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
-from jose import JWTError, jwt
+import structlog
+from jose import jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -37,20 +38,20 @@ def verify_token_hash(token: str, hashed: str) -> bool:
     return pwd_context.verify(token, hashed)
 
 
+GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+
+
 async def verify_google_id_token(id_token: str) -> dict[str, Any]:
     async with httpx.AsyncClient() as client:
-        certs_resp = await client.get(GOOGLE_CERTS_URL)
-        certs_resp.raise_for_status()
+        resp = await client.get(GOOGLE_TOKENINFO_URL, params={"id_token": id_token})
 
-    try:
-        payload = jwt.decode(
-            id_token,
-            certs_resp.json(),
-            algorithms=["RS256"],
-            audience=settings.GOOGLE_CLIENT_ID,
-        )
-    except JWTError as e:
-        raise ValueError(f"Invalid Google token: {e}") from e
+    if not resp.is_success:
+        raise ValueError("Invalid Google token")
+
+    payload = resp.json()
+
+    if payload.get("aud") != settings.GOOGLE_CLIENT_ID:
+        raise ValueError("Invalid Google token: audience mismatch")
 
     if payload.get("hd") != settings.ALLOWED_HD:
         raise ValueError("Only @cornell.edu accounts are allowed")
