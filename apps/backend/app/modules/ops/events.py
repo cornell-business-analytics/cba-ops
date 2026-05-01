@@ -1,9 +1,11 @@
 import uuid
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.org import Event
 from app.models.user import User, UserRole
@@ -11,6 +13,17 @@ from app.modules.ops.deps import get_current_user, require_role
 from app.schemas.event import EventCreate, EventPublic, EventUpdate
 
 router = APIRouter(prefix="/events", tags=["events"])
+
+
+async def _revalidate_events() -> None:
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(
+                f"{settings.WEBSITE_URL}/api/revalidate",
+                params={"secret": settings.REVALIDATE_SECRET, "tag": "events"},
+            )
+    except httpx.HTTPError:
+        pass
 
 
 @router.get("", response_model=list[EventPublic])
@@ -36,6 +49,7 @@ async def create_event(
     db.add(event)
     await db.commit()
     await db.refresh(event)
+    await _revalidate_events()
     return event
 
 
@@ -67,6 +81,7 @@ async def update_event(
         setattr(event, field, value)
     await db.commit()
     await db.refresh(event)
+    await _revalidate_events()
     return event
 
 
@@ -82,3 +97,4 @@ async def delete_event(
         raise HTTPException(status_code=404, detail="Event not found")
     await db.delete(event)
     await db.commit()
+    await _revalidate_events()
