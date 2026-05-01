@@ -26,15 +26,17 @@ export default async function RecruitmentPage() {
       />
 
       <section className="container-section py-16">
-        <div className="grid gap-12 lg:grid-cols-2">
-          <div>
-            <h2 className="text-2xl font-bold text-cba-dark">Upcoming events</h2>
-            <div className="mt-8">
-              <RecruitmentTimeline events={events} />
+        <div className={`grid gap-12 ${events.length > 0 ? "lg:grid-cols-2" : ""}`}>
+          {events.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-bold text-cba-dark">Upcoming events</h2>
+              <div className="mt-8">
+                <RecruitmentTimeline events={events} />
+              </div>
             </div>
-          </div>
+          )}
 
-          <div>
+          <div className={events.length === 0 ? "max-w-xl" : ""}>
             <h2 className="text-2xl font-bold text-cba-dark">The process</h2>
             <ol className="mt-6 space-y-6">
               {steps.map(({ title, desc }, i) => (

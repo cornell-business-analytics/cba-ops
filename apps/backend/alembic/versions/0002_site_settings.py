@@ -32,7 +32,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.execute(
-        sa.text("INSERT INTO site_settings (key, value) VALUES (:key, :value::jsonb)").bindparams(
+        sa.text("INSERT INTO site_settings (key, value) VALUES (:key, CAST(:value AS jsonb))").bindparams(
             key="recruitment_steps",
             value=json.dumps(DEFAULT_STEPS),
         )

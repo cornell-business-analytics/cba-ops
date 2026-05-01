@@ -1108,7 +1108,7 @@ op.execute(
 )
 ```
 
-`::jsonb` is Postgres cast syntax — `expression::type` converts the expression to the target type. Other common casts: `::integer`, `::boolean`, `::timestamp`.
+`CAST(x AS jsonb)` is standard SQL cast syntax. Postgres also has a shorthand `x::jsonb`, but **never use `::` inside SQLAlchemy `sa.text()` bind parameters** — SQLAlchemy's parser sees `:value::jsonb` and chokes trying to find a bind param named `value::jsonb`. Always use `CAST()` in SQLAlchemy raw SQL when casting a bind param.
 
 **Why this only happens with raw SQL:** When you insert via SQLAlchemy ORM (`db.add(SiteSetting(value=[...]))`), SQLAlchemy knows the column is JSONB and handles the serialization automatically. Raw `sa.text()` statements bypass that — you're talking directly to the DB driver, which just sees Python strings.
 
