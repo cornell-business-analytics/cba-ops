@@ -2,10 +2,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
+import structlog
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
+
+logger = structlog.get_logger()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -38,9 +41,20 @@ def verify_token_hash(token: str, hashed: str) -> bool:
 
 
 async def verify_google_id_token(id_token: str) -> dict[str, Any]:
+    logger.debug(
+        "verify_google_id_token.called",
+        token_prefix=id_token[:10] + "...",
+    )
+
     async with httpx.AsyncClient() as client:
         certs_resp = await client.get(GOOGLE_CERTS_URL)
         certs_resp.raise_for_status()
+
+    logger.debug(
+        "verify_google_id_token.certs_fetched",
+        status_code=certs_resp.status_code,
+        num_keys=len(certs_resp.json().get("keys", [])),
+    )
 
     try:
         payload = jwt.decode(
@@ -50,9 +64,27 @@ async def verify_google_id_token(id_token: str) -> dict[str, Any]:
             audience=settings.GOOGLE_CLIENT_ID,
         )
     except JWTError as e:
+        logger.info(
+            "verify_google_id_token.jwt_error",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         raise ValueError(f"Invalid Google token: {e}") from e
 
-    if payload.get("hd") != settings.ALLOWED_HD:
+    logger.debug(
+        "verify_google_id_token.decoded",
+        payload=payload,
+    )
+
+    token_hd = payload.get("hd")
+    logger.info(
+        "verify_google_id_token.hd_check",
+        token_hd=token_hd,
+        allowed_hd=settings.ALLOWED_HD,
+        match=(token_hd == settings.ALLOWED_HD),
+    )
+
+    if token_hd != settings.ALLOWED_HD:
         raise ValueError("Only @cornell.edu accounts are allowed")
 
     return payload
