@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models.membership import Membership
 from app.models.org import Event, EventType
 from app.models.page import Page, PageStatus
+from app.models.setting import SiteSetting
 from app.schemas.event import EventPublic
 from app.schemas.member import MemberPublic
 from app.schemas.page import PagePublic
@@ -62,6 +63,15 @@ async def get_events(
 
     result = await db.execute(query)
     return result.scalars().all()
+
+
+@router.get("/recruitment-steps")
+async def get_recruitment_steps(
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(SiteSetting).where(SiteSetting.key == "recruitment_steps"))
+    row = result.scalar_one_or_none()
+    return row.value if row else []
 
 
 @router.get("/pages/{slug}", response_model=PagePublic)

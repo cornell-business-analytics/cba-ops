@@ -41,7 +41,18 @@ export default function WebsitePage() {
   });
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-6 space-y-6">
+      <div className="rounded-lg border bg-white p-4 flex items-center justify-between">
+        <div>
+          <p className="font-medium text-sm">Recruitment process steps</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Edit the steps shown on the public recruitment page.</p>
+        </div>
+        <Link href="/website/recruitment" className="text-xs text-muted-foreground hover:text-foreground hover:underline">
+          Edit →
+        </Link>
+      </div>
+
+      <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Website Pages</h1>
@@ -109,6 +120,7 @@ export default function WebsitePage() {
             </tbody>
           </table>
         )}
+      </div>
       </div>
     </div>
   );

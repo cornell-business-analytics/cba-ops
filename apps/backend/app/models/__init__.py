@@ -1,4 +1,5 @@
 from app.models.asset import Asset
+from app.models.setting import SiteSetting
 from app.models.audit_log import AuditLog
 from app.models.candidate import (
     ApplicationCycle, Candidate, CandidateDIData, CandidateStatus,
@@ -13,7 +14,7 @@ from app.models.user import User, UserRole, UserSession
 
 __all__ = [
     "User", "UserRole", "UserSession",
-    "Asset", "AuditLog",
+    "Asset", "AuditLog", "SiteSetting",
     "Cohort", "Membership", "ProfileEditRequest",
     "Project",
     "ApplicationCycle", "Candidate", "CandidateDIData", "CandidateStatus",

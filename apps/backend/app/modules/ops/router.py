@@ -15,6 +15,7 @@ from app.modules.ops.cycles import router as cycles_router
 from app.modules.ops.events import router as events_router
 from app.modules.ops.members import router as members_router
 from app.modules.ops.pages import router as pages_router
+from app.modules.ops.settings import router as settings_router
 from app.modules.ops.users import router as users_router
 from app.modules.ops.deps import require_role
 from pydantic import BaseModel
@@ -31,6 +32,7 @@ router.include_router(pages_router)
 router.include_router(events_router)
 router.include_router(assets_router)
 router.include_router(analytics_router)
+router.include_router(settings_router)
 
 
 class AuditLogPublic(BaseModel):

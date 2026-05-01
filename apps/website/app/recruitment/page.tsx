@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/sections/Hero";
 import { RecruitmentTimeline } from "@/components/sections/RecruitmentTimeline";
-import { getEvents } from "@/lib/api";
+import { getEvents, getRecruitmentSteps } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Recruitment",
@@ -11,13 +11,16 @@ export const metadata: Metadata = {
 
 
 export default async function RecruitmentPage() {
-  const events = await getEvents("recruitment");
+  const [events, steps] = await Promise.all([
+    getEvents("recruitment"),
+    getRecruitmentSteps(),
+  ]);
 
   return (
     <>
       <Hero
         heading="Join CBA"
-        subheading= "Check back in the fall for recruitment details and events!"
+        subheading="Check back in the fall for recruitment details and events!"
         image="/recruitment/recruitFront.jpg"
         compact
       />
@@ -34,16 +37,10 @@ export default async function RecruitmentPage() {
           <div>
             <h2 className="text-2xl font-bold text-cba-dark">The process</h2>
             <ol className="mt-6 space-y-6">
-              {[
-                { step: "1", title: "Attend an info session", desc: "Learn about CBA and meet current members. No commitment required." },
-                { step: "2", title: "Submit your application", desc: "A short form covering your background, interests, and a brief analytical question." },
-                { step: "3", title: "Coffee chat", desc: "A casual conversation with a current member to get to know you." },
-                { step: "4", title: "Case interview", desc: "A structured case to assess your analytical thinking. We provide prep resources." },
-                { step: "5", title: "Decisions", desc: "We notify all applicants within one week of final interviews." },
-              ].map(({ step, title, desc }) => (
-                <li key={step} className="flex gap-4">
+              {steps.map(({ title, desc }, i) => (
+                <li key={i} className="flex gap-4">
                   <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-cba-green text-sm font-bold text-white">
-                    {step}
+                    {i + 1}
                   </span>
                   <div>
                     <p className="font-semibold text-cba-dark">{title}</p>
@@ -54,7 +51,6 @@ export default async function RecruitmentPage() {
             </ol>
           </div>
         </div>
-
       </section>
     </>
   );

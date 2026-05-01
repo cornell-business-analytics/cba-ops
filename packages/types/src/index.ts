@@ -31,6 +31,11 @@ export type {
   CohortGrowthPoint,
 } from "./models/analytics";
 
+export interface RecruitmentStep {
+  title: string;
+  desc: string;
+}
+
 export interface ApiError {
   detail: string;
 }

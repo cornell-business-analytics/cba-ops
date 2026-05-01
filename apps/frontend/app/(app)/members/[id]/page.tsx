@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Upload, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -168,7 +169,7 @@ export default function MemberProfilePage() {
         <div className="relative group flex-shrink-0">
           <div className="w-20 h-20 rounded-full bg-muted overflow-hidden border">
             {membership.headshot_url ? (
-              <img src={membership.headshot_url} alt={membership.user_name} className="w-full h-full object-cover" />
+              <Image src={membership.headshot_url} alt={membership.user_name} fill className="object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-2xl font-semibold text-muted-foreground">
                 {membership.user_name[0]}

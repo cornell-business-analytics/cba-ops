@@ -67,33 +67,52 @@ You'll need a `.env.local` in each Next.js app and a `.env` in `apps/backend`. S
 
 - [`docs/swe-concepts.md`](docs/swe-concepts.md) — engineering concepts used throughout the codebase (auth, migrations, async, RBAC, etc.)
 
-## Current State (as of April 28, 2025)
+## Current State (as of April 30, 2026)
 
 ### Done
 - Full backend built: FastAPI, async SQLAlchemy, Alembic migrations, JWT (RS256), Google OAuth, CORS, R2 file storage config, Sentry, OpenTelemetry
-- Ops tool frontend built: auth (NextAuth v5 + Google SSO), full recruitment pipeline UI, member directory, CMS page editor (block-based, drag-and-drop, draft/review/publish), events CRUD, shared types package
-- Backend Dockerized and deploying to Railway (Postgres + Redis provisioned)
-- Public website scaffolded (`apps/website`)
-
-### Blocked / In Progress
-- **Railway backend deployment crashing** — the backend is failing to start on Railway because pydantic-settings can't parse the `ALLOWED_ORIGINS` env var. The value set in Railway needs to be valid JSON, e.g. `["https://your-site.vercel.app"]` (square brackets, quoted strings). A code-side fix (`env_ignore_empty=True`) was also applied to handle the case where the var is left blank.
+- Ops tool frontend built: auth (NextAuth v5 + Google SSO), full recruitment pipeline UI, member directory, CMS page editor, events CRUD, shared types package
+- Backend deployed to Railway (Postgres + Redis provisioned, migrations running on deploy)
+- Ops tool deployed to Vercel, public website deployed to Vercel
+- Google SSO working end-to-end — Cornell email enforcement on backend via tokeninfo API
+- Recruitment process steps editable from the ops tool (stored in `site_settings`, ISR revalidation on save)
+- Refresh token hashing switched from bcrypt to SHA-256 (bcrypt 72-byte limit incompatible with JWT-length tokens)
 
 ### Left To Do
 
-**Deployment**
-- Get Railway backend running (fix `ALLOWED_ORIGINS` format in Railway env vars)
-- Generate Railway public domain on port `8000`
-- Set RS256 key pair in Railway: `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`
-- Set Cloudflare R2 credentials in Railway: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`
-- Deploy ops frontend (`apps/frontend`) to Vercel — root directory `apps/frontend`, env vars: `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXT_PUBLIC_API_URL`, `JWT_PUBLIC_KEY`
-- Add production ops URL as an authorized redirect URI in Google OAuth console
-- Update `NEXT_PUBLIC_API_URL` on the website Vercel project to the Railway backend URL
+**Data management (next up)**
+- Eboard-level table management UI — see next steps below
 
 **Public website**
-- Build out page templates that render the CMS blocks (hero, rich_text, cta, team_list, event_list, faq)
-- Connect to backend API for live content
+- Build out page templates that render CMS blocks (hero, rich_text, cta, team_list, event_list, faq)
+- Connect remaining pages to backend API
 
 **Features still missing**
 - File/image uploads (R2 integration in the CMS)
 - FAQ block item editing (currently shows a placeholder)
-- Analytics section in the ops tool
+- Analytics charts in the ops tool
+
+---
+
+## Next Steps — Eboard Data Management
+
+Currently, changes like assigning user roles or creating cohorts require direct SQL access to Railway's Postgres. The goal is to bring this into the ops tool so eboard can manage it without touching the database.
+
+**Is it possible?** Yes — the backend RBAC and API patterns are already in place. It's a matter of adding endpoints and UI pages for each table.
+
+### Phase 1 — User & Role Management
+The most urgent gap. Right now promoting a user requires a raw SQL `UPDATE`.
+
+- `GET /ops/v1/users` — list all users with their current roles
+- `PATCH /ops/v1/users/{id}/role` — update a user's role (eboard only)
+- Ops tool page: `/members/users` — table of all users, inline role dropdown, save button
+
+### Phase 2 — Cohort & Membership Management
+Members can't appear on the team page until they have a membership record tied to a cohort.
+
+- `POST /ops/v1/cohorts` — create a new semester cohort (eboard only)
+- `POST /ops/v1/members` — add a membership (link a user to a cohort with a role title)
+- Ops tool: cohort selector + "Add member" form that searches existing users by email
+
+### Phase 3 — General Table Views (stretch)
+A read-only or editable grid view of key tables (cohorts, memberships, sessions) so eboard has full visibility without needing Railway's Postgres console.

@@ -1,4 +1,4 @@
-import type { MemberPublic, EventPublic, PagePublic } from "@cba/types";
+import type { MemberPublic, EventPublic, PagePublic, RecruitmentStep } from "@cba/types";
 import { PLACEHOLDER_EXEC, PLACEHOLDER_ANALYSTS, PLACEHOLDER_EVENTS } from "./placeholder-data";
 
 const API_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:8000";
@@ -37,4 +37,9 @@ export async function getEvents(type?: string): Promise<EventPublic[]> {
 
 export async function getPage(slug: string): Promise<PagePublic | null> {
   return apiFetch<PagePublic>(`/web/v1/pages/${slug}`, `page-${slug}`);
+}
+
+export async function getRecruitmentSteps(): Promise<RecruitmentStep[]> {
+  const data = await apiFetch<RecruitmentStep[]>("/web/v1/recruitment-steps", "recruitment-steps");
+  return data ?? [];
 }
