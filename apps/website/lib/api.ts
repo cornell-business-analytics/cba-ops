@@ -6,7 +6,7 @@ const API_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:8000";
 async function apiFetch<T>(path: string, tag: string): Promise<T | null> {
   try {
     const res = await fetch(`${API_URL}${path}`, {
-      next: { tags: [tag] },
+      next: { tags: [tag], revalidate: 60 },
     });
     if (!res.ok) return null;
     return res.json() as Promise<T>;

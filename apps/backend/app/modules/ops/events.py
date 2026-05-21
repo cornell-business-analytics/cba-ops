@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 import httpx
@@ -12,18 +13,25 @@ from app.models.user import User, UserRole
 from app.modules.ops.deps import get_current_user, require_role
 from app.schemas.event import EventCreate, EventPublic, EventUpdate
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/events", tags=["events"])
 
 
 async def _revalidate_events() -> None:
+    url = f"{settings.WEBSITE_URL}/api/revalidate"
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            await client.post(
-                f"{settings.WEBSITE_URL}/api/revalidate",
+            resp = await client.post(
+                url,
                 params={"secret": settings.REVALIDATE_SECRET, "tag": "events"},
             )
-    except httpx.HTTPError:
-        pass
+            if resp.status_code != 200:
+                logger.warning("revalidate failed: %s %s", resp.status_code, resp.text)
+            else:
+                logger.info("revalidated events tag via %s", url)
+    except httpx.HTTPError as e:
+        logger.warning("revalidate request error: %s", e)
 
 
 @router.get("", response_model=list[EventPublic])
