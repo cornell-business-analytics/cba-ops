@@ -7,10 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models.audit_log import AuditLog
 from app.models.user import User, UserRole
+from app.modules.ops.access import router as access_router
 from app.modules.ops.analytics import router as analytics_router
 from app.modules.ops.assets import router as assets_router
 from app.modules.ops.auth import router as auth_router
 from app.modules.ops.candidates import router as candidates_router
+from app.modules.ops.cohorts import router as cohorts_router
 from app.modules.ops.cycles import router as cycles_router
 from app.modules.ops.events import router as events_router
 from app.modules.ops.members import router as members_router
@@ -25,6 +27,8 @@ router = APIRouter(tags=["ops"])
 
 router.include_router(auth_router)
 router.include_router(users_router)
+router.include_router(access_router)
+router.include_router(cohorts_router)
 router.include_router(members_router)
 router.include_router(candidates_router)
 router.include_router(cycles_router)

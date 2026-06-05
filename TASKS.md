@@ -16,7 +16,7 @@ Each task should produce a single, focused PR.
 
 ## Priority Queue
 
-### Task 1 — Email Allowlist + Admin Member Creation `[ ]`
+### Task 1 — Email Allowlist + Admin Member Creation `[x]`
 
 **Goal:** Only emails pre-approved by an admin can log in. Admins can add emails and create member records from the ops tool.
 

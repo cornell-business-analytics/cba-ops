@@ -48,6 +48,14 @@ async def create_membership(
     _: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
+    existing = await db.execute(
+        select(Membership).where(
+            Membership.user_id == body.user_id, Membership.cohort_id == body.cohort_id
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Member already exists in this cohort")
+
     membership = Membership(**body.model_dump())
     db.add(membership)
     await db.commit()

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   Users,
@@ -11,6 +11,7 @@ import {
   CalendarDays,
   BarChart3,
   LogOut,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,8 @@ const nav = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const isEboard = session?.role === "eboard";
 
   return (
     <aside className="flex h-screen w-56 flex-col bg-sidebar text-sidebar-foreground">
@@ -53,6 +56,20 @@ export function Sidebar() {
             {label}
           </Link>
         ))}
+        {isEboard && (
+          <Link
+            href="/members/access"
+            className={cn(
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+              pathname.startsWith("/members/access")
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            )}
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            Access
+          </Link>
+        )}
       </nav>
 
       {/* Sign out */}

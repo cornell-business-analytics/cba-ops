@@ -13,7 +13,7 @@ from app.core.security import (
     verify_token_hash,
 )
 from app.db.session import get_db
-from app.models.user import User, UserSession
+from app.models.user import AllowedEmail, User, UserSession
 from app.schemas.auth import GoogleAuthRequest, LogoutRequest, RefreshRequest, TokenResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -32,6 +32,13 @@ async def google_auth(
     google_sub = google_payload["sub"]
     email = google_payload["email"]
     name = google_payload.get("name", email.split("@")[0])
+
+    allowed = await db.execute(select(AllowedEmail).where(AllowedEmail.email == email))
+    if allowed.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This email has not been approved for access. Contact your eboard.",
+        )
 
     result = await db.execute(select(User).where(User.google_sub == google_sub))
     user = result.scalar_one_or_none()
