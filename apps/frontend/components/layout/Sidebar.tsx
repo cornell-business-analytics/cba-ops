@@ -29,8 +29,11 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-56 flex-col bg-sidebar text-sidebar-foreground">
       {/* Logo */}
-      <div className="flex h-14 items-center border-b border-sidebar-border px-4">
-        <span className="text-sm font-semibold tracking-wide">CBA Ops</span>
+      <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-4">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-[#B31B1B]">
+          <span className="text-[10px] font-bold tracking-wider text-white">CBA</span>
+        </div>
+        <span className="text-sm font-semibold tracking-wide">Ops</span>
       </div>
 
       {/* Nav */}
@@ -42,8 +45,8 @@ export function Sidebar() {
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
               pathname.startsWith(href)
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                ? "border-l-2 border-[#B31B1B] bg-sidebar-accent pl-[10px] font-medium text-sidebar-accent-foreground"
+                : "border-l-2 border-transparent text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             )}
           >
             <Icon className="h-4 w-4 shrink-0" />
@@ -56,7 +59,7 @@ export function Sidebar() {
       <div className="border-t border-sidebar-border p-2">
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/50 transition-colors hover:bg-red-950/40 hover:text-red-400"
         >
           <LogOut className="h-4 w-4" />
           Sign out
