@@ -142,7 +142,7 @@ A separate agent iterates through these. Each task is one PR. The goal is to mak
 - Keep using Tailwind + shadcn — improve within the system, don't replace it.
 - Run `pnpm --filter @cba/frontend tsc --noEmit` before opening any PR to confirm no type errors.
 
-### Design Task 1 — Sidebar & Login `[ ]`
+### Design Task 1 — Sidebar & Login `[x]`
 
 **Sidebar (`components/layout/Sidebar.tsx`):**
 - The "CBA Ops" wordmark in the header area is plain. Add a small monogram or logo mark (e.g., a `CBA` badge in a distinct color, or a subtle Cornell red `#B31B1B` accent). Don't use a generic icon.
