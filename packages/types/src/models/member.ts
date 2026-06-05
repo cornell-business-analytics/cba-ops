@@ -3,6 +3,8 @@ export interface Cohort {
   semester: string;
 }
 
+export type CohortPublic = Cohort;
+
 export interface Membership {
   id: string;
   user_id: string;

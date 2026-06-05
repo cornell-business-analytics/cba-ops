@@ -1,5 +1,5 @@
-export type { User, UserRole, UserSession } from "./models/user";
-export type { Cohort, Membership, MembershipDetail, Member, MemberPublic, ProfileEditRequest } from "./models/member";
+export type { User, UserRole, UserSession, AllowedEmail } from "./models/user";
+export type { Cohort, CohortPublic, Membership, MembershipDetail, Member, MemberPublic, ProfileEditRequest } from "./models/member";
 export type {
   CandidateStatus,
   ApplicationCycle,

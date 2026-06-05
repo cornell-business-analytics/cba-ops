@@ -13,3 +13,10 @@ export interface UserSession {
   user_id: string;
   is_revoked: boolean;
 }
+
+export interface AllowedEmail {
+  id: string;
+  email: string;
+  addedById: string | null;
+  createdAt: string;
+}
