@@ -87,9 +87,11 @@ export interface Page {
 }
 
 export interface PagePublic {
+  id: string;
   slug: string;
   title: string;
-  seo: SeoMeta;
+  seo_title: string | null;
+  seo_description: string | null;
   blocks: Block[];
-  publishedAt: string;
+  updated_at: string;
 }
