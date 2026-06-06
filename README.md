@@ -82,15 +82,18 @@ You'll need a `.env.local` in each Next.js app and a `.env` in `apps/backend`. S
 
 **Data management (next up)**
 - Eboard-level table management UI — see next steps below
-
+- Recruitment timeline
+- During recruitment seasons, I want the website to have access to google forms, sheets, and slides too to do the following
+    - Have every applicant's information in one spot (aggregating information from multiple google forms, as well as coffee chat feedback, interview scores, etc)
+    - This may take more effort from me though. 
 **Public website**
 - Build out page templates that render CMS blocks (hero, rich_text, cta, team_list, event_list, faq)
-- Connect remaining pages to backend API
+- Allow eboard to easily add members and sections of the team page
+
 
 **Features still missing**
 - File/image uploads (R2 integration in the CMS)
-- FAQ block item editing (currently shows a placeholder)
-- Analytics charts in the ops tool
+- Green Coloring of the internal tool
 
 ---
 
