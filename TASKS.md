@@ -150,7 +150,7 @@
   
   Done — sidebar has Cornell red left-border accent on active item, login has split-panel layout.
 
-  ### Design Task 2 — Dashboard `[ ]`
+  ### Design Task 2 — Dashboard `[x]`
 
   **File:** `app/(app)/dashboard/page.tsx`
   
