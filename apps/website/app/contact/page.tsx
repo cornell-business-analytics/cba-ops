@@ -1,13 +1,31 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/sections/Hero";
 import { ContactForm } from "@/components/sections/ContactForm";
+import { BlockRenderer } from "@/components/blocks/BlockRenderer";
+import { getPage } from "@/lib/api";
+import { buildMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: "Contact",
-  description: "Get in touch with Cornell Business Analytics.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPage("contact");
+  return buildMetadata(page, {
+    title: "Contact",
+    description: "Get in touch with Cornell Business Analytics.",
+  });
+}
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const page = await getPage("contact");
+
+  if (page?.blocks.length) {
+    return (
+      <>
+        {page.blocks.map((block, i) => (
+          <BlockRenderer key={i} block={block} />
+        ))}
+      </>
+    );
+  }
+
   return (
     <>
       <Hero heading="Get in touch" subheading="We'd love to hear from you!" />
