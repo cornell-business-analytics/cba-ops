@@ -75,7 +75,7 @@ Each task should produce a single, focused PR.
 
 ---
 
-### Task 2 — Public Website: Render CMS Blocks `[ ]`
+### Task 2 — Public Website: Render CMS Blocks `[x]`
 
 **Goal:** The public website pages fetch and render the block-based content authored in the ops tool CMS.
 
