@@ -15,6 +15,7 @@ function getSemester(): string {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
+  const firstName = session?.user?.name?.split(" ")[0];
 
   const { data: overview, isLoading: statsLoading } = useQuery<AnalyticsOverview>({
     queryKey: ["analytics", "overview"],
@@ -36,37 +37,32 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col">
-      {/* Header band — distinct from the generic p-6 template */}
       <div className="border-b bg-muted/30 px-8 py-7">
         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
           {getSemester()}
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Dashboard
+          {firstName ? `Welcome back, ${firstName}` : "Dashboard"}
         </h1>
       </div>
 
-      {/* Two-column body */}
       <div className="flex">
-        {/* Left — compact stat summary */}
         <div className="flex-1 border-r px-8 py-8">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-6">
             At a glance
           </p>
 
-          {/* Primary stat */}
           <div className="mb-8">
             <div className="text-5xl font-bold tabular-nums tracking-tight leading-none">
               {statsLoading ? (
                 <span className="text-muted-foreground/30">—</span>
               ) : (
-                (overview?.total_members ?? 0)
+                overview?.total_members ?? 0
               )}
             </div>
             <p className="mt-2 text-sm text-muted-foreground">active members this semester</p>
           </div>
 
-          {/* Secondary stats in a compact row */}
           <div className="grid grid-cols-3 gap-6 border-t pt-6">
             {[
               { key: "active_candidates" as const, label: "In recruitment pipeline" },
@@ -83,7 +79,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Right — upcoming events */}
         <div className="w-80 shrink-0 px-6 py-8">
           <div className="mb-5 flex items-center justify-between">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -110,14 +105,12 @@ export default function DashboardPage() {
                 const d = new Date(event.eventDate);
                 return (
                   <li key={event.id} className="flex items-start gap-4">
-                    {/* Date stamp */}
                     <div className="w-10 shrink-0 text-center">
                       <p className="text-[10px] font-semibold uppercase leading-none tracking-wider text-muted-foreground">
                         {d.toLocaleDateString("en-US", { month: "short" })}
                       </p>
                       <p className="mt-0.5 text-xl font-bold leading-tight">{d.getDate()}</p>
                     </div>
-                    {/* Event details */}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{event.title}</p>
                       {event.location && (
