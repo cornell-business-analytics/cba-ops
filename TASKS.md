@@ -70,6 +70,7 @@
   - Use `GET /web/v1/pages/{slug}` to fetch page data at build/request time with ISR revalidation.
   - Pages to connect: home, about, team directory, client work, recruitment info, contact.
 
+### Task 2 — Public Website: Render CMS Blocks `[x]`
   ---
 
   ### Task 3 — File/Image Uploads (R2) `[ ]`

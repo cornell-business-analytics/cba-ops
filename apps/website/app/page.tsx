@@ -2,13 +2,32 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Hero } from "@/components/sections/Hero";
-export const metadata: Metadata = {
-  title: "Cornell Business Analytics",
-  description:
-    "Data-driven solutions for data-driven clients. Cornell's premier student analytics consulting organization.",
-};
+import { BlockRenderer } from "@/components/blocks/BlockRenderer";
+import { getPage } from "@/lib/api";
+import { buildMetadata } from "@/lib/metadata";
 
-export default function HomePage() {
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPage("home");
+  return buildMetadata(page, {
+    title: "Cornell Business Analytics",
+    description:
+      "Data-driven solutions for data-driven clients. Cornell's premier student analytics consulting organization.",
+  });
+}
+
+export default async function HomePage() {
+  const page = await getPage("home");
+
+  if (page?.blocks.length) {
+    return (
+      <>
+        {page.blocks.map((block, i) => (
+          <BlockRenderer key={i} block={block} />
+        ))}
+      </>
+    );
+  }
+
   return (
     <>
       <Hero
@@ -19,7 +38,6 @@ export default function HomePage() {
         image="/group.jpg"
       />
 
-      {/* Mission */}
       <section className="bg-cba-gray" aria-label="Mission">
         <div className="container-section py-24 text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-cba-green">Our mission</p>
@@ -29,8 +47,6 @@ export default function HomePage() {
         </div>
       </section>
 
-
-      {/* Pillars */}
       {[
         {
           title: "Turning Data Into Decisions",
@@ -61,7 +77,6 @@ export default function HomePage() {
         </section>
       ))}
 
-      {/* CTA */}
       <section className="bg-cba-green text-white" aria-label="Call to action">
         <div className="container-section py-16 text-center">
           <h2 className="font-display text-3xl font-bold">Ready to join?</h2>

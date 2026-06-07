@@ -1,16 +1,32 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/sections/Hero";
 import { RecruitmentTimeline } from "@/components/sections/RecruitmentTimeline";
-import { getEvents, getRecruitmentSteps } from "@/lib/api";
+import { BlockRenderer } from "@/components/blocks/BlockRenderer";
+import { getEvents, getPage, getRecruitmentSteps } from "@/lib/api";
+import { buildMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: "Recruitment",
-  description:
-    "Apply to join Cornell Business Analytics. Learn about our recruitment process and upcoming events.",
-};
-
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPage("recruitment");
+  return buildMetadata(page, {
+    title: "Recruitment",
+    description:
+      "Apply to join Cornell Business Analytics. Learn about our recruitment process and upcoming events.",
+  });
+}
 
 export default async function RecruitmentPage() {
+  const page = await getPage("recruitment");
+
+  if (page?.blocks.length) {
+    return (
+      <>
+        {page.blocks.map((block, i) => (
+          <BlockRenderer key={i} block={block} />
+        ))}
+      </>
+    );
+  }
+
   const [events, steps] = await Promise.all([
     getEvents("recruitment"),
     getRecruitmentSteps(),

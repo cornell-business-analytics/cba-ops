@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/sections/Hero";
+import { BlockRenderer } from "@/components/blocks/BlockRenderer";
+import { getPage } from "@/lib/api";
+import { buildMetadata } from "@/lib/metadata";
 import {
   BusinessIcon, OperationsResearchIcon, EconomicsIcon, ComputerScienceIcon,
   FinanceAccountingIcon, DataScienceIcon, GovernmentPolicyIcon, MathStatisticsIcon,
@@ -7,11 +10,14 @@ import {
   ECommerceIcon, EnergyIcon, ConsumerGoodsIcon, SoftwareIcon,
 } from "@/components/icons/AboutIcons";
 
-export const metadata: Metadata = {
-  title: "About",
-  description:
-    "Learn about Cornell Business Analytics — our history, mission, and approach to analytics consulting.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPage("about");
+  return buildMetadata(page, {
+    title: "About",
+    description:
+      "Learn about Cornell Business Analytics — our history, mission, and approach to analytics consulting.",
+  });
+}
 
 const majors = [
   { label: "Business", Icon: BusinessIcon },
@@ -61,7 +67,19 @@ const industries = [
   { label: "Software", Icon: SoftwareIcon },
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const page = await getPage("about");
+
+  if (page?.blocks.length) {
+    return (
+      <>
+        {page.blocks.map((block, i) => (
+          <BlockRenderer key={i} block={block} />
+        ))}
+      </>
+    );
+  }
+
   return (
     <>
       <Hero
@@ -70,7 +88,6 @@ export default function AboutPage() {
       />
 
       <section className="container-section py-16">
-        {/* Who we are + What we do */}
         <div className="grid gap-12 lg:grid-cols-2">
           <div>
             <h2 className="text-2xl font-bold text-cba-dark">Who we are</h2>
@@ -103,7 +120,6 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Majors + Industries */}
         <div className="mt-16 rounded-lg bg-cba-gray p-8 sm:p-12">
           <h2 className="text-center text-3xl font-bold text-cba-dark">Our Members Are...</h2>
           <div className="mt-10 grid gap-12 lg:grid-cols-2">
@@ -136,7 +152,6 @@ export default function AboutPage() {
             </div>
           </div>
 
-          {/* Placements */}
           <div className="mt-10 border-t border-gray-200 pt-10">
             <p className="text-lg font-semibold text-cba-dark">
               Who go on to work at
@@ -155,7 +170,6 @@ export default function AboutPage() {
             </div>
           </div>
         </div>
-
       </section>
     </>
   );

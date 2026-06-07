@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
-import { Hero } from "@/components/sections/Hero";
 import Link from "next/link";
+import { Hero } from "@/components/sections/Hero";
+import { BlockRenderer } from "@/components/blocks/BlockRenderer";
+import { getPage } from "@/lib/api";
+import { buildMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: "Clients",
-  description:
-    "Partner with Cornell Business Analytics for data-driven consulting solutions.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPage("clients");
+  return buildMetadata(page, {
+    title: "Clients",
+    description:
+      "Partner with Cornell Business Analytics for data-driven consulting solutions.",
+  });
+}
 
 const services = [
   {
@@ -117,15 +123,13 @@ const pastClients = [
 
 function DonutChart() {
   const r = 70;
-  const circ = 2 * Math.PI * r; // ≈ 439.8
+  const circ = 2 * Math.PI * r;
   const greenLen = circ * 0.87;
   const limeLen = circ * 0.07;
 
   return (
     <svg viewBox="0 0 200 200" className="w-48 h-48" aria-label="8 to 10 week project duration">
-      {/* Track */}
       <circle cx="100" cy="100" r={r} fill="none" stroke="#e5e7eb" strokeWidth="18" />
-      {/* Green arc */}
       <circle
         cx="100" cy="100" r={r}
         fill="none"
@@ -135,7 +139,6 @@ function DonutChart() {
         strokeLinecap="round"
         transform="rotate(-90 100 100)"
       />
-      {/* Lime arc */}
       <circle
         cx="100" cy="100" r={r}
         fill="none"
@@ -152,7 +155,19 @@ function DonutChart() {
   );
 }
 
-export default function ClientsPage() {
+export default async function ClientsPage() {
+  const page = await getPage("clients");
+
+  if (page?.blocks.length) {
+    return (
+      <>
+        {page.blocks.map((block, i) => (
+          <BlockRenderer key={i} block={block} />
+        ))}
+      </>
+    );
+  }
+
   return (
     <>
       <Hero
@@ -162,7 +177,6 @@ export default function ClientsPage() {
         ctaHref="/contact"
       />
 
-      {/* What we offer */}
       <section className="container-section py-16" aria-label="Services">
         <h2 className="text-3xl font-bold text-cba-dark">What we offer</h2>
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-6">
@@ -180,7 +194,6 @@ export default function ClientsPage() {
         </div>
       </section>
 
-      {/* Project Structure */}
       <section className="border-t border-gray-100 bg-cba-gray" aria-label="Project structure">
         <div className="container-section py-16">
           <h2 className="text-3xl font-bold text-cba-dark">Project Structure</h2>
@@ -190,7 +203,6 @@ export default function ClientsPage() {
           </p>
 
           <div className="mt-10 flex items-center justify-between max-w-xl">
-            {/* Role breakdown */}
             <div className="space-y-5">
               {[
                 { count: "1", label: "E-Board Advisor" },
@@ -205,14 +217,11 @@ export default function ClientsPage() {
                 </div>
               ))}
             </div>
-
-            {/* Donut chart */}
             <DonutChart />
           </div>
         </div>
       </section>
 
-      {/* Past Projects */}
       <section className="container-section py-16" aria-label="Past projects">
         <h2 className="text-3xl font-bold text-cba-dark">Past Projects</h2>
         <p className="mt-4 max-w-2xl text-gray-600 leading-relaxed">
@@ -230,7 +239,6 @@ export default function ClientsPage() {
         </div>
       </section>
 
-      {/* Why CBA */}
       <section className="bg-cba-gray border-t border-gray-100" aria-label="Why CBA">
         <div className="container-section py-16">
           <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
