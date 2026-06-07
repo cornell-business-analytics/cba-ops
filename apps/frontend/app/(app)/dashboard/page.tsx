@@ -13,16 +13,8 @@ function getSemester(): string {
   return now.getMonth() >= 7 ? `Fall ${year}` : `Spring ${year}`;
 }
 
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
-
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const firstName = session?.user?.name?.split(" ")[0] ?? "there";
 
   const { data: overview, isLoading: statsLoading } = useQuery<AnalyticsOverview>({
     queryKey: ["analytics", "overview"],
@@ -50,7 +42,7 @@ export default function DashboardPage() {
           {getSemester()}
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">
-          {getGreeting()}, {firstName}.
+          Dashboard
         </h1>
       </div>
 
