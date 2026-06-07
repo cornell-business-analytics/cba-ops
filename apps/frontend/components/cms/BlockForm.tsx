@@ -1,7 +1,11 @@
 "use client";
 
+import { useRef, useState } from "react";
+import { useSession } from "next-auth/react";
+import { Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createApi } from "@/lib/api";
 
 type Block = { type: string; id: string; [key: string]: unknown };
 
@@ -38,6 +42,62 @@ function Field({
   );
 }
 
+function ImageUploadField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const { data: session } = useSession();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const api = () => createApi(session?.accessToken);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { uploadUrl, publicUrl } = await api().post<{ uploadUrl: string; publicUrl: string; key: string }>(
+        "/ops/v1/assets/upload",
+        { filename: file.name, content_type: file.type },
+      );
+      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      onChange(publicUrl);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <div className="flex gap-2">
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://…"
+          className="flex-1"
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-muted disabled:opacity-60 whitespace-nowrap"
+        >
+          <Upload className="h-4 w-4" />
+          {uploading ? "Uploading…" : "Upload"}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      </div>
+    </div>
+  );
+}
+
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
@@ -53,7 +113,11 @@ export function BlockForm({ block, onChange }: Props) {
           <Field label="Subheading" value={str(block.subheading)} onChange={(v) => set("subheading", v)} />
           <Field label="CTA Label" value={str(block.cta_label)} onChange={(v) => set("cta_label", v)} />
           <Field label="CTA URL" value={str(block.cta_url)} onChange={(v) => set("cta_url", v)} />
-          <Field label="Background Image URL" value={str(block.image_url)} onChange={(v) => set("image_url", v)} />
+          <ImageUploadField
+            label="Background Image"
+            value={str(block.image_url)}
+            onChange={(v) => set("image_url", v)}
+          />
         </div>
       );
 
