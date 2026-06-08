@@ -137,12 +137,12 @@ export default function MemberProfilePage() {
     if (!file) return;
     setUploading(true);
     try {
-      const { upload_url, public_url } = await api().post<{ upload_url: string; public_url: string; key: string }>(
-        "/ops/v1/assets/upload-url",
+      const { uploadUrl, publicUrl } = await api().post<{ uploadUrl: string; publicUrl: string; key: string }>(
+        "/ops/v1/assets/upload",
         { filename: file.name, content_type: file.type },
       );
-      await fetch(upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      await api().patch(`/ops/v1/members/${id}`, { headshot_url: public_url });
+      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      await api().patch(`/ops/v1/members/${id}`, { headshot_url: publicUrl });
       qc.invalidateQueries({ queryKey: ["members", id] });
     } finally {
       setUploading(false);

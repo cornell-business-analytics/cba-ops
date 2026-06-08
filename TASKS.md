@@ -73,7 +73,7 @@
 ### Task 2 — Public Website: Render CMS Blocks `[x]`
   ---
 
-  ### Task 3 — File/Image Uploads (R2) `[ ]`
+  ### Task 3 — File/Image Uploads (R2) `[x]`
 
   **Goal:** Members and directors can upload headshots; CMS editors can attach images to blocks.
 

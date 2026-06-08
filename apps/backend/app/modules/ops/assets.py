@@ -42,19 +42,15 @@ def _get_r2_client() -> Any:
     )
 
 
-@router.post("/upload-url", response_model=UploadUrlResponse)
-async def get_upload_url(
-    body: UploadUrlRequest,
-    current_user: User = Depends(get_current_user),
-):
+def _build_upload_response(body: UploadUrlRequest, user_id: str) -> UploadUrlResponse:
     if body.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=400, detail=f"Content type not allowed: {body.content_type}")
 
-    ext = body.filename.rsplit(".", 1)[-1] if "." in body.filename else ""
-    key = f"uploads/{current_user.id}/{uuid_lib.uuid4()}.{ext}" if ext else f"uploads/{current_user.id}/{uuid_lib.uuid4()}"
-
     if not settings.R2_ACCESS_KEY_ID:
         raise HTTPException(status_code=503, detail="Asset storage not configured")
+
+    ext = body.filename.rsplit(".", 1)[-1] if "." in body.filename else ""
+    key = f"uploads/{user_id}/{uuid_lib.uuid4()}.{ext}" if ext else f"uploads/{user_id}/{uuid_lib.uuid4()}"
 
     client = _get_r2_client()
     upload_url = client.generate_presigned_url(
@@ -64,8 +60,24 @@ async def get_upload_url(
             "Key": key,
             "ContentType": body.content_type,
         },
-        ExpiresIn=300,  # 5 minutes
+        ExpiresIn=300,
     )
 
     public_url = f"{settings.R2_PUBLIC_URL}/{key}"
     return UploadUrlResponse(upload_url=upload_url, public_url=public_url, key=key)
+
+
+@router.post("/upload", response_model=UploadUrlResponse)
+async def get_presigned_upload_url(
+    body: UploadUrlRequest,
+    current_user: User = Depends(get_current_user),
+):
+    return _build_upload_response(body, str(current_user.id))
+
+
+@router.post("/upload-url", response_model=UploadUrlResponse)
+async def get_upload_url(
+    body: UploadUrlRequest,
+    current_user: User = Depends(get_current_user),
+):
+    return _build_upload_response(body, str(current_user.id))
