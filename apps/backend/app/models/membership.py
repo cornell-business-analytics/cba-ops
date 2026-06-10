@@ -41,6 +41,8 @@ class Membership(UUIDMixin, TimestampMixin, Base):
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
     display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    linkedin_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     # Private fields
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
