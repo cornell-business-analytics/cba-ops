@@ -78,7 +78,7 @@ A separate agent iterates through these. Each task is one PR. Goal: UI that feel
 - Consider grouping table rows by status or adding a subtle left-border color per status.
 - Move inline status dropdowns to the detail page; show clean read-only badges in the table.
 
-### Design Task 4 — Members Page `[ ]`
+### Design Task 4 — Members Page `[x]`
 
 **File:** `app/(app)/members/page.tsx`
 
