@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, MapPin } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,103 @@ type EventForm = {
 
 const EVENT_TYPES = ["recruitment", "workshop", "speaker", "social", "other"];
 
+function formatEventDate(iso: string) {
+  const d = new Date(iso);
+  return {
+    month: d.toLocaleString("en-US", { month: "short" }).toUpperCase(),
+    day: d.getDate(),
+    weekday: d.toLocaleString("en-US", { weekday: "short" }),
+    time: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+  };
+}
+
+function EventRow({
+  event,
+  onEdit,
+  onDelete,
+}: {
+  event: Event;
+  onEdit: (e: Event) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { month, day, weekday, time } = formatEventDate(event.eventDate);
+  return (
+    <div className="flex items-start gap-4 px-5 py-4 hover:bg-muted/30 transition-colors group">
+      {/* Date stamp */}
+      <div className="w-12 shrink-0 text-center">
+        <p className="text-[10px] font-semibold tracking-widest text-muted-foreground leading-none">
+          {month}
+        </p>
+        <p className="text-2xl font-bold tabular-nums leading-tight">{day}</p>
+        <p className="text-[10px] text-muted-foreground">{weekday}</p>
+      </div>
+
+      {/* Details */}
+      <div className="flex-1 min-w-0">
+        <p className="font-medium leading-snug">{event.title}</p>
+        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+          <span>{time}</span>
+          {event.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              {event.location}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Badges + actions */}
+      <div className="flex items-center gap-2 shrink-0">
+        <Badge variant="secondary" className="capitalize text-xs">
+          {event.type}
+        </Badge>
+        <Badge variant={event.isPublished ? "success" : "outline"} className="text-xs">
+          {event.isPublished ? "Published" : "Draft"}
+        </Badge>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(event)}>
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            onClick={() => confirm("Delete this event?") && onDelete(event.id)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventGroup({
+  label,
+  events,
+  onEdit,
+  onDelete,
+}: {
+  label: string;
+  events: Event[];
+  onEdit: (e: Event) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (events.length === 0) return null;
+  return (
+    <div>
+      <p className="px-5 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-muted/40 border-b">
+        {label} · {events.length}
+      </p>
+      <div className="divide-y">
+        {events.map((e) => (
+          <EventRow key={e.id} event={e} onEdit={onEdit} onDelete={onDelete} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function EventsPage() {
   const { data: session } = useSession();
   const qc = useQueryClient();
@@ -33,7 +130,7 @@ export default function EventsPage() {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Event | null>(null);
-  const { register, handleSubmit, setValue, reset, watch } = useForm<EventForm>();
+  const { register, handleSubmit, setValue, reset } = useForm<EventForm>();
 
   const { data: events = [], isLoading } = useQuery<Event[]>({
     queryKey: ["events"],
@@ -46,7 +143,12 @@ export default function EventsPage() {
       editing
         ? api().patch(`/ops/v1/events/${editing.id}`, data)
         : api().post("/ops/v1/events", data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["events"] }); setOpen(false); reset(); setEditing(null); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      setOpen(false);
+      reset();
+      setEditing(null);
+    },
   });
 
   const remove = useMutation({
@@ -68,16 +170,41 @@ export default function EventsPage() {
     setOpen(true);
   }
 
+  const now = new Date();
+  const upcoming = events
+    .filter((e) => new Date(e.eventDate) >= now)
+    .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+  const past = events
+    .filter((e) => new Date(e.eventDate) < now)
+    .sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
+
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-6 space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Events</h1>
-          <p className="text-sm text-muted-foreground">{events.length} total</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Events</h1>
+          {!isLoading && upcoming.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {upcoming.length} upcoming
+            </p>
+          )}
         </div>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { reset(); setEditing(null); } }}>
+        <Dialog
+          open={open}
+          onOpenChange={(v) => {
+            setOpen(v);
+            if (!v) {
+              reset();
+              setEditing(null);
+            }
+          }}
+        >
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" />New event</Button>
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              New event
+            </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -100,9 +227,15 @@ export default function EventsPage() {
                 <div className="space-y-1">
                   <Label>Type</Label>
                   <Select onValueChange={(v) => setValue("type", v)} defaultValue={editing?.type}>
-                    <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
                     <SelectContent>
-                      {EVENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      {EVENT_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -125,7 +258,9 @@ export default function EventsPage() {
                 <Label htmlFor="published">Published</Label>
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
                 <Button type="submit" disabled={save.isPending}>
                   {save.isPending ? "Saving…" : "Save"}
                 </Button>
@@ -135,54 +270,30 @@ export default function EventsPage() {
         </Dialog>
       </div>
 
-      <div className="rounded-lg border bg-white overflow-hidden">
-        {isLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                {["Title", "Date", "Type", "Status", ""].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {events.map((event) => (
-                <tr key={event.id} className="hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium">{event.title}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {new Date(event.eventDate).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant="secondary">{event.type}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={event.isPublished ? "success" : "outline"}>
-                      {event.isPublished ? "Published" : "Draft"}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 justify-end">
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(event)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => confirm("Delete this event?") && remove.mutate(event.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {/* Event list */}
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : events.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No events yet.</p>
+      ) : (
+        <div className="rounded-lg border bg-white overflow-hidden">
+          <EventGroup
+            label="Upcoming"
+            events={upcoming}
+            onEdit={openEdit}
+            onDelete={(id) => remove.mutate(id)}
+          />
+          {upcoming.length === 0 && (
+            <p className="px-5 py-4 text-sm text-muted-foreground">No upcoming events.</p>
+          )}
+          <EventGroup
+            label="Past"
+            events={past}
+            onEdit={openEdit}
+            onDelete={(id) => remove.mutate(id)}
+          />
+        </div>
+      )}
     </div>
   );
 }
