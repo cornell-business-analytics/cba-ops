@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createApi } from "@/lib/api";
+import { PageHeader } from "@/components/layout/PageHeader";
 import type { Page } from "@cba/types";
 
 type NewPageForm = { slug: string; title: string };
@@ -53,34 +54,34 @@ export default function WebsitePage() {
       </div>
 
       <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Website Pages</h1>
-          <p className="text-sm text-muted-foreground">{pages.length} pages</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" />New page</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>New page</DialogTitle></DialogHeader>
-            <form onSubmit={handleSubmit((d) => create.mutate(d))} className="space-y-3 mt-2">
-              <div className="space-y-1">
-                <Label>Title</Label>
-                <Input {...register("title", { required: true })} placeholder="About Us" />
-              </div>
-              <div className="space-y-1">
-                <Label>Slug</Label>
-                <Input {...register("slug", { required: true })} placeholder="about" />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={create.isPending}>Create</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <PageHeader
+          title="Website Pages"
+          subtitle={`${pages.length} page${pages.length !== 1 ? "s" : ""}`}
+          action={
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="h-4 w-4 mr-1" />New page</Button>
+            </DialogTrigger>
+          }
+        />
+        <DialogContent>
+          <DialogHeader><DialogTitle>New page</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit((d) => create.mutate(d))} className="space-y-3 mt-2">
+            <div className="space-y-1">
+              <Label>Title</Label>
+              <Input {...register("title", { required: true })} placeholder="About Us" />
+            </div>
+            <div className="space-y-1">
+              <Label>Slug</Label>
+              <Input {...register("slug", { required: true })} placeholder="about" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={create.isPending}>Create</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div className="rounded-lg border bg-white overflow-hidden">
         {isLoading ? (

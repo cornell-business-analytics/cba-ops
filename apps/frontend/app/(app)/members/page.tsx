@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { createApi } from "@/lib/api";
+import { PageHeader } from "@/components/layout/PageHeader";
 import type { Membership, User, Cohort } from "@cba/types";
 
 interface MemberCreate {
@@ -93,29 +94,29 @@ export default function MembersPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Members</h1>
-          <p className="text-sm text-muted-foreground">{filtered.length} active</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {canAdd && (
-            <Button size="sm" onClick={() => setAddOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add Member
-            </Button>
-          )}
-          <div className="relative w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="pl-8"
-              placeholder="Search role, major…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+      <PageHeader
+        title="Members"
+        subtitle={`${filtered.length} active`}
+        action={
+          <div className="flex items-center gap-3">
+            {canAdd && (
+              <Button size="sm" onClick={() => setAddOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add Member
+              </Button>
+            )}
+            <div className="relative w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                placeholder="Search role, major…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="rounded-lg border bg-white overflow-hidden">
         {isLoading ? (

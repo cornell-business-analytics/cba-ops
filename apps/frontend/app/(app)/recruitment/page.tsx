@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/recruitment/StatusBadge";
 import { createApi } from "@/lib/api";
+import { PageHeader } from "@/components/layout/PageHeader";
 import type { ApplicationCycle, Candidate, CandidateStatus } from "@cba/types";
 
 const ALL_STATUSES: CandidateStatus[] = [
@@ -32,6 +33,7 @@ export default function RecruitmentPage() {
 
   const activeCycle = cycles.find((c) => c.is_active);
   const selectedCycle = cycleId || activeCycle?.id || "";
+  const selectedCycleData = cycles.find((c) => c.id === selectedCycle);
 
   const { data: candidates = [], isLoading } = useQuery<Candidate[]>({
     queryKey: ["candidates", selectedCycle],
@@ -57,27 +59,24 @@ export default function RecruitmentPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Recruitment</h1>
-          <p className="text-sm text-muted-foreground">
-            {filtered.length} candidate{filtered.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        {/* Cycle selector */}
-        <Select value={selectedCycle} onValueChange={setCycleId}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Cycle" />
-          </SelectTrigger>
-          <SelectContent>
-            {cycles.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <PageHeader
+        title={selectedCycleData?.name ?? "Recruitment"}
+        subtitle={`${filtered.length} candidate${filtered.length !== 1 ? "s" : ""}`}
+        action={
+          <Select value={selectedCycle} onValueChange={setCycleId}>
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="Cycle" />
+            </SelectTrigger>
+            <SelectContent>
+              {cycles.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       {/* Filters */}
       <div className="flex gap-2">

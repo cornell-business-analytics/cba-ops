@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { Users, UserSearch, Globe, CalendarDays } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { createApi } from "@/lib/api";
+import { PageHeader } from "@/components/layout/PageHeader";
 import type { AnalyticsOverview, RecruitmentAnalytics } from "@cba/types";
 
 const FUNNEL_ORDER = ["applied", "coffee_chat", "interviewing", "offer", "accepted"];
@@ -42,10 +43,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">Analytics</h1>
-        <p className="text-sm text-muted-foreground">Key metrics for the current semester</p>
-      </div>
+      <PageHeader title="Analytics" subtitle="Key metrics for the current semester" />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map(({ label, value, icon: Icon }) => (

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createApi } from "@/lib/api";
+import { PageHeader } from "@/components/layout/PageHeader";
 import type { Event } from "@cba/types";
 
 type EventForm = {
@@ -70,70 +71,70 @@ export default function EventsPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Events</h1>
-          <p className="text-sm text-muted-foreground">{events.length} total</p>
-        </div>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { reset(); setEditing(null); } }}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" />New event</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editing ? "Edit event" : "New event"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit((d) => save.mutate(d))} className="space-y-3 mt-2">
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { reset(); setEditing(null); } }}>
+        <PageHeader
+          title="Events"
+          subtitle={`${events.length} event${events.length !== 1 ? "s" : ""}`}
+          action={
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="h-4 w-4 mr-1" />New event</Button>
+            </DialogTrigger>
+          }
+        />
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit event" : "New event"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit((d) => save.mutate(d))} className="space-y-3 mt-2">
+            <div className="space-y-1">
+              <Label>Title</Label>
+              <Input {...register("title", { required: true })} placeholder="Spring Info Session" />
+            </div>
+            <div className="space-y-1">
+              <Label>Slug</Label>
+              <Input {...register("slug", { required: true })} placeholder="spring-info-session" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Title</Label>
-                <Input {...register("title", { required: true })} placeholder="Spring Info Session" />
-              </div>
-              <div className="space-y-1">
-                <Label>Slug</Label>
-                <Input {...register("slug", { required: true })} placeholder="spring-info-session" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Date & Time</Label>
-                  <Input type="datetime-local" {...register("event_date", { required: true })} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Type</Label>
-                  <Select onValueChange={(v) => setValue("type", v)} defaultValue={editing?.type}>
-                    <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
-                    <SelectContent>
-                      {EVENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Label>Date & Time</Label>
+                <Input type="datetime-local" {...register("event_date", { required: true })} />
               </div>
               <div className="space-y-1">
-                <Label>Location</Label>
-                <Input {...register("location")} placeholder="Klarman Hall 120" />
+                <Label>Type</Label>
+                <Select onValueChange={(v) => setValue("type", v)} defaultValue={editing?.type}>
+                  <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
+                  <SelectContent>
+                    {EVENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-1">
-                <Label>Description</Label>
-                <textarea
-                  {...register("description")}
-                  rows={3}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="Event description…"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="published" {...register("is_published")} />
-                <Label htmlFor="published">Published</Label>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending ? "Saving…" : "Save"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Location</Label>
+              <Input {...register("location")} placeholder="Klarman Hall 120" />
+            </div>
+            <div className="space-y-1">
+              <Label>Description</Label>
+              <textarea
+                {...register("description")}
+                rows={3}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                placeholder="Event description…"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="published" {...register("is_published")} />
+              <Label htmlFor="published">Published</Label>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={save.isPending}>
+                {save.isPending ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div className="rounded-lg border bg-white overflow-hidden">
         {isLoading ? (
