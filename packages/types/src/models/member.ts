@@ -19,6 +19,7 @@ export interface Membership {
   professional_experience: string | null;
   interests: string | null;
   bio: string | null;
+  linkedin_url: string | null;
   display_order: number;
   is_active: boolean;
 }
@@ -27,6 +28,7 @@ export interface MemberPublic {
   id: string;
   name: string;
   email: string;
+  role: string;
   role_title: string;
   major: string | null;
   grad_year: string | null;
@@ -36,6 +38,7 @@ export interface MemberPublic {
   interests: string | null;
   bio: string | null;
   headshot_url: string | null;
+  linkedin_url: string | null;
   cohort_semester: string;
 }
 
