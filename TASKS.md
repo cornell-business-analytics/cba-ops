@@ -7,7 +7,7 @@ Each task should produce a single, focused PR.
 
 ## Priority Queue
 
-### Task 4 — Team Page on Public Website `[ ]`
+### Task 4 — Team Page on Public Website `[x]`
 
 **Goal:** Build the `/team` page on `apps/website` displaying member profiles with headshots and full profile info. Wire up headshot uploads via R2 in the ops tool.
 
@@ -70,7 +70,7 @@ A separate agent iterates through these. Each task is one PR. Goal: UI that feel
 - Stay within Tailwind + shadcn. No new UI libraries.
 - Run `pnpm --filter @cba/frontend tsc --noEmit` before every PR.
 
-### Design Task 3 — Recruitment Page `[ ]`
+### Design Task 3 — Recruitment Page `[x]`
 
 **File:** `app/(app)/recruitment/page.tsx`
 
