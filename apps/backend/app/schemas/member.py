@@ -8,6 +8,7 @@ class MemberPublic(BaseModel):
     id: uuid.UUID
     name: str
     email: str
+    role: str
     role_title: str
     major: str | None
     grad_year: str | None
@@ -17,6 +18,7 @@ class MemberPublic(BaseModel):
     interests: str | None
     bio: str | None
     headshot_url: str | None
+    linkedin_url: str | None
     cohort_semester: str
 
     model_config = {"from_attributes": True}
@@ -41,6 +43,7 @@ class MembershipPublic(BaseModel):
     professional_experience: str | None
     interests: str | None
     bio: str | None
+    linkedin_url: str | None
     display_order: int
     is_active: bool
 
@@ -60,6 +63,7 @@ class MembershipCreate(BaseModel):
     professional_experience: str | None = None
     interests: str | None = None
     bio: str | None = None
+    linkedin_url: str | None = None
     display_order: int = 0
     is_active: bool = True
 
@@ -75,6 +79,7 @@ class MembershipUpdate(BaseModel):
     professional_experience: str | None = None
     interests: str | None = None
     bio: str | None = None
+    linkedin_url: str | None = None
     display_order: int | None = None
     is_active: bool | None = None
 

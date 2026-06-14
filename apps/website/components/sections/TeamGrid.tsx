@@ -2,32 +2,39 @@ import type { MemberPublic } from "@cba/types";
 import { MemberCard } from "./MemberCard";
 
 interface TeamGridProps {
-  exec: MemberPublic[];
+  eboard: MemberPublic[];
+  directors: MemberPublic[];
+  pms: MemberPublic[];
   analysts: MemberPublic[];
 }
 
-export function TeamGrid({ exec, analysts }: TeamGridProps) {
-  return (
-    <section className="container-section py-16" aria-label="Team">
-      <div>
-        <h2 className="text-2xl font-bold text-cba-dark">Executive Board</h2>
-        <div className="mt-8 grid grid-cols-2 gap-8 sm:grid-cols-4">
-          {exec.map((member) => (
-            <MemberCard key={member.id} member={member} />
-          ))}
-        </div>
-      </div>
+interface GroupSectionProps {
+  title: string;
+  members: MemberPublic[];
+  cols?: string;
+}
 
-      {analysts.length > 0 && (
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold text-cba-dark">Analysts</h2>
-          <div className="mt-8 grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5">
-            {analysts.map((member) => (
-              <MemberCard key={member.id} member={member} />
-            ))}
-          </div>
-        </div>
-      )}
+function GroupSection({ title, members, cols = "sm:grid-cols-3 lg:grid-cols-4" }: GroupSectionProps) {
+  if (members.length === 0) return null;
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-cba-dark">{title}</h2>
+      <div className={`mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 ${cols}`}>
+        {members.map((member) => (
+          <MemberCard key={member.id} member={member} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function TeamGrid({ eboard, directors, pms, analysts }: TeamGridProps) {
+  return (
+    <section className="container-section py-16 space-y-16" aria-label="Team">
+      <GroupSection title="Executive Board" members={eboard} cols="sm:grid-cols-2 lg:grid-cols-4" />
+      <GroupSection title="Directors" members={directors} cols="sm:grid-cols-2 lg:grid-cols-3" />
+      <GroupSection title="Project Managers" members={pms} cols="sm:grid-cols-2 lg:grid-cols-3" />
+      <GroupSection title="Analysts" members={analysts} cols="sm:grid-cols-2 lg:grid-cols-4" />
     </section>
   );
 }

@@ -7,7 +7,7 @@ Each task should produce a single, focused PR.
 
 ## Priority Queue
 
-### Task 4 — Team Page on Public Website `[ ]`
+### Task 4 — Team Page on Public Website `[x]`
 
 **Goal:** Build the `/team` page on `apps/website` displaying member profiles with headshots and full profile info. Wire up headshot uploads via R2 in the ops tool.
 

@@ -24,6 +24,7 @@ type ProfileFields = {
   professional_experience: string;
   interests: string;
   bio: string;
+  linkedin_url: string;
 };
 
 const EDIT_FIELDS: { key: keyof ProfileFields; label: string; multiline?: boolean }[] = [
@@ -31,6 +32,7 @@ const EDIT_FIELDS: { key: keyof ProfileFields; label: string; multiline?: boolea
   { key: "major", label: "Major" },
   { key: "grad_year", label: "Graduation Year" },
   { key: "hometown", label: "Hometown" },
+  { key: "linkedin_url", label: "LinkedIn URL" },
   { key: "campus_involvements", label: "Campus Involvements", multiline: true },
   { key: "professional_experience", label: "Professional Experience", multiline: true },
   { key: "interests", label: "Interests", multiline: true },
@@ -92,6 +94,7 @@ export default function MemberProfilePage() {
           professional_experience: membership.professional_experience ?? "",
           interests: membership.interests ?? "",
           bio: membership.bio ?? "",
+          linkedin_url: membership.linkedin_url ?? "",
         }
       : undefined,
   });

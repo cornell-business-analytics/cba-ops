@@ -15,18 +15,29 @@ async function apiFetch<T>(path: string, tag: string): Promise<T | null> {
   }
 }
 
-export async function getMembers(): Promise<{ exec: MemberPublic[]; analysts: MemberPublic[] }> {
+export interface MemberGroups {
+  eboard: MemberPublic[];
+  directors: MemberPublic[];
+  pms: MemberPublic[];
+  analysts: MemberPublic[];
+}
+
+export async function getMembers(): Promise<MemberGroups> {
   const data = await apiFetch<MemberPublic[]>("/web/v1/members?active=true", "members");
   if (!data) {
-    return { exec: PLACEHOLDER_EXEC, analysts: PLACEHOLDER_ANALYSTS };
+    return {
+      eboard: PLACEHOLDER_EXEC,
+      directors: PLACEHOLDER_ANALYSTS.filter((m) => m.role === "director"),
+      pms: PLACEHOLDER_ANALYSTS.filter((m) => m.role === "pm"),
+      analysts: PLACEHOLDER_ANALYSTS.filter((m) => m.role === "member"),
+    };
   }
-  const exec = data.filter((m) =>
-    ["President", "Vice President"].some((t) => m.role_title.startsWith(t)),
-  );
-  const analysts = data.filter(
-    (m) => !["President", "Vice President"].some((t) => m.role_title.startsWith(t)),
-  );
-  return { exec, analysts };
+  return {
+    eboard: data.filter((m) => m.role === "eboard"),
+    directors: data.filter((m) => m.role === "director"),
+    pms: data.filter((m) => m.role === "pm"),
+    analysts: data.filter((m) => m.role === "member"),
+  };
 }
 
 export async function getEvents(type?: string): Promise<EventPublic[]> {
