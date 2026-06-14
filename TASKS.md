@@ -101,7 +101,7 @@ A separate agent iterates through these. Each task is one PR. Goal: UI that feel
 
 Extract a `<PageHeader>` component to `components/layout/PageHeader.tsx` with `title`, optional `subtitle`, and optional `action` slot. Make each page pass something meaningful, not generic filler.
 
-### Design Task 7 — Ops Tool: Green & White + CBA Logo `[ ]`
+### Design Task 7 — Ops Tool: Green & White + CBA Logo `[x]`
 
 **Goal:** Two changes in one PR — swap all blue accents to CBA green, and replace the plain "CBA Ops" text in the sidebar with the real CBA logo.
 
