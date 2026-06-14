@@ -29,7 +29,7 @@ Each task should produce a single, focused PR.
 
 ---
 
-### Task 5 — FAQ Block Item Editing `[ ]`
+### Task 5 — FAQ Block Item Editing `[x]`
 
 **Goal:** FAQ blocks in the CMS page editor are fully editable (currently a placeholder).
 

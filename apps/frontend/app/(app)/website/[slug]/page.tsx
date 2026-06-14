@@ -43,6 +43,7 @@ function defaultBlock(type: string): Block {
     case "hero": return { id, type, heading: "", subheading: "", cta_label: "", cta_url: "" };
     case "rich_text": return { id, type, content: "" };
     case "cta": return { id, type, heading: "", body: "", button_label: "", button_url: "" };
+    case "faq": return { id, type, title: null, items: [] };
     default: return { id, type };
   }
 }
