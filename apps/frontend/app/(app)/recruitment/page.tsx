@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/recruitment/StatusBadge";
 import { createApi } from "@/lib/api";
+import { PageHeader } from "@/components/layout/PageHeader";
 import type { ApplicationCycle, Candidate, CandidateStatus } from "@cba/types";
 
 const ALL_STATUSES: CandidateStatus[] = [

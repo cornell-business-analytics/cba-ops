@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createApi } from "@/lib/api";
+import { PageHeader } from "@/components/layout/PageHeader";
 import type { Event } from "@cba/types";
 
 type EventForm = {
@@ -212,12 +213,17 @@ export default function EventsPage() {
             </DialogHeader>
             <form onSubmit={handleSubmit((d) => save.mutate(d))} className="space-y-3 mt-2">
               <div className="space-y-1">
-                <Label>Title</Label>
-                <Input {...register("title", { required: true })} placeholder="Spring Info Session" />
+                <Label>Date & Time</Label>
+                <Input type="datetime-local" {...register("event_date", { required: true })} />
               </div>
               <div className="space-y-1">
-                <Label>Slug</Label>
-                <Input {...register("slug", { required: true })} placeholder="spring-info-session" />
+                <Label>Type</Label>
+                <Select onValueChange={(v) => setValue("type", v)} defaultValue={editing?.type}>
+                  <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
+                  <SelectContent>
+                    {EVENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">

@@ -95,7 +95,7 @@ A separate agent iterates through these. Each task is one PR. Goal: UI that feel
 - Group events by upcoming vs past based on date field.
 - A date-grouped list is more natural than a flat table for time-based content.
 
-### Design Task 6 — Global: Eliminate Repeated Header Template `[ ]`
+### Design Task 6 — Global: Eliminate Repeated Header Template `[x]`
 
 **Scope:** all `app/(app)/*/page.tsx` files
 
