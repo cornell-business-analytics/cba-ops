@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Upload } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createApi } from "@/lib/api";
@@ -157,15 +157,111 @@ export function BlockForm({ block, onChange }: Props) {
         </p>
       );
 
-    case "faq":
+    case "faq": {
+      const items = Array.isArray(block.items)
+        ? (block.items as { question: string; answer: string }[])
+        : [];
+
+      const setItems = (next: { question: string; answer: string }[]) =>
+        set("items", next);
+
+      const addItem = () => setItems([...items, { question: "", answer: "" }]);
+
+      const removeItem = (i: number) =>
+        setItems(items.filter((_, idx) => idx !== i));
+
+      const moveUp = (i: number) => {
+        if (i === 0) return;
+        const next = [...items];
+        [next[i - 1], next[i]] = [next[i], next[i - 1]];
+        setItems(next);
+      };
+
+      const moveDown = (i: number) => {
+        if (i === items.length - 1) return;
+        const next = [...items];
+        [next[i], next[i + 1]] = [next[i + 1], next[i]];
+        setItems(next);
+      };
+
+      const updateItem = (
+        i: number,
+        key: "question" | "answer",
+        value: string,
+      ) =>
+        setItems(
+          items.map((item, idx) =>
+            idx === i ? { ...item, [key]: value } : item,
+          ),
+        );
+
       return (
         <div className="space-y-3">
-          <Field label="Section Title" value={str(block.title)} onChange={(v) => set("title", v)} />
-          <p className="text-xs text-muted-foreground">
-            FAQ items are edited individually — more editing controls coming soon.
-          </p>
+          <Field
+            label="Section Title"
+            value={str(block.title)}
+            onChange={(v) => set("title", v)}
+          />
+          {items.length > 0 && (
+            <div className="space-y-2">
+              {items.map((item, i) => (
+                <div key={i} className="rounded-md border p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Item {i + 1}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => moveUp(i)}
+                        disabled={i === 0}
+                        className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      >
+                        <ChevronUp className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveDown(i)}
+                        disabled={i === items.length - 1}
+                        className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(i)}
+                        className="p-1 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                  <Field
+                    label="Question"
+                    value={item.question}
+                    onChange={(v) => updateItem(i, "question", v)}
+                  />
+                  <Field
+                    label="Answer"
+                    value={item.answer}
+                    onChange={(v) => updateItem(i, "answer", v)}
+                    multiline
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={addItem}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <Plus className="h-3 w-3" />
+            Add item
+          </button>
         </div>
       );
+    }
 
     default:
       return (
