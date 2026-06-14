@@ -87,7 +87,7 @@ A separate agent iterates through these. Each task is one PR. Goal: UI that feel
 - Add avatar initials (colored circle with first letter) to each row.
 - Replace "View →" with a proper button or row click handler.
 
-### Design Task 5 — Events Page `[ ]`
+### Design Task 5 — Events Page `[x]`
 
 **File:** `app/(app)/events/page.tsx`
 
