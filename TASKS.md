@@ -7,7 +7,7 @@ Each task should produce a single, focused PR.
 
 ## Priority Queue
 
-### Task 4 — Team Page on Public Website `[ ]`
+### Task 4 — Team Page on Public Website `[x]`
 
 **Goal:** Build the `/team` page on `apps/website` displaying member profiles with headshots and full profile info. Wire up headshot uploads via R2 in the ops tool.
 
@@ -70,7 +70,7 @@ A separate agent iterates through these. Each task is one PR. Goal: UI that feel
 - Stay within Tailwind + shadcn. No new UI libraries.
 - Run `pnpm --filter @cba/frontend tsc --noEmit` before every PR.
 
-### Design Task 3 — Recruitment Page `[ ]`
+### Design Task 3 — Recruitment Page `[x]`
 
 **File:** `app/(app)/recruitment/page.tsx`
 
@@ -78,7 +78,7 @@ A separate agent iterates through these. Each task is one PR. Goal: UI that feel
 - Consider grouping table rows by status or adding a subtle left-border color per status.
 - Move inline status dropdowns to the detail page; show clean read-only badges in the table.
 
-### Design Task 4 — Members Page `[ ]`
+### Design Task 4 — Members Page `[x]`
 
 **File:** `app/(app)/members/page.tsx`
 
@@ -87,7 +87,7 @@ A separate agent iterates through these. Each task is one PR. Goal: UI that feel
 - Add avatar initials (colored circle with first letter) to each row.
 - Replace "View →" with a proper button or row click handler.
 
-### Design Task 5 — Events Page `[ ]`
+### Design Task 5 — Events Page `[x]`
 
 **File:** `app/(app)/events/page.tsx`
 

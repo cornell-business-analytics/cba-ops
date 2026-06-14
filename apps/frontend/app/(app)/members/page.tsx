@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { Search, Plus } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
@@ -24,8 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { createApi } from "@/lib/api";
-import { PageHeader } from "@/components/layout/PageHeader";
-import type { Membership, User, Cohort } from "@cba/types";
+import type { MembershipDetail, User, Cohort } from "@cba/types";
 
 interface MemberCreate {
   userId: string;
@@ -35,10 +35,24 @@ interface MemberCreate {
   major: string;
 }
 
+const AVATAR_PALETTE = [
+  "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-yellow-500",
+  "bg-lime-600", "bg-green-600", "bg-teal-600", "bg-cyan-600",
+  "bg-sky-500", "bg-blue-600", "bg-indigo-600", "bg-violet-600",
+  "bg-purple-600", "bg-fuchsia-600", "bg-pink-600", "bg-rose-600",
+];
+
+function avatarColor(name: string): string {
+  return AVATAR_PALETTE[(name.charCodeAt(0) ?? 0) % AVATAR_PALETTE.length];
+}
+
 export default function MembersPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const router = useRouter();
+
   const [search, setSearch] = useState("");
+  const [cohortFilter, setCohortFilter] = useState<string>("all");
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState<MemberCreate>({
     userId: "",
@@ -51,9 +65,15 @@ export default function MembersPage() {
   const api = createApi(session?.accessToken);
   const canAdd = session?.role === "director" || session?.role === "eboard";
 
-  const { data: members = [], isLoading } = useQuery<Membership[]>({
+  const { data: members = [], isLoading } = useQuery<MembershipDetail[]>({
     queryKey: ["members"],
     queryFn: () => api.get("/ops/v1/members"),
+    enabled: !!session?.accessToken,
+  });
+
+  const { data: cohorts = [] } = useQuery<Cohort[]>({
+    queryKey: ["cohorts"],
+    queryFn: () => api.get("/ops/v1/cohorts"),
     enabled: !!session?.accessToken,
   });
 
@@ -63,15 +83,9 @@ export default function MembersPage() {
     enabled: !!session?.accessToken && addOpen,
   });
 
-  const { data: cohorts = [] } = useQuery<Cohort[]>({
-    queryKey: ["cohorts"],
-    queryFn: () => api.get("/ops/v1/cohorts"),
-    enabled: !!session?.accessToken && addOpen,
-  });
-
   const addMutation = useMutation({
     mutationFn: () =>
-      api.post<Membership>("/ops/v1/members", {
+      api.post<MembershipDetail>("/ops/v1/members", {
         user_id: form.userId,
         cohort_id: form.cohortId,
         role_title: form.roleTitle,
@@ -85,72 +99,111 @@ export default function MembersPage() {
     },
   });
 
-  const filtered = members.filter(
-    (m) =>
+  const filtered = members.filter((m) => {
+    const matchSearch =
       !search ||
+      m.user_name.toLowerCase().includes(search.toLowerCase()) ||
       m.role_title.toLowerCase().includes(search.toLowerCase()) ||
-      (m.major ?? "").toLowerCase().includes(search.toLowerCase()),
-  );
+      (m.major ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchCohort = cohortFilter === "all" || m.cohort_id === cohortFilter;
+    return matchSearch && matchCohort;
+  });
 
   return (
     <div className="p-6 space-y-4">
-      <PageHeader
-        title="Members"
-        subtitle={`${filtered.length} active`}
-        action={
-          <div className="flex items-center gap-3">
-            {canAdd && (
-              <Button size="sm" onClick={() => setAddOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                Add Member
-              </Button>
-            )}
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                className="pl-8"
-                placeholder="Search role, major…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Members</h1>
+          <p className="text-sm text-muted-foreground">{filtered.length} active</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Cohort filter */}
+          <Select value={cohortFilter} onValueChange={setCohortFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All cohorts" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All cohorts</SelectItem>
+              {cohorts.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.semester}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Search */}
+          <div className="relative w-56">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-8"
+              placeholder="Search name, role, major…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-        }
-      />
+
+          {canAdd && (
+            <Button size="sm" onClick={() => setAddOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Member
+            </Button>
+          )}
+        </div>
+      </div>
 
       <div className="rounded-lg border bg-white overflow-hidden">
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Loading…</p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead className="bg-muted/50 sticky top-0">
               <tr>
-                {["Role", "Major", "Grad Year", "Status", ""].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{h}</th>
+                {["Name", "Role", "Major", "Grad Year", "Status", ""].map((h) => (
+                  <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.map((m) => (
-                <tr key={m.id} className="hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium">{m.role_title}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{m.major ?? "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{m.grad_year ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={m.is_active ? "success" : "outline"}>
-                      {m.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/members/${m.id}`}
-                      className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-                    >
-                      View →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((m) => {
+                const initials = m.user_name?.charAt(0).toUpperCase() ?? "?";
+                return (
+                  <tr
+                    key={m.id}
+                    className="hover:bg-muted/20 cursor-pointer transition-colors"
+                    onClick={() => router.push(`/members/${m.id}`)}
+                  >
+                    {/* Name + avatar */}
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-xs font-semibold shrink-0 ${avatarColor(m.user_name ?? "")}`}
+                        >
+                          {initials}
+                        </span>
+                        <span className="font-medium">{m.user_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">{m.role_title}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{m.major ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{m.grad_year ?? "—"}</td>
+                    <td className="px-4 py-2.5">
+                      <Badge variant={m.is_active ? "success" : "outline"}>
+                        {m.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Link href={`/members/${m.id}`}>View profile</Link>
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
