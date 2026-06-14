@@ -70,7 +70,7 @@ A separate agent iterates through these. Each task is one PR. Goal: UI that feel
 - Stay within Tailwind + shadcn. No new UI libraries.
 - Run `pnpm --filter @cba/frontend tsc --noEmit` before every PR.
 
-### Design Task 3 — Recruitment Page `[ ]`
+### Design Task 3 — Recruitment Page `[x]`
 
 **File:** `app/(app)/recruitment/page.tsx`
 
