@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -33,10 +34,8 @@ export function Sidebar() {
     <aside className="flex h-screen w-56 flex-col bg-sidebar text-sidebar-foreground">
       {/* Logo */}
       <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-4">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-[#B31B1B]">
-          <span className="text-[10px] font-bold tracking-wider text-white">CBA</span>
-        </div>
-        <span className="text-sm font-semibold tracking-wide">Ops</span>
+        <Image src="/logo.png" alt="CBA logo" width={28} height={28} className="shrink-0" />
+        <span className="text-sm font-semibold tracking-wide">CBA Ops</span>
       </div>
 
       {/* Nav */}
@@ -48,7 +47,7 @@ export function Sidebar() {
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
               pathname.startsWith(href)
-                ? "border-l-2 border-[#B31B1B] bg-sidebar-accent pl-[10px] font-medium text-sidebar-accent-foreground"
+                ? "border-l-2 border-[#1a7a3c] bg-sidebar-accent pl-[10px] font-medium text-sidebar-accent-foreground"
                 : "border-l-2 border-transparent text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             )}
           >
