@@ -29,6 +29,7 @@ export type {
   RecruitmentFunnelStage,
   RecruitmentAnalytics,
   CohortGrowthPoint,
+  MembersAnalytics,
 } from "./models/analytics";
 
 export interface RecruitmentStep {

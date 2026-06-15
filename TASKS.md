@@ -38,7 +38,7 @@ Each task should produce a single, focused PR.
 
 ---
 
-### Task 6 — Analytics Charts `[ ]`
+### Task 6 — Analytics Charts `[x]`
 
 **Goal:** The `/analytics` page in the ops tool shows meaningful recruitment and cohort data.
 

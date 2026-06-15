@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models.candidate import ApplicationCycle, Candidate, CandidateStatus
-from app.models.membership import Membership
+from app.models.membership import Cohort, Membership
 from app.models.org import Event
 from app.models.page import Page, PageStatus
 from app.models.user import User, UserRole
@@ -94,4 +94,40 @@ async def recruitment_funnel(
         running += counts.get(stage, 0)
         funnel[stage.value] = running
 
-    return {"cycle_id": cycle_id, "funnel": funnel}
+    total_applicants = funnel.get("applied", 0)
+    offers = funnel.get("offer", 0)
+    accepted = funnel.get("accepted", 0)
+    acceptance_rate = round(accepted / offers, 4) if offers > 0 else 0.0
+
+    return {
+        "cycle_id": cycle_id,
+        "funnel": funnel,
+        "total_applicants": total_applicants,
+        "offers": offers,
+        "acceptance_rate": acceptance_rate,
+    }
+
+
+@router.get("/members")
+async def members_analytics(
+    _: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    growth_result = await db.execute(
+        select(Cohort.semester, func.count(Membership.id))
+        .join(Membership, Membership.cohort_id == Cohort.id)
+        .where(Membership.is_active == True)
+        .group_by(Cohort.semester)
+        .order_by(Cohort.semester)
+    )
+    cohort_growth = [{"semester": row[0], "count": row[1]} for row in growth_result.all()]
+
+    role_result = await db.execute(
+        select(User.role, func.count(Membership.id))
+        .join(User, User.id == Membership.user_id)
+        .where(Membership.is_active == True)
+        .group_by(User.role)
+    )
+    role_distribution = {row[0].value: row[1] for row in role_result.all()}
+
+    return {"cohort_growth": cohort_growth, "role_distribution": role_distribution}

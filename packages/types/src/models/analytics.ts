@@ -8,6 +8,9 @@ export interface AnalyticsOverview {
 export interface RecruitmentAnalytics {
   cycle_id: string | null;
   funnel: Record<string, number>;
+  total_applicants: number;
+  offers: number;
+  acceptance_rate: number;
 }
 
 export interface RecruitmentFunnelStage {
@@ -18,4 +21,9 @@ export interface RecruitmentFunnelStage {
 export interface CohortGrowthPoint {
   semester: string;
   count: number;
+}
+
+export interface MembersAnalytics {
+  cohort_growth: CohortGrowthPoint[];
+  role_distribution: Record<string, number>;
 }
