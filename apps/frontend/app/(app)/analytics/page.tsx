@@ -60,6 +60,13 @@ export default function AnalyticsPage() {
 
   const cohortData = members?.cohort_growth ?? [];
 
+  const cycleData = (recruitment?.cycles ?? []).map((c) => ({
+    name: c.name,
+    applicants: c.total_applicants,
+    offers: c.offers,
+    accepted: c.accepted,
+  }));
+
   const roleData = Object.entries(members?.role_distribution ?? {}).map(([role, count]) => ({
     name: role,
     count,
@@ -195,6 +202,28 @@ export default function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
+
+      {cycleData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recruitment by Cycle</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={cycleData} margin={{ left: -10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="applicants" name="Applicants" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="offers" name="Offers" fill="#818cf8" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="accepted" name="Accepted" fill="#22c55e" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

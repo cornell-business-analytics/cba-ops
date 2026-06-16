@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -70,7 +70,7 @@ async def recruitment_funnel(
         )
         cycle = result.scalar_one_or_none()
         if not cycle:
-            return {"cycle_id": None, "funnel": {}}
+            return {"cycle_id": None, "funnel": {}, "total_applicants": 0, "offers": 0, "acceptance_rate": 0.0, "cycles": []}
         cycle_id = cycle.id
 
     result = await db.execute(
@@ -99,12 +99,57 @@ async def recruitment_funnel(
     accepted = funnel.get("accepted", 0)
     acceptance_rate = round(accepted / offers, 4) if offers > 0 else 0.0
 
+    # Per-cycle stats across all cycles for historical comparison
+    cycles_result = await db.execute(
+        select(
+            ApplicationCycle.id,
+            ApplicationCycle.name,
+            func.count(Candidate.id).label("total_applicants"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Candidate.status.in_([CandidateStatus.offer, CandidateStatus.accepted]), 1),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("offers"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Candidate.status == CandidateStatus.accepted, 1),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("accepted"),
+        )
+        .join(Candidate, Candidate.cycle_id == ApplicationCycle.id, isouter=True)
+        .group_by(ApplicationCycle.id, ApplicationCycle.name)
+        .order_by(ApplicationCycle.created_at)
+    )
+    cycles = []
+    for row in cycles_result.all():
+        c_offers = row.offers or 0
+        c_accepted = row.accepted or 0
+        cycles.append(
+            {
+                "cycle_id": str(row.id),
+                "name": row.name,
+                "total_applicants": row.total_applicants or 0,
+                "offers": c_offers,
+                "accepted": c_accepted,
+                "acceptance_rate": round(c_accepted / c_offers * 100, 1) if c_offers else 0.0,
+            }
+        )
+
     return {
         "cycle_id": cycle_id,
         "funnel": funnel,
         "total_applicants": total_applicants,
         "offers": offers,
         "acceptance_rate": acceptance_rate,
+        "cycles": cycles,
     }
 
 
@@ -114,20 +159,19 @@ async def members_analytics(
     db: AsyncSession = Depends(get_db),
 ):
     growth_result = await db.execute(
-        select(Cohort.semester, func.count(Membership.id))
+        select(Cohort.semester, func.count(Membership.id).label("count"))
         .join(Membership, Membership.cohort_id == Cohort.id)
         .where(Membership.is_active == True)
         .group_by(Cohort.semester)
         .order_by(Cohort.semester)
     )
-    cohort_growth = [{"semester": row[0], "count": row[1]} for row in growth_result.all()]
+    cohort_growth = [{"semester": row.semester, "count": row.count} for row in growth_result.all()]
 
     role_result = await db.execute(
-        select(User.role, func.count(Membership.id))
-        .join(User, User.id == Membership.user_id)
-        .where(Membership.is_active == True)
+        select(User.role, func.count(User.id).label("count"))
+        .where(User.is_active == True)
         .group_by(User.role)
     )
-    role_distribution = {row[0].value: row[1] for row in role_result.all()}
+    role_distribution = {row.role.value: row.count for row in role_result.all()}
 
     return {"cohort_growth": cohort_growth, "role_distribution": role_distribution}

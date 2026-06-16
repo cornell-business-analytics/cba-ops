@@ -5,12 +5,22 @@ export interface AnalyticsOverview {
   events_this_semester: number;
 }
 
+export interface RecruitmentCycleStat {
+  cycle_id: string;
+  name: string;
+  total_applicants: number;
+  offers: number;
+  accepted: number;
+  acceptance_rate: number;
+}
+
 export interface RecruitmentAnalytics {
   cycle_id: string | null;
   funnel: Record<string, number>;
   total_applicants: number;
   offers: number;
   acceptance_rate: number;
+  cycles: RecruitmentCycleStat[];
 }
 
 export interface RecruitmentFunnelStage {

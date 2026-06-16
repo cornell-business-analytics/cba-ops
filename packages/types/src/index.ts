@@ -27,6 +27,7 @@ export type {
 export type {
   AnalyticsOverview,
   RecruitmentFunnelStage,
+  RecruitmentCycleStat,
   RecruitmentAnalytics,
   CohortGrowthPoint,
   MembersAnalytics,
