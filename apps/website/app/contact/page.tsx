@@ -28,7 +28,7 @@ export default async function ContactPage() {
 
   return (
     <>
-      <Hero heading="Get in touch" subheading="Whether you have a project in mind, a question about recruitment, or just want to connect — we're reachable below." />
+      <Hero heading="Get in touch" subheading="We'd love to hear from you!" />
 
       <section className="container-section py-16">
         <div className="grid gap-12 lg:grid-cols-2">

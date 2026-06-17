@@ -36,7 +36,7 @@ export default async function RecruitmentPage() {
     <>
       <Hero
         heading="Join CBA"
-        subheading="CBA recruits at the start of each semester. Follow us on Instagram for cycle dates and info session announcements."
+        subheading="Check back in the fall for recruitment details and events!"
         image="/recruitment/recruitFront.jpg"
         compact
       />
