@@ -179,16 +179,16 @@ export default async function ClientsPage() {
 
       <section className="container-section py-16" aria-label="Services">
         <h2 className="text-3xl font-bold text-cba-dark">What we offer</h2>
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="mt-8 divide-y divide-gray-100">
           {services.map(({ title, desc }, i) => (
-            <div
-              key={title}
-              className={`rounded-lg border border-gray-200 p-6 lg:col-span-2${
-                i === 3 ? " lg:col-start-2" : i === 4 ? " lg:col-start-4" : ""
-              }`}
-            >
-              <h3 className="font-semibold text-cba-dark">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-gray-600">{desc}</p>
+            <div key={title} className="grid grid-cols-[3rem_1fr] gap-x-8 py-5 sm:grid-cols-[4rem_1fr]">
+              <span className="font-display text-2xl font-bold leading-tight text-gray-200 tabular-nums">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <div>
+                <h3 className="font-semibold text-cba-dark">{title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-gray-600">{desc}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -229,14 +229,14 @@ export default async function ClientsPage() {
           to all its diverse clients. Below are some of the clients we've worked with.
         </p>
 
-        <div className="mt-10 grid grid-cols-2 gap-8 sm:grid-cols-4">
-          {pastClients.map(({ label, icon }) => (
-            <div key={label} className="flex flex-col items-center gap-4 text-center">
-              <div className="text-gray-400">{icon}</div>
-              <p className="text-sm text-gray-500 leading-snug">{label}</p>
-            </div>
+        <ul className="mt-8 grid gap-x-12 gap-y-3 sm:grid-cols-2">
+          {pastClients.map(({ label }) => (
+            <li key={label} className="flex items-start gap-3 text-sm text-gray-600">
+              <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-cba-green" />
+              A {label}
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
       <section className="bg-cba-gray border-t border-gray-100" aria-label="Why CBA">
@@ -248,6 +248,7 @@ export default async function ClientsPage() {
                 {[
                   "Access Cornell's top analytical talent across engineering, business, statistics, and CS",
                   "Rigorous academic methodology applied to real business problems",
+                  "Structured deliverables and clear milestones — no ambiguous outputs",
                 ].map((point) => (
                   <li key={point} className="flex gap-3 text-gray-600">
                     <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-cba-green" />

@@ -123,7 +123,7 @@ Extract a `<PageHeader>` component to `components/layout/PageHeader.tsx` with `t
 
 Run `pnpm --filter @cba/frontend tsc --noEmit` before pushing.
 
-### Design Task 8 — Website: AI-Pattern Audit & Polish `[ ]`
+### Design Task 8 — Website: AI-Pattern Audit & Polish `[x]`
 
 **Goal:** Review `apps/website` for AI-generated patterns and make subtle improvements. Nothing drastic.
 
