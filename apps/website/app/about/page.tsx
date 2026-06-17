@@ -141,12 +141,12 @@ export default async function AboutPage() {
               <p className="text-lg font-semibold text-cba-teal">
                 Who have worked on projects in
               </p>
-              <div className="mt-6 flex flex-wrap gap-2">
+              <div className="mt-6 grid grid-cols-2 gap-4">
                 {industries.map(({ label, Icon }) => (
-                  <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-sm text-cba-teal">
-                    <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-                    {label}
-                  </span>
+                  <div key={label} className="flex items-center gap-3">
+                    <Icon className="h-6 w-6 flex-shrink-0 text-cba-teal" />
+                    <span className="text-sm text-gray-700">{label}</span>
+                  </div>
                 ))}
               </div>
             </div>
