@@ -95,8 +95,7 @@ export default async function AboutPage() {
               Founded in 2016, Cornell Business Analytics is Cornell's first technical
               consulting club. We partner with on-campus and off-campus clients to deliver
               data-driven insights that drive real decisions while giving our members the
-              hands-on experience that classrooms can't. We believe the best analysts are
-              built through practice, not theory alone.
+              hands-on experience that classrooms can't. 
             </p>
           </div>
 
