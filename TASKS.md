@@ -7,137 +7,60 @@ Each task should produce a single, focused PR.
 
 ## Priority Queue
 
-### Task 4 — Team Page on Public Website `[x]`
+### Task 4b — Individual Member Pages + Missing Profile Fields `[ ]`
 
-**Goal:** Build the `/team` page on `apps/website` displaying member profiles with headshots and full profile info. Wire up headshot uploads via R2 in the ops tool.
+**Goal:** Complete the team feature. The agent marked Task 4 done but two things are missing: (1) individual member pages on the website, and (2) `name` and `email` are not in the ops tool edit form.
 
-#### Backend
-1. Add `linkedin_url` field (String 500, nullable) to `Membership` in `app/models/membership.py`. Add Alembic migration `0004_membership_linkedin.py`.
-2. Update `MembershipPublic` and `MembershipDetail` schemas in `app/schemas/member.py` to include `linkedin_url`.
-3. Implement `POST /ops/v1/assets/upload` in `app/modules/ops/assets.py` — accepts `content_type` and `filename`, requires authenticated user, returns `{upload_url, public_url}` using a presigned R2 PUT URL (expires 15 min). Use R2 config already in `app/core/config.py`.
-4. Add public endpoint `GET /web/v1/members` (no auth) in `app/modules/web/router.py` — returns active members for the current cohort: name, role_title, headshot_url, major, grad_year, hometown, campus_involvements, professional_experience, interests, email, linkedin_url.
+#### Part 1 — Ops Tool: Add name + email to edit form
 
-#### Frontend — Ops Tool (`apps/frontend`)
-5. On `app/(app)/members/[id]/page.tsx`: headshot upload button → file picker → presigned URL → PUT to R2 → PATCH membership with public_url.
-6. Add `linkedin_url` field to the member edit form.
+**File:** `apps/frontend/app/(app)/members/[id]/page.tsx`
 
-#### Frontend — Public Website (`apps/website`)
-7. Create `app/team/page.tsx`. Fetch from `GET /web/v1/members`.
-   - Match the existing website design language exactly — do NOT copy the ops tool style.
-   - Each member shows: headshot, name, role_title, major + grad_year, hometown, campus_involvements, professional_experience, interests, email, LinkedIn link.
-   - Group by role hierarchy: eboard → directors → PMs → analysts.
+The `EDIT_FIELDS` array currently includes role_title, major, grad_year, hometown, linkedin_url, campus_involvements, professional_experience, interests, bio. Add:
+- `{ key: "name", label: "Name" }` — insert as the first item in the array
+- `{ key: "email", label: "Email" }` — insert after name
 
----
+The `ProfileFields` type must also include `name: string` and `email: string`.
 
-### Task 5 — FAQ Block Item Editing `[x]`
+The PATCH request payload already forwards whatever is in the form — no backend changes needed.
 
-**Goal:** FAQ blocks in the CMS page editor are fully editable (currently a placeholder).
+#### Part 2 — Backend: Add GET /web/v1/members/{id} endpoint
 
-- Implement FAQ block editor in `apps/frontend`: ordered list of `{question, answer}` pairs with add/remove/reorder controls.
-- Backend already stores as JSONB — no schema changes needed.
+**File:** `apps/backend/app/modules/web/router.py`
 
----
+Add a new route:
+```
+GET /web/v1/members/{member_id}
+```
+- `member_id` matches `user.id` (the id returned by `GET /web/v1/members`).
+- Returns a single `MemberPublic` or 404 if not found / not active.
+- No auth required.
 
-### Task 6 — Analytics Charts `[x]`
+#### Part 3 — Website: Individual member pages
 
-**Goal:** The `/analytics` page in the ops tool shows meaningful recruitment and cohort data.
+**File to create:** `apps/website/app/team/[id]/page.tsx`
 
-- `GET /ops/v1/analytics/recruitment` — per-cycle stats: total applicants, offers, acceptance rate.
-- `GET /ops/v1/analytics/members` — cohort breakdown: member count per semester, role distribution.
-- Frontend: bar chart for recruitment funnel, line/bar chart for cohort growth. Use `recharts`.
+- Use `generateStaticParams` — fetch all members from `GET /web/v1/members`, return `{ id }` for each.
+- In the page, fetch the individual member via `GET /web/v1/members/{id}` (add `getMember(id)` to `apps/website/lib/api.ts`).
+- If member not found, call `notFound()`.
+- Match the website's existing design language: `cba-green`, `cba-dark`, `container-section`, same font/spacing as other website pages. Do NOT use ops tool styles.
+- Layout:
+  - Left column (or top on mobile): headshot image (use `<img>` or Next.js `<Image>`). If no headshot, show a large initials circle.
+  - Right column: all profile fields displayed as labeled sections.
+  - Fields to show: name, role_title, email, major, grad_year, hometown, campus_involvements, professional_experience, interests.
+  - LinkedIn URL: show a LinkedIn icon (inline SVG or lucide `Linkedin` icon) as a clickable link. Only render if `linkedin_url` is set.
+  - Back link to `/team` at the top.
+- Add `export const revalidate = 3600` for ISR.
 
----
+**Also update:** `apps/website/components/sections/MemberCard.tsx` (or wherever the card is defined in TeamGrid) — wrap the card in a `<Link href={/team/${member.id}}>` so clicking it navigates to the individual page.
 
-### Task 7 — Eboard Table View (Read-only) `[ ]`
-
-**Goal:** Eboard can view raw table data without Railway console access.
-
-- Add a `/data` page in the ops tool (eboard only) with tabs for cohorts, memberships, users.
-- Read-only grid view using shadcn `DataTable`.
-
----
-
-## Design Polish Queue
-
-A separate agent iterates through these. Each task is one PR. Goal: UI that feels crafted for Cornell Business Analytics, not generated from a template.
-
-**Guiding principles:**
-- No two pages should share the same header layout. Vary the structure.
-- Remove generic filler subtext — replace with something informative or remove entirely.
-- Avoid the 4-card-grid-with-colored-icon pattern.
-- Tables: tighter padding, better column hierarchy, sticky headers on long lists.
-- Never break functionality. Appearance and copy only.
-- Stay within Tailwind + shadcn. No new UI libraries.
-- Run `pnpm --filter @cba/frontend tsc --noEmit` before every PR.
-
-### Design Task 3 — Recruitment Page `[x]`
-
-**File:** `app/(app)/recruitment/page.tsx`
-
-- Header should show cycle name prominently and a pipeline progress indicator (how many candidates at each stage).
-- Consider grouping table rows by status or adding a subtle left-border color per status.
-- Move inline status dropdowns to the detail page; show clean read-only badges in the table.
-
-### Design Task 4 — Members Page `[x]`
-
-**File:** `app/(app)/members/page.tsx`
-
-- Add name as the first column — it's currently missing.
-- Add a cohort filter dropdown.
-- Add avatar initials (colored circle with first letter) to each row.
-- Replace "View →" with a proper button or row click handler.
-
-### Design Task 5 — Events Page `[x]`
-
-**File:** `app/(app)/events/page.tsx`
-
-- Remove generic header template.
-- Group events by upcoming vs past based on date field.
-- A date-grouped list is more natural than a flat table for time-based content.
-
-### Design Task 6 — Global: Eliminate Repeated Header Template `[x]`
-
-**Scope:** all `app/(app)/*/page.tsx` files
-
-Extract a `<PageHeader>` component to `components/layout/PageHeader.tsx` with `title`, optional `subtitle`, and optional `action` slot. Make each page pass something meaningful, not generic filler.
-
-### Design Task 7 — Ops Tool: Green & White + CBA Logo `[x]`
-
-**Goal:** Two changes in one PR — swap all blue accents to CBA green, and replace the plain "CBA Ops" text in the sidebar with the real CBA logo.
-
-#### Color: Blue → Green
-- `tailwind.config.ts` — update color tokens to green. Use `#1a7a3c` as primary, `#15692f` for hover/active states.
-- `app/globals.css` (or equivalent CSS variables file) — update `--primary`, `--ring`, and any sidebar CSS variables currently resolving to blue shades.
-- Grep for all hardcoded `text-blue-*`, `bg-blue-*`, `border-blue-*` Tailwind classes across `apps/frontend` and replace with green equivalents.
-- The sidebar active item border accent (from Design Task 1) should use `#1a7a3c`.
-- Dashboard icon colors: replace any blue variants with green.
-- **Do not change** layout, spacing, typography, or component structure. Color only.
-
-#### Logo: Use the CBA logo from the website
-- The website uses `apps/website/public/logo.png` (32×32) as its logo — copy it to `apps/frontend/public/logo.png`.
-- In `components/layout/Sidebar.tsx`, replace the plain `<span>CBA Ops</span>` wordmark with:
-  - The `logo.png` image using Next.js `<Image>` component (width=28, height=28)
-  - Followed by the text "CBA Ops" in the same font weight as before
-  - Match the pattern the website uses in its Nav: logo mark + text side by side
-- The result should feel like the same brand carried into the internal tool.
-
-Run `pnpm --filter @cba/frontend tsc --noEmit` before pushing.
-
-### Design Task 8 — Website: AI-Pattern Audit & Polish `[ ]`
-
-**Goal:** Review `apps/website` for AI-generated patterns and make subtle improvements. Nothing drastic.
-
-**How to audit:**
-1. Read all page files in `apps/website/app/`.
-2. `curl` the live site (check `vercel.json` for URL, or try `cornellbusinessanalytics.org`).
-3. Look for: symmetrical card grids, generic hero copy, identical section spacing, no visual hierarchy.
-
-**What to fix:**
-- Replace generic hero/section copy with something specific to CBA.
-- Break purely decorative card grids — vary sizes or convert to a list.
-- Improve typographic hierarchy where all sections look identical.
-- Do NOT change color palette, remove sections, or restructure nav.
-- One focused PR. Run `pnpm --filter @cba/website tsc --noEmit` before pushing.
+#### Acceptance criteria
+- `name` and `email` fields appear as editable inputs in the ops tool member profile page.
+- `GET /web/v1/members/{id}` returns a single member or 404.
+- `/team/[id]` page renders all profile fields correctly.
+- LinkedIn icon shows only when `linkedin_url` is set and links to it.
+- Member cards on `/team` are clickable and navigate to their individual page.
+- `pnpm --filter @cba/website tsc --noEmit` passes.
+- `pnpm --filter @cba/frontend tsc --noEmit` passes.
 
 ---
 
@@ -146,5 +69,14 @@ Run `pnpm --filter @cba/frontend tsc --noEmit` before pushing.
 - Task 1 — Email Allowlist + Admin Member Creation
 - Task 2 — Public Website: Render CMS Blocks
 - Task 3 — File/Image Uploads (R2)
+- Task 4 — Team Page on Public Website (index page, backend endpoint, ops tool headshot upload)
+- Task 5 — FAQ Block Item Editing
+- Task 6 — Analytics Charts
 - Design Task 1 — Sidebar & Login
 - Design Task 2 — Dashboard
+- Design Task 3 — Recruitment Page
+- Design Task 4 — Members Page
+- Design Task 5 — Events Page
+- Design Task 6 — Global PageHeader
+- Design Task 7 — Green & White + CBA Logo
+- Design Task 8 — Website AI-Pattern Audit
