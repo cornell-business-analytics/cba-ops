@@ -11,7 +11,7 @@ Each task should produce a single, focused PR.
 
 **Goal:** Complete the team feature. The agent marked Task 4 done but two things are missing: (1) individual member pages on the website, and (2) `name` and `email` are not in the ops tool edit form.
 
-#### Part 1 — Ops Tool: Add name + email to edit form
+#### Part 1 — Ops Tool: Add name + email to edit form + fix permissions
 
 **File:** `apps/frontend/app/(app)/members/[id]/page.tsx`
 
@@ -22,6 +22,10 @@ The `EDIT_FIELDS` array currently includes role_title, major, grad_year, hometow
 The `ProfileFields` type must also include `name: string` and `email: string`.
 
 The PATCH request payload already forwards whatever is in the form — no backend changes needed.
+
+**Also fix the permission check.** Currently only `UserRole.director` and above can directly edit profiles. The Social Director has `role_title = "Social Director"` but may only hold `UserRole.pm`. Update the `canDirectEdit` logic to also allow editing when the current user's `membership.role_title` (fetched from `/ops/v1/members/me` or the existing `currentUser` hook — check what's available) contains "Social Director" (case-insensitive check). The final rule: `canDirectEdit = isDirectorOrAbove || currentUser.role_title?.toLowerCase().includes("social director")`.
+
+Also add `role_title` to the `CurrentUser` type in the frontend if it isn't already there, and ensure it's returned by whichever endpoint powers `useCurrentUser`.
 
 #### Part 2 — Backend: Add GET /web/v1/members/{id} endpoint
 
