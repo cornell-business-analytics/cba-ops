@@ -6,6 +6,7 @@ export interface User {
   name: string;
   role: UserRole;
   is_active: boolean;
+  role_title?: string | null;
 }
 
 export interface UserSession {

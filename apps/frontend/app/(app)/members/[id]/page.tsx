@@ -16,6 +16,8 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import type { MembershipDetail, ProfileEditRequest } from "@cba/types";
 
 type ProfileFields = {
+  name: string;
+  email: string;
   role_title: string;
   major: string;
   grad_year: string;
@@ -28,6 +30,8 @@ type ProfileFields = {
 };
 
 const EDIT_FIELDS: { key: keyof ProfileFields; label: string; multiline?: boolean }[] = [
+  { key: "name", label: "Name" },
+  { key: "email", label: "Email" },
   { key: "role_title", label: "Role Title" },
   { key: "major", label: "Major" },
   { key: "grad_year", label: "Graduation Year" },
@@ -66,6 +70,8 @@ export default function MemberProfilePage() {
 
   const isDirectorOrAbove =
     currentUser ? (ROLE_ORDER[currentUser.role] ?? 0) >= ROLE_ORDER["director"] : false;
+  const isSocialDirector =
+    currentUser?.role_title?.toLowerCase().includes("social director") ?? false;
 
   const { data: membership, isLoading } = useQuery<MembershipDetail>({
     queryKey: ["members", id],
@@ -79,13 +85,15 @@ export default function MemberProfilePage() {
     enabled: !!session?.accessToken && isDirectorOrAbove,
   });
   const isOwnProfile = currentUser?.id === membership?.user_id;
-  const canDirectEdit = isDirectorOrAbove;
-  const canRequestEdit = isOwnProfile && !isDirectorOrAbove;
+  const canDirectEdit = isDirectorOrAbove || isSocialDirector;
+  const canRequestEdit = isOwnProfile && !canDirectEdit;
   const isReadOnly = !isDirectorOrAbove && !isOwnProfile;
 
   const { register, handleSubmit, formState: { isDirty } } = useForm<ProfileFields>({
     values: membership
       ? {
+          name: membership.user_name ?? "",
+          email: membership.user_email ?? "",
           role_title: membership.role_title ?? "",
           major: membership.major ?? "",
           grad_year: membership.grad_year ?? "",
@@ -120,11 +128,17 @@ export default function MemberProfilePage() {
     },
   });
 
+  const getOriginalValue = (key: keyof ProfileFields): string | null => {
+    if (key === "name") return membership?.user_name ?? null;
+    if (key === "email") return membership?.user_email ?? null;
+    return (membership as Record<string, string | null | undefined>)?.[key] ?? null;
+  };
+
   const onSubmit = (data: ProfileFields) => {
     const changes: Partial<ProfileFields> = {};
     for (const key of Object.keys(data) as (keyof ProfileFields)[]) {
       const val = data[key] || null;
-      if (val !== (membership?.[key] ?? null)) {
+      if (val !== getOriginalValue(key)) {
         (changes as Record<string, unknown>)[key] = val;
       }
     }

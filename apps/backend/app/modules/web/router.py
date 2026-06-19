@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +10,7 @@ from app.models.membership import Membership
 from app.models.org import Event, EventType
 from app.models.page import Page, PageStatus
 from app.models.setting import SiteSetting
+from app.models.user import User as UserModel
 from app.schemas.event import EventPublic
 from app.schemas.member import MemberPublic
 from app.schemas.page import PagePublic
@@ -20,6 +23,26 @@ async def web_health():
     return {"status": "ok"}
 
 
+def _membership_to_public(m: Membership) -> MemberPublic:
+    return MemberPublic(
+        id=m.user.id,
+        name=m.user.name,
+        email=m.user.email,
+        role=m.user.role.value,
+        role_title=m.role_title,
+        major=m.major,
+        grad_year=m.grad_year,
+        hometown=m.hometown,
+        campus_involvements=m.campus_involvements,
+        professional_experience=m.professional_experience,
+        interests=m.interests,
+        bio=m.bio,
+        headshot_url=m.headshot_url,
+        linkedin_url=m.linkedin_url,
+        cohort_semester=m.cohort.semester,
+    )
+
+
 @router.get("/members", response_model=list[MemberPublic])
 async def get_members(
     db: AsyncSession = Depends(get_db),
@@ -30,28 +53,25 @@ async def get_members(
         .options(selectinload(Membership.user), selectinload(Membership.cohort))
         .order_by(Membership.display_order)
     )
-    memberships = result.scalars().all()
+    return [_membership_to_public(m) for m in result.scalars().all()]
 
-    return [
-        MemberPublic(
-            id=m.user.id,
-            name=m.user.name,
-            email=m.user.email,
-            role=m.user.role.value,
-            role_title=m.role_title,
-            major=m.major,
-            grad_year=m.grad_year,
-            hometown=m.hometown,
-            campus_involvements=m.campus_involvements,
-            professional_experience=m.professional_experience,
-            interests=m.interests,
-            bio=m.bio,
-            headshot_url=m.headshot_url,
-            linkedin_url=m.linkedin_url,
-            cohort_semester=m.cohort.semester,
-        )
-        for m in memberships
-    ]
+
+@router.get("/members/{member_id}", response_model=MemberPublic)
+async def get_member(
+    member_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Membership)
+        .join(Membership.user)
+        .where(UserModel.id == member_id, Membership.is_active == True)
+        .options(selectinload(Membership.user), selectinload(Membership.cohort))
+        .limit(1)
+    )
+    m = result.scalar_one_or_none()
+    if not m:
+        raise HTTPException(status_code=404, detail="Member not found")
+    return _membership_to_public(m)
 
 
 @router.get("/events", response_model=list[EventPublic])
