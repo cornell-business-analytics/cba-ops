@@ -7,7 +7,7 @@ Each task should produce a single, focused PR.
 
 ## Priority Queue
 
-### Task 4b — Individual Member Pages + Missing Profile Fields `[ ]`
+### Task 4b — Individual Member Pages + Missing Profile Fields `[x]`
 
 **Goal:** Complete the team feature. The agent marked Task 4 done but two things are missing: (1) individual member pages on the website, and (2) `name` and `email` are not in the ops tool edit form.
 
