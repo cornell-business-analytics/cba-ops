@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,6 +54,38 @@ async def get_members(
         )
         for m in memberships
     ]
+
+
+@router.get("/members/{member_id}", response_model=MemberPublic)
+async def get_member(
+    member_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Membership)
+        .where(Membership.user_id == member_id, Membership.is_active == True)
+        .options(selectinload(Membership.user), selectinload(Membership.cohort))
+    )
+    m = result.scalar_one_or_none()
+    if not m:
+        raise HTTPException(status_code=404, detail="Member not found")
+    return MemberPublic(
+        id=m.user.id,
+        name=m.user.name,
+        email=m.user.email,
+        role=m.user.role.value,
+        role_title=m.role_title,
+        major=m.major,
+        grad_year=m.grad_year,
+        hometown=m.hometown,
+        campus_involvements=m.campus_involvements,
+        professional_experience=m.professional_experience,
+        interests=m.interests,
+        bio=m.bio,
+        headshot_url=m.headshot_url,
+        linkedin_url=m.linkedin_url,
+        cohort_semester=m.cohort.semester,
+    )
 
 
 @router.get("/events", response_model=list[EventPublic])

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { MemberPublic } from "@cba/types";
 
 interface MemberCardProps {
@@ -7,7 +8,7 @@ interface MemberCardProps {
 
 export function MemberCard({ member }: MemberCardProps) {
   return (
-    <div className="flex flex-col rounded-lg border border-gray-100 bg-white overflow-hidden shadow-sm">
+    <Link href={`/team/${member.id}`} className="flex flex-col rounded-lg border border-gray-100 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <div className="relative h-48 w-full bg-cba-dark/10 flex-shrink-0">
         {member.headshot_url ? (
           <Image
@@ -85,6 +86,6 @@ export function MemberCard({ member }: MemberCardProps) {
           )}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
