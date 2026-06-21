@@ -69,6 +69,8 @@ class MembershipCreate(BaseModel):
 
 
 class MembershipUpdate(BaseModel):
+    name: str | None = None
+    email: str | None = None
     role_title: str | None = None
     project_id: uuid.UUID | None = None
     headshot_url: str | None = None

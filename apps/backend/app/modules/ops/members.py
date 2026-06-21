@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.models.membership import Membership, ProfileEditRequest
 from app.models.user import User, UserRole
-from app.modules.ops.deps import get_current_user, require_role
+from app.modules.ops.deps import get_current_user, require_director_or_social_director, require_role
 from app.schemas.member import (
     MembershipCreate,
     MembershipDetail,
@@ -88,14 +88,23 @@ async def get_membership(
 async def update_membership(
     membership_id: uuid.UUID,
     body: MembershipUpdate,
-    _: User = Depends(require_role(UserRole.director)),
+    _: User = Depends(require_director_or_social_director),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Membership).where(Membership.id == membership_id))
+    result = await db.execute(
+        select(Membership)
+        .options(selectinload(Membership.user))
+        .where(Membership.id == membership_id)
+    )
     membership = result.scalar_one_or_none()
     if not membership:
         raise HTTPException(status_code=404, detail="Membership not found")
-    for field, value in body.model_dump(exclude_none=True).items():
+    update_data = body.model_dump(exclude_none=True)
+    if "name" in update_data:
+        membership.user.name = update_data.pop("name")
+    if "email" in update_data:
+        membership.user.email = update_data.pop("email")
+    for field, value in update_data.items():
         setattr(membership, field, value)
     await db.commit()
     await db.refresh(membership)

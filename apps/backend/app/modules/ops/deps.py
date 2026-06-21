@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_token
 from app.db.session import get_db
+from app.models.membership import Membership
 from app.models.user import User, UserRole
 
 bearer_scheme = HTTPBearer()
@@ -48,3 +49,21 @@ def require_role(min_role: UserRole):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
         return user
     return _check
+
+
+async def require_director_or_social_director(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Allows director+ role OR users whose active membership role_title contains 'social director'."""
+    if ROLE_ORDER[current_user.role] >= ROLE_ORDER[UserRole.director]:
+        return current_user
+    result = await db.execute(
+        select(Membership)
+        .where(Membership.user_id == current_user.id, Membership.is_active == True)
+        .limit(1)
+    )
+    membership = result.scalar_one_or_none()
+    if membership and "social director" in (membership.role_title or "").lower():
+        return current_user
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
