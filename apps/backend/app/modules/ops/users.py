@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.models.membership import Membership
 from app.models.user import User, UserRole
 from app.modules.ops.deps import get_current_user, require_role
 from app.schemas.user import UserPublic, UserUpdate
@@ -18,8 +19,24 @@ class UserRoleUpdate(BaseModel):
 
 
 @router.get("/me", response_model=UserPublic)
-async def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Membership)
+        .where(Membership.user_id == current_user.id, Membership.is_active == True)
+        .limit(1)
+    )
+    membership = result.scalar_one_or_none()
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "role": current_user.role,
+        "is_active": current_user.is_active,
+        "role_title": membership.role_title if membership else None,
+    }
 
 
 @router.patch("/me", response_model=UserPublic)

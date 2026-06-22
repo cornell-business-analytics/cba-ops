@@ -16,6 +16,8 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import type { MembershipDetail, ProfileEditRequest } from "@cba/types";
 
 type ProfileFields = {
+  name: string;
+  email: string;
   role_title: string;
   major: string;
   grad_year: string;
@@ -28,6 +30,8 @@ type ProfileFields = {
 };
 
 const EDIT_FIELDS: { key: keyof ProfileFields; label: string; multiline?: boolean }[] = [
+  { key: "name", label: "Name" },
+  { key: "email", label: "Email" },
   { key: "role_title", label: "Role Title" },
   { key: "major", label: "Major" },
   { key: "grad_year", label: "Graduation Year" },
@@ -79,13 +83,15 @@ export default function MemberProfilePage() {
     enabled: !!session?.accessToken && isDirectorOrAbove,
   });
   const isOwnProfile = currentUser?.id === membership?.user_id;
-  const canDirectEdit = isDirectorOrAbove;
-  const canRequestEdit = isOwnProfile && !isDirectorOrAbove;
+  const canDirectEdit = isDirectorOrAbove || (currentUser?.role_title?.toLowerCase().includes("social director") ?? false);
+  const canRequestEdit = isOwnProfile && !canDirectEdit;
   const isReadOnly = !isDirectorOrAbove && !isOwnProfile;
 
   const { register, handleSubmit, formState: { isDirty } } = useForm<ProfileFields>({
     values: membership
       ? {
+          name: membership.user_name ?? "",
+          email: membership.user_email ?? "",
           role_title: membership.role_title ?? "",
           major: membership.major ?? "",
           grad_year: membership.grad_year ?? "",
