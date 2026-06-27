@@ -46,6 +46,10 @@ export async function getEvents(type?: string): Promise<EventPublic[]> {
   return data ?? PLACEHOLDER_EVENTS;
 }
 
+export async function getMember(id: string): Promise<MemberPublic | null> {
+  return apiFetch<MemberPublic>(`/web/v1/members/${id}`, `member-${id}`);
+}
+
 export async function getPage(slug: string): Promise<PagePublic | null> {
   return apiFetch<PagePublic>(`/web/v1/pages/${slug}`, `page-${slug}`);
 }

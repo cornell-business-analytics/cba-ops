@@ -11,6 +11,7 @@ class UserPublic(BaseModel):
     name: str
     role: UserRole
     is_active: bool
+    role_title: str | None = None
 
     model_config = {"from_attributes": True}
 
