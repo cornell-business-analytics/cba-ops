@@ -2,20 +2,6 @@
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
 
-function toCamel(s: string): string {
-  return s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-}
-
-function transformKeys(val: unknown): unknown {
-  if (Array.isArray(val)) return val.map(transformKeys);
-  if (val !== null && typeof val === "object") {
-    return Object.fromEntries(
-      Object.entries(val as Record<string, unknown>).map(([k, v]) => [toCamel(k), transformKeys(v)])
-    );
-  }
-  return val;
-}
-
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -47,7 +33,7 @@ async function request<T>(
     throw new ApiError(res.status, data.detail ?? "Unknown error");
   }
 
-  return transformKeys(data) as T;
+  return data as T;
 }
 
 export function createApi(accessToken: string | undefined) {
