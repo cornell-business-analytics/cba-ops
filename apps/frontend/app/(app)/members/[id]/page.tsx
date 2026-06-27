@@ -16,8 +16,6 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import type { MembershipDetail, ProfileEditRequest } from "@cba/types";
 
 type ProfileFields = {
-  name: string;
-  email: string;
   role_title: string;
   major: string;
   grad_year: string;
@@ -30,8 +28,6 @@ type ProfileFields = {
 };
 
 const EDIT_FIELDS: { key: keyof ProfileFields; label: string; multiline?: boolean }[] = [
-  { key: "name", label: "Name" },
-  { key: "email", label: "Email" },
   { key: "role_title", label: "Role Title" },
   { key: "major", label: "Major" },
   { key: "grad_year", label: "Graduation Year" },
@@ -65,6 +61,7 @@ export default function MemberProfilePage() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const api = () => createApi(session?.accessToken);
 
@@ -93,8 +90,6 @@ export default function MemberProfilePage() {
   const { register, handleSubmit, formState: { isDirty } } = useForm<ProfileFields>({
     values: membership
       ? {
-          name: membership.user_name ?? "",
-          email: membership.user_email ?? "",
           role_title: membership.role_title ?? "",
           major: membership.major ?? "",
           grad_year: membership.grad_year ?? "",
@@ -149,14 +144,17 @@ export default function MemberProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setUploadError(null);
     try {
       const { uploadUrl, publicUrl } = await api().post<{ uploadUrl: string; publicUrl: string; key: string }>(
         "/ops/v1/assets/upload",
         { filename: file.name, content_type: file.type },
       );
       await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      await api().patch(`/ops/v1/members/${id}`, { headshot_url: publicUrl });
+      await api().patch(`/ops/v1/members/${id}/headshot`, { headshot_url: publicUrl });
       qc.invalidateQueries({ queryKey: ["members", id] });
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -196,7 +194,11 @@ export default function MemberProfilePage() {
                 disabled={uploading}
                 className="absolute inset-0 rounded-full bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
               >
-                <Upload className="h-5 w-5" />
+                {uploading ? (
+                  <span className="text-xs">…</span>
+                ) : (
+                  <Upload className="h-5 w-5" />
+                )}
               </button>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleHeadshotChange} />
             </>
@@ -207,6 +209,9 @@ export default function MemberProfilePage() {
           <h1 className="text-xl font-semibold">{membership.user_name}</h1>
           <p className="text-sm text-muted-foreground">{membership.user_email}</p>
           <p className="text-sm text-muted-foreground mt-0.5">{membership.role_title}</p>
+          {uploadError && (
+            <p className="mt-1 text-xs text-destructive">{uploadError}</p>
+          )}
         </div>
 
         {isReadOnly && (

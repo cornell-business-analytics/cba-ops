@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -97,6 +98,34 @@ async def update_membership(
         raise HTTPException(status_code=404, detail="Membership not found")
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(membership, field, value)
+    await db.commit()
+    await db.refresh(membership)
+    return membership
+
+
+class HeadshotUpdate(BaseModel):
+    headshot_url: str
+
+
+@router.patch("/members/{membership_id}/headshot", response_model=MembershipPublic)
+async def update_headshot(
+    membership_id: uuid.UUID,
+    body: HeadshotUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Any member can update their own headshot; directors can update anyone's."""
+    result = await db.execute(select(Membership).where(Membership.id == membership_id))
+    membership = result.scalar_one_or_none()
+    if not membership:
+        raise HTTPException(status_code=404, detail="Membership not found")
+
+    is_director = current_user.role in (UserRole.director, UserRole.eboard)
+    is_own = membership.user_id == current_user.id
+    if not is_director and not is_own:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    membership.headshot_url = body.headshot_url
     await db.commit()
     await db.refresh(membership)
     return membership
