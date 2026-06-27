@@ -36,7 +36,7 @@ export async function getMembers(): Promise<MemberGroups> {
     eboard: data.filter((m) => m.role === "eboard"),
     directors: data.filter((m) => m.role === "director"),
     pms: data.filter((m) => m.role === "pm"),
-    analysts: data.filter((m) => m.role === "member"),
+    analysts: data.filter((m) => m.role === "member" || m.role === "analyst"),
   };
 }
 

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createApi } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import type { MembershipDetail, ProfileEditRequest } from "@cba/types";
@@ -241,6 +242,35 @@ export default function MemberProfilePage() {
             ))}
           </div>
         </div>
+
+        {/* Website section — directors only, separate from profile form */}
+        {canDirectEdit && (
+          <div className="rounded-lg border bg-white p-4 space-y-2">
+            <h2 className="text-sm font-semibold">Website</h2>
+            <p className="text-xs text-muted-foreground">Controls which section this member appears in on the public team page. Independent of their ops tool role.</p>
+            <div className="flex items-center gap-3 pt-1">
+              <Label className="text-xs w-28 shrink-0">Team page section</Label>
+              <Select
+                value={membership.website_role ?? "default"}
+                onValueChange={(v) => {
+                  directUpdate.mutate({ website_role: v === "default" ? null : v } as never);
+                }}
+              >
+                <SelectTrigger className="w-52 h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default (use tool role)</SelectItem>
+                  <SelectItem value="eboard">Executive Board</SelectItem>
+                  <SelectItem value="director">Directors</SelectItem>
+                  <SelectItem value="pm">Project Managers</SelectItem>
+                  <SelectItem value="analyst">Analysts</SelectItem>
+                  <SelectItem value="hidden">Hidden (not on website)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
 
         {!isReadOnly && (
           <div className="flex justify-end gap-2">

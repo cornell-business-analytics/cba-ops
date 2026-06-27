@@ -68,12 +68,16 @@ async def get_members(
     )
     memberships = result.scalars().all()
 
-    return [
-        MemberPublic(
+    out = []
+    for m in memberships:
+        effective_role = m.website_role or m.user.role.value
+        if effective_role == "hidden":
+            continue
+        out.append(MemberPublic(
             id=m.user.id,
             name=m.user.name,
             email=m.user.email,
-            role=m.user.role.value,
+            role=effective_role,
             role_title=m.role_title,
             major=m.major,
             grad_year=m.grad_year,
@@ -85,9 +89,8 @@ async def get_members(
             headshot_url=m.headshot_url,
             linkedin_url=m.linkedin_url,
             cohort_semester=m.cohort.semester,
-        )
-        for m in memberships
-    ]
+        ))
+    return out
 
 
 @router.get("/events", response_model=list[EventPublic])

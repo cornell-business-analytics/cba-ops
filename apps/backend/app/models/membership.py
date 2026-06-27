@@ -42,6 +42,10 @@ class Membership(UUIDMixin, TimestampMixin, Base):
     linkedin_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    # Website display — overrides user.role for grouping on the public team page
+    # Values: "eboard" | "director" | "pm" | "analyst" | "hidden" | None (falls back to user.role)
+    website_role: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
     # Private fields
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 

@@ -22,6 +22,7 @@ export interface Membership {
   linkedin_url: string | null;
   display_order: number;
   is_active: boolean;
+  website_role: string | null;
 }
 
 export interface MemberPublic {
