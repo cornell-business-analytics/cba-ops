@@ -13,12 +13,14 @@ import {
   BarChart3,
   LogOut,
   ShieldCheck,
+  Coffee,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/recruitment", label: "Recruitment", icon: UserSearch },
+  { href: "/recruitment/coffee-chats", label: "Coffee Chats", icon: Coffee },
   { href: "/members", label: "Members", icon: Users },
   { href: "/website", label: "Website", icon: Globe },
   { href: "/events", label: "Events", icon: CalendarDays },

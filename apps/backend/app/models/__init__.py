@@ -7,6 +7,7 @@ from app.models.candidate import (
     InterviewRound, InterviewScore, InterviewSession, ScoreFormat,
 )
 from app.models.membership import Cohort, Membership, ProfileEditRequest
+from app.models.recruitment import CoffeeChatApplicant, GmailToken, RecruitmentCycle
 from app.models.org import Event, EventType
 from app.models.page import Page, PageStatus
 from app.models.project import Project
@@ -23,4 +24,5 @@ __all__ = [
     "InterviewAssignment", "InterviewScore", "ScoreFormat", "InterviewFormat",
     "Event", "EventType",
     "Page", "PageStatus",
+    "RecruitmentCycle", "CoffeeChatApplicant", "GmailToken",
 ]
