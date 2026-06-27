@@ -55,7 +55,7 @@ export default function CoffeeChatsPage() {
   });
 
   const createCycle = useMutation({
-    mutationFn: () => api.post("/ops/v1/recruitment/cycles", {
+    mutationFn: () => api.post<Cycle>("/ops/v1/recruitment/cycles", {
       name: form.name,
       sheet_id: form.sheetId || null,
       sender_name: form.senderName,

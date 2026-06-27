@@ -77,34 +77,34 @@ export default function CycleDetailPage() {
 
   const { data: cycle } = useQuery<Cycle>({
     queryKey: ["cycle", id],
-    queryFn: () => api.get(`/ops/v1/recruitment/cycles`).then((cs: Cycle[]) => cs.find(c => c.id === id)!),
+    queryFn: () => api.get<Cycle[]>(`/ops/v1/recruitment/cycles`).then((cs) => cs.find(c => c.id === id)!),
     enabled: !!session?.accessToken,
   });
 
   const { data: applicants = [], isLoading } = useQuery<Applicant[]>({
     queryKey: ["applicants", id],
-    queryFn: () => api.get(`/ops/v1/recruitment/cycles/${id}/applicants`),
+    queryFn: () => api.get<Applicant[]>(`/ops/v1/recruitment/cycles/${id}/applicants`),
     enabled: !!session?.accessToken,
   });
 
   const { data: members = [] } = useQuery<MembershipDetail[]>({
     queryKey: ["members"],
-    queryFn: () => api.get("/ops/v1/members"),
+    queryFn: () => api.get<MembershipDetail[]>("/ops/v1/members"),
     enabled: !!session?.accessToken,
   });
 
   const { data: sheetCols } = useQuery<{ columns: string[] }>({
     queryKey: ["sheet-cols", id],
-    queryFn: () => api.get(`/ops/v1/recruitment/cycles/${id}/sheet-columns`),
+    queryFn: () => api.get<{ columns: string[] }>(`/ops/v1/recruitment/cycles/${id}/sheet-columns`),
     enabled: !!session?.accessToken && importOpen,
   });
 
   const importMutation = useMutation({
-    mutationFn: () => api.post(`/ops/v1/recruitment/cycles/${id}/import`, {
+    mutationFn: () => api.post<{ imported: number; skipped: number }>(`/ops/v1/recruitment/cycles/${id}/import`, {
       name_col: colMap.nameCol, email_col: colMap.emailCol,
       grad_col: colMap.gradCol, major_col: colMap.majorCol, request_col: colMap.requestCol,
     }),
-    onSuccess: (data: { imported: number; skipped: number }) => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["applicants", id] });
       setImportOpen(false);
       alert(`Imported ${data.imported} applicants, skipped ${data.skipped} duplicates.`);
@@ -114,14 +114,14 @@ export default function CycleDetailPage() {
   const pairMutation = useMutation({
     mutationFn: ({ applicantId, membershipId }: { applicantId: string; membershipId: string | null }) =>
       membershipId
-        ? api.patch(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/pairing`, { membership_id: membershipId })
-        : api.delete(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/pairing`),
+        ? api.patch<unknown>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/pairing`, { membership_id: membershipId })
+        : api.delete<unknown>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/pairing`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["applicants", id] }),
   });
 
   const sendPairing = useMutation({
     mutationFn: (applicantId: string) =>
-      api.post(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/send-pairing-email`, {}),
+      api.post<void>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/send-pairing-email`, {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["applicants", id] });
       setSendingId(null);
@@ -134,7 +134,7 @@ export default function CycleDetailPage() {
 
   const markSent = useMutation({
     mutationFn: (applicantId: string) =>
-      api.post(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/mark-sent`, {}),
+      api.post<void>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/mark-sent`, {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["applicants", id] });
       setMarkingId(null);
@@ -143,7 +143,7 @@ export default function CycleDetailPage() {
 
   const sendRejection = useMutation({
     mutationFn: (applicantId: string) =>
-      api.post(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/send-rejection-email`, {}),
+      api.post<void>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/send-rejection-email`, {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["applicants", id] });
       setRejectingId(null);
@@ -155,7 +155,7 @@ export default function CycleDetailPage() {
   });
 
   const updateCycle = useMutation({
-    mutationFn: (data: Partial<Cycle>) => api.patch(`/ops/v1/recruitment/cycles/${id}`, {
+    mutationFn: (data: Partial<Cycle>) => api.patch<Cycle>(`/ops/v1/recruitment/cycles/${id}`, {
       name: data.name,
       sheet_id: data.sheetId,
       sender_name: data.senderName,
