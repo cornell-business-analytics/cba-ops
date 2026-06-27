@@ -54,6 +54,8 @@ export default function MembersPage() {
   const [search, setSearch] = useState("");
   const [cohortFilter, setCohortFilter] = useState<string>("all");
   const [addOpen, setAddOpen] = useState(false);
+  const [cohortOpen, setCohortOpen] = useState(false);
+  const [newSemester, setNewSemester] = useState("");
   const [form, setForm] = useState<MemberCreate>({
     userId: "",
     cohortId: "",
@@ -81,6 +83,15 @@ export default function MembersPage() {
     queryKey: ["users"],
     queryFn: () => api.get("/ops/v1/users"),
     enabled: !!session?.accessToken && addOpen,
+  });
+
+  const createCohort = useMutation({
+    mutationFn: () => api.post<Cohort>("/ops/v1/cohorts", { semester: newSemester.trim() }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cohorts"] });
+      setCohortOpen(false);
+      setNewSemester("");
+    },
   });
 
   const addMutation = useMutation({
@@ -118,17 +129,24 @@ export default function MembersPage() {
         </div>
         <div className="flex items-center gap-2">
           {/* Cohort filter */}
-          <Select value={cohortFilter} onValueChange={setCohortFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="All cohorts" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All cohorts</SelectItem>
-              {cohorts.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.semester}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-1">
+            <Select value={cohortFilter} onValueChange={setCohortFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="All cohorts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All cohorts</SelectItem>
+                {cohorts.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.semester}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {session?.role === "eboard" && (
+              <Button size="sm" variant="outline" className="px-2" onClick={() => setCohortOpen(true)} title="New cohort">
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
 
           {/* Search */}
           <div className="relative w-56">
@@ -208,6 +226,33 @@ export default function MembersPage() {
           </table>
         )}
       </div>
+
+      {/* Create cohort dialog */}
+      <Dialog open={cohortOpen} onOpenChange={setCohortOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New Cohort</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5 py-2">
+            <Label>Semester</Label>
+            <Input
+              value={newSemester}
+              onChange={(e) => setNewSemester(e.target.value)}
+              placeholder="e.g. Fall 2025"
+              onKeyDown={(e) => e.key === "Enter" && newSemester.trim() && createCohort.mutate()}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCohortOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => createCohort.mutate()}
+              disabled={!newSemester.trim() || createCohort.isPending}
+            >
+              {createCohort.isPending ? "Creating…" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
