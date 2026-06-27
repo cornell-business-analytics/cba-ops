@@ -368,13 +368,9 @@ export default function CycleDetailPage() {
                 <Label>Google Sheet ID</Label>
                 <Input value={settingsForm.sheetId ?? ""} onChange={e => setSettingsForm(f => ({ ...f, sheetId: e.target.value }))} placeholder="From the sheet URL" />
               </div>
-              <div className="space-y-1.5">
-                <Label>Your name</Label>
-                <Input value={settingsForm.senderName ?? ""} onChange={e => setSettingsForm(f => ({ ...f, senderName: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Your title</Label>
-                <Input value={settingsForm.senderTitle ?? ""} onChange={e => setSettingsForm(f => ({ ...f, senderTitle: e.target.value }))} />
+              <div className="col-span-2 space-y-1.5">
+                <Label>Sender title <span className="text-xs text-muted-foreground font-normal">(shared for all senders — sender name comes from whoever is signed in)</span></Label>
+                <Input value={settingsForm.senderTitle ?? ""} onChange={e => setSettingsForm(f => ({ ...f, senderTitle: e.target.value }))} placeholder="Director of Recruitment" />
               </div>
             </div>
 

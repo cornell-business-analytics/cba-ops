@@ -27,20 +27,24 @@ router = APIRouter(tags=["members"])
 # Memberships
 # ---------------------------------------------------------------------------
 
-@router.get("/members", response_model=list[MembershipPublic])
+@router.get("/members", response_model=list[MembershipDetail])
 async def list_members(
     cohort_id: uuid.UUID | None = None,
-    active_only: bool = True,
+    active_only: bool = False,
     _: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Membership)
+    query = select(Membership).options(selectinload(Membership.user))
     if active_only:
         query = query.where(Membership.is_active == True)
     if cohort_id:
         query = query.where(Membership.cohort_id == cohort_id)
     result = await db.execute(query.order_by(Membership.display_order))
-    return result.scalars().all()
+    members = result.scalars().all()
+    return [
+        {**{c.key: getattr(m, c.key) for c in m.__table__.columns}, "user_name": m.user.name, "user_email": m.user.email}
+        for m in members
+    ]
 
 
 @router.post("/members", response_model=MembershipPublic, status_code=status.HTTP_201_CREATED)

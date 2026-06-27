@@ -34,7 +34,7 @@ export default function CoffeeChatsPage() {
   const api = createApi(session?.accessToken);
 
   const [newOpen, setNewOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", sheetId: "", senderName: "", senderTitle: "Director of Recruitment" });
+  const [form, setForm] = useState({ name: "", sheetId: "", senderTitle: "Director of Recruitment" });
 
   const { data: cycles = [], isLoading } = useQuery<Cycle[]>({
     queryKey: ["coffee-chat-cycles"],
@@ -58,13 +58,12 @@ export default function CoffeeChatsPage() {
     mutationFn: () => api.post<Cycle>("/ops/v1/recruitment/cycles", {
       name: form.name,
       sheet_id: form.sheetId || null,
-      sender_name: form.senderName,
       sender_title: form.senderTitle,
     }),
     onSuccess: (data: Cycle) => {
       qc.invalidateQueries({ queryKey: ["coffee-chat-cycles"] });
       setNewOpen(false);
-      setForm({ name: "", sheetId: "", senderName: "", senderTitle: "Director of Recruitment" });
+      setForm({ name: "", sheetId: "", senderTitle: "Director of Recruitment" });
       router.push(`/recruitment/coffee-chats/${data.id}`);
     },
   });
@@ -154,15 +153,9 @@ export default function CoffeeChatsPage() {
               <Input placeholder="Paste the sheet ID from the URL" value={form.sheetId} onChange={(e) => setForm(f => ({ ...f, sheetId: e.target.value }))} />
               <p className="text-xs text-muted-foreground">The long string between /d/ and /edit in the Google Sheet URL.</p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Your name</Label>
-                <Input placeholder="Sachin Chhaya" value={form.senderName} onChange={(e) => setForm(f => ({ ...f, senderName: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Your title</Label>
-                <Input placeholder="Director of Recruitment" value={form.senderTitle} onChange={(e) => setForm(f => ({ ...f, senderTitle: e.target.value }))} />
-              </div>
+            <div className="space-y-1.5">
+              <Label>Sender title <span className="text-muted-foreground text-xs">(shared — name comes from whoever is signed in)</span></Label>
+              <Input placeholder="Director of Recruitment" value={form.senderTitle} onChange={(e) => setForm(f => ({ ...f, senderTitle: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>
