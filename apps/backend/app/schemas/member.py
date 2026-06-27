@@ -46,6 +46,7 @@ class MembershipPublic(BaseModel):
     linkedin_url: str | None
     display_order: int
     is_active: bool
+    website_role: str | None
 
     model_config = {"from_attributes": True}
 
@@ -82,6 +83,7 @@ class MembershipUpdate(BaseModel):
     linkedin_url: str | None = None
     display_order: int | None = None
     is_active: bool | None = None
+    website_role: str | None = None
 
 
 class MembershipDetail(MembershipPublic):
