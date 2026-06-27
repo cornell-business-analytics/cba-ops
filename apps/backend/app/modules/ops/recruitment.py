@@ -351,6 +351,7 @@ class ColumnMapping(BaseModel):
     grad_col: str = "Graduation Date"
     major_col: str = "Intended Major(s)"
     request_col: str = "Paired Member"
+    timestamp_col: str = "Timestamp"  # Google Forms always prepends this column
 
 
 @router.post("/cycles/{cycle_id}/import")
@@ -393,18 +394,21 @@ async def import_from_sheet(
 
     imported = 0
     skipped = 0
-    for row in rows:
+    for i, row in enumerate(rows):
         email = col(row, mapping.email_col)
         if not email:
             skipped += 1
             continue
         netid = email.split("@")[0].strip().lower()
 
-        # Skip if already imported
+        # Dedup key: netid + timestamp — allows same person to request multiple chats
+        timestamp = col(row, mapping.timestamp_col) or str(i)
+        row_key = f"{netid}_{timestamp}"
+
         existing = await db.execute(
             select(CoffeeChatApplicant).where(
                 CoffeeChatApplicant.cycle_id == cycle_id,
-                CoffeeChatApplicant.netid == netid,
+                CoffeeChatApplicant.row_key == row_key,
             )
         )
         if existing.scalar_one_or_none():
@@ -419,6 +423,7 @@ async def import_from_sheet(
             grad_date=col(row, mapping.grad_col) or None,
             major=col(row, mapping.major_col) or None,
             requested_member_raw=col(row, mapping.request_col) or None,
+            row_key=row_key,
         )
         db.add(applicant)
         imported += 1
