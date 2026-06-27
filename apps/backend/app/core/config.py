@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     # OpenTelemetry
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
 
+    # Gmail OAuth (for coffee chat emails)
+    GMAIL_CLIENT_ID: str = ""
+    GMAIL_CLIENT_SECRET: str = ""
+    GMAIL_REDIRECT_URI: str = "http://localhost:8000/ops/v1/recruitment/gmail-callback"
+
     # Cloudflare R2 (S3-compatible)
     R2_ACCOUNT_ID: str = ""
     R2_ACCESS_KEY_ID: str = ""
