@@ -562,11 +562,34 @@ async def remove_pairing(
 # Email sending
 # ---------------------------------------------------------------------------
 
+@router.post("/cycles/{cycle_id}/applicants/{applicant_id}/mark-sent")
+async def mark_sent_manually(
+    cycle_id: uuid.UUID,
+    applicant_id: uuid.UUID,
+    current_user: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark a coffee chat as sent without emailing — for manually handled pairings."""
+    result = await db.execute(
+        select(CoffeeChatApplicant).where(
+            CoffeeChatApplicant.id == applicant_id,
+            CoffeeChatApplicant.cycle_id == cycle_id,
+        )
+    )
+    applicant = result.scalar_one_or_none()
+    if not applicant:
+        raise HTTPException(status_code=404, detail="Applicant not found")
+    applicant.pairing_status = "sent"
+    applicant.sent_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"ok": True}
+
+
 @router.post("/cycles/{cycle_id}/applicants/{applicant_id}/send-pairing-email")
 async def send_pairing_email(
     cycle_id: uuid.UUID,
     applicant_id: uuid.UUID,
-    _: User = Depends(require_role(UserRole.director)),
+    current_user: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -592,10 +615,11 @@ async def send_pairing_email(
     member_major = member.major or ""
     member_year = _grad_date_to_year(member.grad_year or "")
 
+    effective_sender = cycle.sender_name or current_user.name
     body_html = _render_pairing_body(
         cycle.pairing_body, applicant,
         member_first, member_last, member_major, member_year,
-        cycle.sender_name, cycle.sender_title,
+        effective_sender, cycle.sender_title,
     )
 
     token = await _get_valid_token(db)
@@ -619,7 +643,7 @@ async def send_pairing_email(
 async def send_rejection_email(
     cycle_id: uuid.UUID,
     applicant_id: uuid.UUID,
-    _: User = Depends(require_role(UserRole.director)),
+    current_user: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -636,7 +660,8 @@ async def send_rejection_email(
     cycle_result = await db.execute(select(RecruitmentCycle).where(RecruitmentCycle.id == cycle_id))
     cycle = cycle_result.scalar_one_or_none()
 
-    body_html = _render_rejection_body(cycle.rejection_body, applicant, cycle.sender_name, cycle.sender_title)
+    effective_sender = cycle.sender_name or current_user.name
+    body_html = _render_rejection_body(cycle.rejection_body, applicant, effective_sender, cycle.sender_title)
 
     token = await _get_valid_token(db)
     msg_id = await _send_gmail(

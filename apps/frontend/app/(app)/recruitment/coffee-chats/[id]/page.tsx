@@ -72,6 +72,7 @@ export default function CycleDetailPage() {
   });
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [markingId, setMarkingId] = useState<string | null>(null);
   const [settingsForm, setSettingsForm] = useState<Partial<Cycle>>({});
 
   const { data: cycle } = useQuery<Cycle>({
@@ -131,6 +132,15 @@ export default function CycleDetailPage() {
     },
   });
 
+  const markSent = useMutation({
+    mutationFn: (applicantId: string) =>
+      api.post(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/mark-sent`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["applicants", id] });
+      setMarkingId(null);
+    },
+  });
+
   const sendRejection = useMutation({
     mutationFn: (applicantId: string) =>
       api.post(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/send-rejection-email`, {}),
@@ -163,7 +173,11 @@ export default function CycleDetailPage() {
   });
 
   const handleOpenSettings = () => {
-    setSettingsForm(cycle ?? {});
+    setSettingsForm({
+      ...cycle,
+      // Default sender name to signed-in user if not set on the cycle
+      senderName: cycle?.senderName || session?.user?.name || "",
+    });
     setSettingsOpen(true);
   };
 
@@ -273,6 +287,21 @@ export default function CycleDetailPage() {
                           >
                             <Send className="h-3 w-3 mr-1" />
                             {sendingId === a.id ? "Sending…" : "Send"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            disabled={markingId === a.id}
+                            title="Mark as sent without emailing (e.g. you handled it manually)"
+                            onClick={() => {
+                              if (!confirm(`Mark ${a.name} as sent without emailing?`)) return;
+                              setMarkingId(a.id);
+                              markSent.mutate(a.id);
+                            }}
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            {markingId === a.id ? "Marking…" : "Mark sent"}
                           </Button>
                           <Button
                             size="sm"
