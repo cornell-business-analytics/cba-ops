@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { signIn } from "@/auth";
 
 export default async function LoginPage({
@@ -11,24 +12,15 @@ export default async function LoginPage({
   return (
     <div className="flex min-h-screen">
       {/* Left panel — brand */}
-      <div className="hidden lg:flex lg:w-[45%] flex-col justify-between bg-[#0f1520] px-12 py-12 text-white">
+      <div className="hidden lg:flex lg:w-[45%] flex-col justify-between bg-[#0f2d1a] px-12 py-12 text-white">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[#B31B1B]">
-            <span className="text-[11px] font-bold tracking-wider text-white">CBA</span>
-          </div>
+          <Image src="/logo.png" alt="CBA logo" width={32} height={32} className="shrink-0" />
           <span className="text-sm font-semibold tracking-wide">Cornell Business Analytics</span>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-3xl font-semibold leading-snug">
-            The operations<br />platform for CBA.
-          </h2>
-          <p className="max-w-xs text-sm leading-relaxed text-white/50">
-            Manage recruitment cycles, track memberships, publish website content, and run club operations — all in one place.
-          </p>
-        </div>
+        <div />
 
-        <p className="text-xs text-white/25">Cornell Business Analytics · Est. 2018</p>
+        <p className="text-xs text-white/25">Cornell Business Analytics</p>
       </div>
 
       {/* Right panel — sign-in */}
@@ -36,17 +28,12 @@ export default async function LoginPage({
         <div className="w-full max-w-sm space-y-8">
           {/* Mobile-only logo */}
           <div className="flex items-center justify-center gap-2 lg:hidden">
-            <div className="flex h-7 w-7 items-center justify-center rounded bg-[#B31B1B]">
-              <span className="text-[10px] font-bold tracking-wider text-white">CBA</span>
-            </div>
+            <Image src="/logo.png" alt="CBA logo" width={28} height={28} />
             <span className="text-sm font-semibold">Cornell Business Analytics</span>
           </div>
 
           <div className="space-y-1.5">
             <h1 className="text-xl font-semibold">Welcome back</h1>
-            <p className="text-sm text-muted-foreground">
-              Sign in to access the CBA operations platform.
-            </p>
           </div>
 
           {isExpired && (
@@ -86,12 +73,6 @@ export default async function LoginPage({
               Sign in with Cornell Google
             </button>
           </form>
-
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-border" />
-            <p className="text-xs text-muted-foreground">@cornell.edu accounts only</p>
-            <div className="h-px flex-1 bg-border" />
-          </div>
         </div>
       </div>
     </div>
