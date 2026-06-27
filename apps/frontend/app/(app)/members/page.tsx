@@ -55,7 +55,7 @@ export default function MembersPage() {
   const [cohortFilter, setCohortFilter] = useState<string>("all");
   const [addOpen, setAddOpen] = useState(false);
   const [cohortOpen, setCohortOpen] = useState(false);
-  const [newSemester, setNewSemester] = useState("");
+  const [newSemester, setNewSemester] = useState({ term: "Fall", year: new Date().getFullYear().toString() });
   const [form, setForm] = useState<MemberCreate>({
     userId: "",
     cohortId: "",
@@ -86,13 +86,20 @@ export default function MembersPage() {
   });
 
   const createCohort = useMutation({
-    mutationFn: () => api.post<Cohort>("/ops/v1/cohorts", { semester: newSemester.trim() }),
+    mutationFn: () => api.post<Cohort>("/ops/v1/cohorts", { semester: `${newSemester.term} ${newSemester.year}` }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cohorts"] });
       setCohortOpen(false);
-      setNewSemester("");
+      setNewSemester({ term: "Fall", year: new Date().getFullYear().toString() });
     },
   });
+
+  function parseSemesterOrder(semester: string): number {
+    const [term, year] = semester.split(" ");
+    return parseInt(year) * 10 + (term === "Fall" ? 1 : 0);
+  }
+
+  const sortedCohorts = [...cohorts].sort((a, b) => parseSemesterOrder(b.semester) - parseSemesterOrder(a.semester));
 
   const addMutation = useMutation({
     mutationFn: () =>
@@ -136,7 +143,7 @@ export default function MembersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All cohorts</SelectItem>
-                {cohorts.map((c) => (
+                {sortedCohorts.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.semester}</SelectItem>
                 ))}
               </SelectContent>
@@ -233,20 +240,32 @@ export default function MembersPage() {
           <DialogHeader>
             <DialogTitle>New Cohort</DialogTitle>
           </DialogHeader>
-          <div className="space-y-1.5 py-2">
-            <Label>Semester</Label>
-            <Input
-              value={newSemester}
-              onChange={(e) => setNewSemester(e.target.value)}
-              placeholder="e.g. Fall 2025"
-              onKeyDown={(e) => e.key === "Enter" && newSemester.trim() && createCohort.mutate()}
-            />
+          <div className="flex gap-2 py-2">
+            <div className="space-y-1.5 flex-1">
+              <Label>Term</Label>
+              <Select value={newSemester.term} onValueChange={(v) => setNewSemester(s => ({ ...s, term: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Fall">Fall</SelectItem>
+                  <SelectItem value="Spring">Spring</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <Label>Year</Label>
+              <Input
+                value={newSemester.year}
+                onChange={(e) => setNewSemester(s => ({ ...s, year: e.target.value }))}
+                placeholder="2025"
+                maxLength={4}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCohortOpen(false)}>Cancel</Button>
             <Button
               onClick={() => createCohort.mutate()}
-              disabled={!newSemester.trim() || createCohort.isPending}
+              disabled={!newSemester.year.trim() || createCohort.isPending}
             >
               {createCohort.isPending ? "Creating…" : "Create"}
             </Button>
@@ -280,7 +299,7 @@ export default function MembersPage() {
                   <SelectValue placeholder="Select cohort…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {cohorts.map((c) => (
+                  {sortedCohorts.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.semester}</SelectItem>
                   ))}
                 </SelectContent>

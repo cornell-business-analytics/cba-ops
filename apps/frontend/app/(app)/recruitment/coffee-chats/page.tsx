@@ -15,16 +15,16 @@ import { createApi } from "@/lib/api";
 interface Cycle {
   id: string;
   name: string;
-  sheetId: string | null;
-  senderName: string;
-  senderTitle: string;
-  isActive: boolean;
-  applicantCount: number;
+  sheet_id: string | null;
+  sender_name: string;
+  sender_title: string;
+  is_active: boolean;
+  applicant_count: number;
 }
 
 interface GmailStatus {
   connected: boolean;
-  accountEmail: string | null;
+  account_email: string | null;
 }
 
 export default function CoffeeChatsPage() {
@@ -34,7 +34,7 @@ export default function CoffeeChatsPage() {
   const api = createApi(session?.accessToken);
 
   const [newOpen, setNewOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", sheetId: "", senderName: "", senderTitle: "Director of Recruitment" });
+  const [form, setForm] = useState({ name: "", sheet_id: "", sender_title: "Director of Recruitment" });
 
   const { data: cycles = [], isLoading } = useQuery<Cycle[]>({
     queryKey: ["coffee-chat-cycles"],
@@ -57,14 +57,13 @@ export default function CoffeeChatsPage() {
   const createCycle = useMutation({
     mutationFn: () => api.post<Cycle>("/ops/v1/recruitment/cycles", {
       name: form.name,
-      sheet_id: form.sheetId || null,
-      sender_name: form.senderName,
-      sender_title: form.senderTitle,
+      sheet_id: form.sheet_id || null,
+      sender_title: form.sender_title,
     }),
     onSuccess: (data: Cycle) => {
       qc.invalidateQueries({ queryKey: ["coffee-chat-cycles"] });
       setNewOpen(false);
-      setForm({ name: "", sheetId: "", senderName: "", senderTitle: "Director of Recruitment" });
+      setForm({ name: "", sheet_id: "", sender_title: "Director of Recruitment" });
       router.push(`/recruitment/coffee-chats/${data.id}`);
     },
   });
@@ -88,7 +87,7 @@ export default function CoffeeChatsPage() {
         {gmailStatus?.connected ? (
           <>
             <Wifi className="h-4 w-4 shrink-0" />
-            <span>Gmail connected as <strong>{gmailStatus.accountEmail}</strong></span>
+            <span>Gmail connected as <strong>{gmailStatus.account_email}</strong></span>
             {session?.role === "eboard" && authUrlData?.url && (
               <a href={authUrlData.url} className="ml-auto text-xs underline">Reconnect</a>
             )}
@@ -126,12 +125,11 @@ export default function CoffeeChatsPage() {
               <div>
                 <p className="font-medium">{c.name}</p>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {c.applicantCount} applicant{c.applicantCount !== 1 ? "s" : ""}
-                  {c.senderName && ` · ${c.senderName}`}
+                  {c.applicant_count} applicant{c.applicant_count !== 1 ? "s" : ""}
                 </p>
               </div>
-              <Badge variant={c.isActive ? "success" : "outline"}>
-                {c.isActive ? "Active" : "Closed"}
+              <Badge variant={c.is_active ? "success" : "outline"}>
+                {c.is_active ? "Active" : "Closed"}
               </Badge>
             </button>
           ))}
@@ -151,18 +149,12 @@ export default function CoffeeChatsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Google Sheet ID <span className="text-muted-foreground text-xs">(optional — can add later)</span></Label>
-              <Input placeholder="Paste the sheet ID from the URL" value={form.sheetId} onChange={(e) => setForm(f => ({ ...f, sheetId: e.target.value }))} />
+              <Input placeholder="Paste the sheet ID from the URL" value={form.sheet_id} onChange={(e) => setForm(f => ({ ...f, sheet_id: e.target.value }))} />
               <p className="text-xs text-muted-foreground">The long string between /d/ and /edit in the Google Sheet URL.</p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Your name</Label>
-                <Input placeholder="Sachin Chhaya" value={form.senderName} onChange={(e) => setForm(f => ({ ...f, senderName: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Your title</Label>
-                <Input placeholder="Director of Recruitment" value={form.senderTitle} onChange={(e) => setForm(f => ({ ...f, senderTitle: e.target.value }))} />
-              </div>
+            <div className="space-y-1.5">
+              <Label>Sender title <span className="text-muted-foreground text-xs">(shared — name comes from whoever is signed in)</span></Label>
+              <Input placeholder="Director of Recruitment" value={form.sender_title} onChange={(e) => setForm(f => ({ ...f, sender_title: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>

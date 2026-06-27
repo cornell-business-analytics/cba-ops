@@ -620,11 +620,10 @@ async def send_pairing_email(
     member_major = member.major or ""
     member_year = _grad_date_to_year(member.grad_year or "")
 
-    effective_sender = cycle.sender_name or current_user.name
     body_html = _render_pairing_body(
         cycle.pairing_body, applicant,
         member_first, member_last, member_major, member_year,
-        effective_sender, cycle.sender_title,
+        current_user.name, cycle.sender_title,
     )
 
     token = await _get_valid_token(db)
@@ -665,8 +664,7 @@ async def send_rejection_email(
     cycle_result = await db.execute(select(RecruitmentCycle).where(RecruitmentCycle.id == cycle_id))
     cycle = cycle_result.scalar_one_or_none()
 
-    effective_sender = cycle.sender_name or current_user.name
-    body_html = _render_rejection_body(cycle.rejection_body, applicant, effective_sender, cycle.sender_title)
+    body_html = _render_rejection_body(cycle.rejection_body, applicant, current_user.name, cycle.sender_title)
 
     token = await _get_valid_token(db)
     msg_id = await _send_gmail(
