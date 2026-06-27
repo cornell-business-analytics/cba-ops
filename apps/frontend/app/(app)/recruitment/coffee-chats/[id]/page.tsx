@@ -422,7 +422,7 @@ export default function CycleDetailPage() {
             <DialogTitle>Import from Google Sheet</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2 text-sm">
-            <p className="text-muted-foreground">Map your sheet's column headers to the fields below.</p>
+            <p className="text-muted-foreground">Map your sheet&apos;s column headers to the fields below.</p>
             {sheetCols?.columns && (
               <p className="text-xs text-muted-foreground">
                 Detected columns: <span className="font-mono">{sheetCols.columns.join(", ")}</span>
