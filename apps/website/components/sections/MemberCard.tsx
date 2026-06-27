@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { MemberPublic } from "@cba/types";
 
 interface MemberCardProps {
@@ -7,7 +8,7 @@ interface MemberCardProps {
 
 export function MemberCard({ member }: MemberCardProps) {
   return (
-    <div className="flex flex-col rounded-lg border border-gray-100 bg-white overflow-hidden shadow-sm">
+    <Link href={`/team/${member.id}`} className="flex flex-col rounded-lg border border-gray-100 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <div className="relative h-48 w-full bg-cba-dark/10 flex-shrink-0">
         {member.headshot_url ? (
           <Image
@@ -69,6 +70,7 @@ export function MemberCard({ member }: MemberCardProps) {
             <a
               href={`mailto:${member.email}`}
               className="text-xs text-cba-green hover:underline truncate"
+              onClick={(e) => e.stopPropagation()}
             >
               {member.email}
             </a>
@@ -79,12 +81,13 @@ export function MemberCard({ member }: MemberCardProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="ml-auto flex-shrink-0 text-xs font-medium text-cba-green hover:text-cba-green-dark"
+              onClick={(e) => e.stopPropagation()}
             >
               LinkedIn →
             </a>
           )}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
