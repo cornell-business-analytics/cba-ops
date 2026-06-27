@@ -43,7 +43,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       checks: ["state"],
       authorization: {
-        params: { hd: "cornell.edu", prompt: "select_account" },
+        params: { hd: "cornell.edu" },
       },
     }),
   ],
