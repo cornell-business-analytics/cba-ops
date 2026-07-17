@@ -18,6 +18,6 @@ export interface UserSession {
 export interface AllowedEmail {
   id: string;
   email: string;
-  addedById: string | null;
-  createdAt: string;
+  added_by_id: string | null;
+  created_at: string;
 }

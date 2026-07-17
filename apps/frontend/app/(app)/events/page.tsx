@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createApi } from "@/lib/api";
-import { PageHeader } from "@/components/layout/PageHeader";
 import type { Event } from "@cba/types";
 
 type EventForm = {
@@ -26,6 +25,10 @@ type EventForm = {
 };
 
 const EVENT_TYPES = ["recruitment", "workshop", "speaker", "social", "other"];
+
+function toSlug(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
 
 function formatEventDate(iso: string) {
   const d = new Date(iso);
@@ -46,10 +49,9 @@ function EventRow({
   onEdit: (e: Event) => void;
   onDelete: (id: string) => void;
 }) {
-  const { month, day, weekday, time } = formatEventDate(event.eventDate);
+  const { month, day, weekday, time } = formatEventDate(event.event_date);
   return (
     <div className="flex items-start gap-4 px-5 py-4 hover:bg-muted/30 transition-colors group">
-      {/* Date stamp */}
       <div className="w-12 shrink-0 text-center">
         <p className="text-[10px] font-semibold tracking-widest text-muted-foreground leading-none">
           {month}
@@ -58,7 +60,6 @@ function EventRow({
         <p className="text-[10px] text-muted-foreground">{weekday}</p>
       </div>
 
-      {/* Details */}
       <div className="flex-1 min-w-0">
         <p className="font-medium leading-snug">{event.title}</p>
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
@@ -72,13 +73,12 @@ function EventRow({
         </div>
       </div>
 
-      {/* Badges + actions */}
       <div className="flex items-center gap-2 shrink-0">
         <Badge variant="secondary" className="capitalize text-xs">
           {event.type}
         </Badge>
-        <Badge variant={event.isPublished ? "success" : "outline"} className="text-xs">
-          {event.isPublished ? "Published" : "Draft"}
+        <Badge variant={event.is_published ? "success" : "outline"} className="text-xs">
+          {event.is_published ? "Published" : "Draft"}
         </Badge>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(event)}>
@@ -131,7 +131,9 @@ export default function EventsPage() {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Event | null>(null);
-  const { register, handleSubmit, setValue, reset } = useForm<EventForm>();
+  const { register, handleSubmit, setValue, watch, reset } = useForm<EventForm>();
+
+  const titleValue = watch("title", "");
 
   const { data: events = [], isLoading } = useQuery<Event[]>({
     queryKey: ["events"],
@@ -157,6 +159,12 @@ export default function EventsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
   });
 
+  function openNew() {
+    setEditing(null);
+    reset({ title: "", slug: "", description: "", location: "", event_date: "", type: "recruitment", is_published: false });
+    setOpen(true);
+  }
+
   function openEdit(event: Event) {
     setEditing(event);
     reset({
@@ -164,24 +172,23 @@ export default function EventsPage() {
       slug: event.slug,
       description: event.description ?? "",
       location: event.location ?? "",
-      event_date: event.eventDate.slice(0, 16),
+      event_date: event.event_date.slice(0, 16),
       type: event.type,
-      is_published: event.isPublished,
+      is_published: event.is_published,
     });
     setOpen(true);
   }
 
   const now = new Date();
   const upcoming = events
-    .filter((e) => new Date(e.eventDate) >= now)
-    .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+    .filter((e) => new Date(e.event_date) >= now)
+    .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
   const past = events
-    .filter((e) => new Date(e.eventDate) < now)
-    .sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
+    .filter((e) => new Date(e.event_date) < now)
+    .sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime());
 
   return (
     <div className="p-6 space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Events</h1>
@@ -195,14 +202,11 @@ export default function EventsPage() {
           open={open}
           onOpenChange={(v) => {
             setOpen(v);
-            if (!v) {
-              reset();
-              setEditing(null);
-            }
+            if (!v) { reset(); setEditing(null); }
           }}
         >
           <DialogTrigger asChild>
-            <Button size="sm">
+            <Button size="sm" onClick={openNew}>
               <Plus className="h-4 w-4 mr-1" />
               New event
             </Button>
@@ -213,18 +217,22 @@ export default function EventsPage() {
             </DialogHeader>
             <form onSubmit={handleSubmit((d) => save.mutate(d))} className="space-y-3 mt-2">
               <div className="space-y-1">
-                <Label>Date & Time</Label>
-                <Input type="datetime-local" {...register("event_date", { required: true })} />
+                <Label>Title</Label>
+                <Input
+                  {...register("title", { required: true })}
+                  placeholder="Fall Info Session"
+                  onChange={(e) => {
+                    setValue("title", e.target.value);
+                    if (!editing) setValue("slug", toSlug(e.target.value));
+                  }}
+                />
               </div>
-              <div className="space-y-1">
-                <Label>Type</Label>
-                <Select onValueChange={(v) => setValue("type", v)} defaultValue={editing?.type}>
-                  <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
-                  <SelectContent>
-                    {EVENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!editing && (
+                <div className="space-y-1">
+                  <Label>Slug <span className="text-xs text-muted-foreground">(URL path, auto-generated)</span></Label>
+                  <Input {...register("slug", { required: true })} placeholder="fall-info-session" />
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Date & Time</Label>
@@ -232,15 +240,14 @@ export default function EventsPage() {
                 </div>
                 <div className="space-y-1">
                   <Label>Type</Label>
-                  <Select onValueChange={(v) => setValue("type", v)} defaultValue={editing?.type}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
+                  <Select
+                    onValueChange={(v) => setValue("type", v)}
+                    defaultValue={editing?.type ?? "recruitment"}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
                     <SelectContent>
                       {EVENT_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
+                        <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -261,7 +268,7 @@ export default function EventsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="published" {...register("is_published")} />
-                <Label htmlFor="published">Published</Label>
+                <Label htmlFor="published">Published on website</Label>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
@@ -276,28 +283,17 @@ export default function EventsPage() {
         </Dialog>
       </div>
 
-      {/* Event list */}
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : events.length === 0 ? (
         <p className="text-sm text-muted-foreground">No events yet.</p>
       ) : (
         <div className="rounded-lg border bg-white overflow-hidden">
-          <EventGroup
-            label="Upcoming"
-            events={upcoming}
-            onEdit={openEdit}
-            onDelete={(id) => remove.mutate(id)}
-          />
-          {upcoming.length === 0 && (
+          <EventGroup label="Upcoming" events={upcoming} onEdit={openEdit} onDelete={(id) => remove.mutate(id)} />
+          {upcoming.length === 0 && past.length > 0 && (
             <p className="px-5 py-4 text-sm text-muted-foreground">No upcoming events.</p>
           )}
-          <EventGroup
-            label="Past"
-            events={past}
-            onEdit={openEdit}
-            onDelete={(id) => remove.mutate(id)}
-          />
+          <EventGroup label="Past" events={past} onEdit={openEdit} onDelete={(id) => remove.mutate(id)} />
         </div>
       )}
     </div>
