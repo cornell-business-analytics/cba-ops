@@ -5,11 +5,11 @@ export interface Event {
   title: string;
   slug: string;
   description: string | null;
-  eventDate: string;
+  event_date: string;
   location: string | null;
   type: EventType;
-  isPublished: boolean;
-  createdAt: string;
+  is_published: boolean;
+  created_at: string;
 }
 
 export interface EventPublic {
@@ -17,7 +17,7 @@ export interface EventPublic {
   title: string;
   slug: string;
   description: string | null;
-  eventDate: string;
+  event_date: string;
   location: string | null;
   type: EventType;
 }

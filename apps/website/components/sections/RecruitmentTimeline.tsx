@@ -37,7 +37,7 @@ export function RecruitmentTimeline({ events }: RecruitmentTimelineProps) {
             {typeLabel[event.type] ?? event.type}
           </span>
           <h3 className="text-base font-semibold text-cba-dark">{event.title}</h3>
-          <time className="text-sm text-gray-500">{formatDate(event.eventDate)}</time>
+          <time className="text-sm text-gray-500">{formatDate(event.event_date)}</time>
           {event.location && (
             <p className="text-sm text-gray-500">{event.location}</p>
           )}

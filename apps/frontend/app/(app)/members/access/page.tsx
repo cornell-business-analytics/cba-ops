@@ -136,7 +136,7 @@ export default function AccessPage() {
                     <tr key={e.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3 font-medium">{e.email}</td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        {new Date(e.createdAt).toLocaleDateString()}
+                        {new Date(e.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Button

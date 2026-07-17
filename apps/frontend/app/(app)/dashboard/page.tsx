@@ -31,8 +31,8 @@ export default function DashboardPage() {
 
   const now = new Date();
   const upcoming = events
-    .filter((e: Event) => new Date(e.eventDate) >= now)
-    .sort((a: Event, b: Event) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime())
+    .filter((e: Event) => new Date(e.event_date) >= now)
+    .sort((a: Event, b: Event) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
     .slice(0, 5);
 
   return (
@@ -102,7 +102,7 @@ export default function DashboardPage() {
           ) : (
             <ul className="space-y-5">
               {upcoming.map((event: Event) => {
-                const d = new Date(event.eventDate);
+                const d = new Date(event.event_date);
                 return (
                   <li key={event.id} className="flex items-start gap-4">
                     <div className="w-10 shrink-0 text-center">
