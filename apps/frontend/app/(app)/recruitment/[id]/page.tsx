@@ -119,7 +119,7 @@ export default function CandidatePage() {
           <ul className="space-y-2">
             {coffeeChats.map((chat) => (
               <li key={chat.id} className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2 text-sm">
-                <span className="text-muted-foreground">Member {chat.member_id.slice(0, 8)}…</span>
+                <span className="text-muted-foreground">{chat.member_name ?? chat.member_id.slice(0, 8)}</span>
                 <div className="flex items-center gap-2">
                   {chat.score !== null && (
                     <Badge variant="secondary">Score: {chat.score}/3</Badge>

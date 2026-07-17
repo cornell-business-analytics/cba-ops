@@ -122,9 +122,23 @@ async def get_coffee_chats(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(CoffeeChat).where(CoffeeChat.candidate_id == candidate_id)
+        select(CoffeeChat, User.name.label("member_name"))
+        .join(User, CoffeeChat.member_id == User.id)
+        .where(CoffeeChat.candidate_id == candidate_id)
     )
-    return result.scalars().all()
+    rows = result.all()
+    return [
+        CoffeeChatPublic(
+            id=chat.id,
+            candidate_id=chat.candidate_id,
+            member_id=chat.member_id,
+            member_name=member_name,
+            score=chat.score,
+            notes=chat.notes,
+            completed=chat.completed,
+        )
+        for chat, member_name in rows
+    ]
 
 
 @router.post(
