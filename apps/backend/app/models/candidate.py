@@ -95,22 +95,7 @@ class InterviewSession(UUIDMixin, TimestampMixin, Base):
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     round: Mapped["InterviewRound"] = relationship(back_populates="sessions")
-    assignments: Mapped[list["InterviewAssignment"]] = relationship(back_populates="session")
     scores: Mapped[list["InterviewScore"]] = relationship(back_populates="session")
-
-
-class InterviewAssignment(UUIDMixin, Base):
-    """Which members are assigned to score a session."""
-    __tablename__ = "interview_assignments"
-
-    session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("interview_sessions.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    member_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-
-    session: Mapped["InterviewSession"] = relationship(back_populates="assignments")
 
 
 # ---------------------------------------------------------------------------
@@ -144,22 +129,8 @@ class Candidate(UUIDMixin, TimestampMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)  # internal EBoard notes
 
     cycle: Mapped["ApplicationCycle"] = relationship(back_populates="candidates")
-    di_data: Mapped["CandidateDIData | None"] = relationship(back_populates="candidate", uselist=False)
     coffee_chats: Mapped[list["CoffeeChat"]] = relationship(back_populates="candidate")
     interview_scores: Mapped[list["InterviewScore"]] = relationship(back_populates="candidate")
-
-
-class CandidateDIData(UUIDMixin, TimestampMixin, Base):
-    """D&I data — EBoard access only."""
-    __tablename__ = "candidate_di_data"
-
-    candidate_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False, unique=True
-    )
-    gender_identity: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    race_ethnicity: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
-
-    candidate: Mapped["Candidate"] = relationship(back_populates="di_data")
 
 
 # ---------------------------------------------------------------------------

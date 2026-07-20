@@ -54,6 +54,7 @@ class CoffeeChatPublic(BaseModel):
     id: uuid.UUID
     candidate_id: uuid.UUID
     member_id: uuid.UUID
+    member_name: str | None = None
     score: int | None
     notes: str | None
     completed: bool

@@ -37,6 +37,7 @@ export interface CoffeeChat {
   id: string;
   candidate_id: string;
   member_id: string;
+  member_name: string | null;
   score: number | null;
   notes: string | null;
   completed: boolean;
