@@ -17,6 +17,8 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import type { MembershipDetail, ProfileEditRequest } from "@cba/types";
 
 type ProfileFields = {
+  name: string;
+  email: string;
   role_title: string;
   major: string;
   grad_year: string;
@@ -29,6 +31,8 @@ type ProfileFields = {
 };
 
 const EDIT_FIELDS: { key: keyof ProfileFields; label: string; multiline?: boolean }[] = [
+  { key: "name", label: "Name" },
+  { key: "email", label: "Email" },
   { key: "role_title", label: "Role Title" },
   { key: "major", label: "Major" },
   { key: "grad_year", label: "Graduation Year" },
@@ -91,6 +95,8 @@ export default function MemberProfilePage() {
   const { register, handleSubmit, formState: { isDirty } } = useForm<ProfileFields>({
     values: membership
       ? {
+          name: membership.user_name ?? "",
+          email: membership.user_email ?? "",
           role_title: membership.role_title ?? "",
           major: membership.major ?? "",
           grad_year: membership.grad_year ?? "",
@@ -128,9 +134,14 @@ export default function MemberProfilePage() {
   const onSubmit = (data: ProfileFields) => {
     const changes: Partial<ProfileFields> = {};
     const membershipRecord = membership as unknown as Record<string, unknown>;
+    const originals: Record<string, unknown> = {
+      ...membershipRecord,
+      name: membership?.user_name ?? null,
+      email: membership?.user_email ?? null,
+    };
     for (const key of Object.keys(data) as (keyof ProfileFields)[]) {
       const val = data[key] || null;
-      if (val !== (membershipRecord?.[key] ?? null)) {
+      if (val !== (originals[key] ?? null)) {
         (changes as Record<string, unknown>)[key] = val;
       }
     }
