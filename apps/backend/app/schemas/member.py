@@ -33,7 +33,6 @@ class MembershipPublic(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     cohort_id: uuid.UUID
-    project_id: uuid.UUID | None
     role_title: str
     headshot_url: str | None
     hometown: str | None
@@ -54,7 +53,6 @@ class MembershipPublic(BaseModel):
 class MembershipCreate(BaseModel):
     user_id: uuid.UUID
     cohort_id: uuid.UUID
-    project_id: uuid.UUID | None = None
     role_title: str = "Analyst"
     headshot_url: str | None = None
     hometown: str | None = None
@@ -71,7 +69,6 @@ class MembershipCreate(BaseModel):
 
 class MembershipUpdate(BaseModel):
     role_title: str | None = None
-    project_id: uuid.UUID | None = None
     headshot_url: str | None = None
     hometown: str | None = None
     major: str | None = None

@@ -67,55 +67,35 @@ You'll need a `.env.local` in each Next.js app and a `.env` in `apps/backend`. S
 
 - [`docs/swe-concepts.md`](docs/swe-concepts.md) — engineering concepts used throughout the codebase (auth, migrations, async, RBAC, etc.)
 
-## Current State (as of April 30, 2026)
+## Dev Agent
 
-### Done
-- Full backend built: FastAPI, async SQLAlchemy, Alembic migrations, JWT (RS256), Google OAuth, CORS, R2 file storage config, Sentry, OpenTelemetry
-- Ops tool frontend built: auth (NextAuth v5 + Google SSO), full recruitment pipeline UI, member directory, CMS page editor, events CRUD, shared types package
-- Backend deployed to Railway (Postgres + Redis provisioned, migrations running on deploy)
-- Ops tool deployed to Vercel, public website deployed to Vercel
-- Google SSO working end-to-end — Cornell email enforcement on backend via tokeninfo API
-- Recruitment process steps editable from the ops tool (stored in `site_settings`, ISR revalidation on save)
-- Refresh token hashing switched from bcrypt to SHA-256 (bcrypt 72-byte limit incompatible with JWT-length tokens)
+A local CLI agent for development tasks — reads, searches, and edits the codebase using Claude Opus 4.8.
 
-### Left To Do
+```bash
+pip install anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+python agent.py "your task or question"
+```
 
-**Data management (next up)**
-- Eboard-level table management UI — see next steps below
-- Recruitment timeline
-- During recruitment seasons, I want the website to have access to google forms, sheets, and slides too to do the following
-    - Have every applicant's information in one spot (aggregating information from multiple google forms, as well as coffee chat feedback, interview scores, etc)
-    - This may take more effort from me though. 
-**Public website**
-- Build out page templates that render CMS blocks (hero, rich_text, cta, team_list, event_list, faq)
-- Allow eboard to easily add members and sections of the team page
-
-
-**Features still missing**
-- File/image uploads (R2 integration in the CMS)
-- Green Coloring of the internal tool
+See `agent.py` at the project root.
 
 ---
 
-## Next Steps — Eboard Data Management
+## Current State (as of July 20, 2026)
 
-Currently, changes like assigning user roles or creating cohorts require direct SQL access to Railway's Postgres. The goal is to bring this into the ops tool so eboard can manage it without touching the database.
+### Done
+- Full backend built: FastAPI, async SQLAlchemy, Alembic migrations (8 total), JWT (RS256), Google OAuth, CORS, R2 file storage config, Sentry, OpenTelemetry
+- Ops tool frontend built: auth (NextAuth v5 + Google SSO), full recruitment pipeline UI, member directory, CMS page editor, events CRUD, coffee chat recruitment (Sheets import + Gmail send), shared types package
+- Backend deployed to Railway (Postgres + Redis provisioned, migrations running on deploy)
+- Ops tool and public website deployed to Vercel
+- Google SSO working end-to-end — Cornell email enforcement on backend via tokeninfo API
+- Recruitment process steps editable from ops tool (stored in `site_settings`, ISR revalidation on save)
+- Refresh token hashing switched from bcrypt to SHA-256 (bcrypt 72-byte limit incompatible with JWT-length tokens)
+- Public website feature-complete: team directory (`/team`, `/team/[id]`), events, about, recruitment, contact, clients pages — ready for domain swap
+- Individual member profile pages pre-built at deploy time via `generateStaticParams`, headshot fallback to initials
 
-**Is it possible?** Yes — the backend RBAC and API patterns are already in place. It's a matter of adding endpoints and UI pages for each table.
+### Left To Do
 
-### Phase 1 — User & Role Management
-The most urgent gap. Right now promoting a user requires a raw SQL `UPDATE`.
-
-- `GET /ops/v1/users` — list all users with their current roles
-- `PATCH /ops/v1/users/{id}/role` — update a user's role (eboard only)
-- Ops tool page: `/members/users` — table of all users, inline role dropdown, save button
-
-### Phase 2 — Cohort & Membership Management
-Members can't appear on the team page until they have a membership record tied to a cohort.
-
-- `POST /ops/v1/cohorts` — create a new semester cohort (eboard only)
-- `POST /ops/v1/members` — add a membership (link a user to a cohort with a role title)
-- Ops tool: cohort selector + "Add member" form that searches existing users by email
-
-### Phase 3 — General Table Views (stretch)
-A read-only or editable grid view of key tables (cohorts, memberships, sessions) so eboard has full visibility without needing Railway's Postgres console.
+- File/image uploads (R2 integration — headshots currently require a direct URL)
+- Full recruitment pipeline integrated with Google Forms/Sheets (applicant aggregation, coffee chat feedback, interview scores in one view)
+- Interview scoring UI (schema is built, frontend not wired up)

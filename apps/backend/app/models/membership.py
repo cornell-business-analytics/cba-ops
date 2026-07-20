@@ -13,7 +13,6 @@ class Cohort(UUIDMixin, TimestampMixin, Base):
     semester: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)  # e.g. "SP26"
 
     memberships: Mapped[list["Membership"]] = relationship(back_populates="cohort")
-    projects: Mapped[list["Project"]] = relationship(back_populates="cohort")  # noqa: F821
 
 
 class Membership(UUIDMixin, TimestampMixin, Base):
@@ -25,10 +24,6 @@ class Membership(UUIDMixin, TimestampMixin, Base):
     cohort_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cohorts.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    project_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
-    )
-
     # Public profile fields
     role_title: Mapped[str] = mapped_column(String(100), nullable=False, default="Analyst")
     headshot_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -51,7 +46,6 @@ class Membership(UUIDMixin, TimestampMixin, Base):
 
     user: Mapped["User"] = relationship(back_populates="memberships")  # noqa: F821
     cohort: Mapped["Cohort"] = relationship(back_populates="memberships")
-    project: Mapped["Project | None"] = relationship(back_populates="members")  # noqa: F821
     profile_edit_requests: Mapped[list["ProfileEditRequest"]] = relationship(back_populates="membership")
 
 
