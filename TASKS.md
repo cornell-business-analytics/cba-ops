@@ -70,10 +70,13 @@ GET /web/v1/members/{member_id}
 
 ## Completed
 
+All Priority Queue tasks complete as of 2026-07-21. Waiting for new tasks.
+
 - Task 1 — Email Allowlist + Admin Member Creation
 - Task 2 — Public Website: Render CMS Blocks
 - Task 3 — File/Image Uploads (R2)
 - Task 4 — Team Page on Public Website (index page, backend endpoint, ops tool headshot upload)
+- Task 4b — Individual Member Pages + Missing Profile Fields
 - Task 5 — FAQ Block Item Editing
 - Task 6 — Analytics Charts
 - Design Task 1 — Sidebar & Login
