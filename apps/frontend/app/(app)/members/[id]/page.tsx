@@ -184,12 +184,19 @@ export default function MemberProfilePage() {
     setUploading(true);
     setUploadError(null);
     try {
-      const { upload_url, public_url } = await api().post<{ upload_url: string; public_url: string; key: string }>(
-        "/ops/v1/assets/upload",
-        { filename: file.name, content_type: file.type },
-      );
-      const r2Res = await fetch(upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      if (!r2Res.ok) throw new Error(`Upload failed (${r2Res.status})`);
+      const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${BACKEND}/ops/v1/assets/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.accessToken}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+        throw new Error(err.detail ?? `Upload failed (${res.status})`);
+      }
+      const { public_url } = await res.json() as { public_url: string };
       await api().patch(`/ops/v1/members/${id}/headshot`, { headshot_url: public_url });
       qc.invalidateQueries({ queryKey: ["members", id] });
     } catch (err) {

@@ -3,7 +3,7 @@ from typing import Any
 
 import boto3
 from botocore.config import Config
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from app.core.config import settings
@@ -20,13 +20,7 @@ ALLOWED_CONTENT_TYPES = {
 }
 
 
-class UploadUrlRequest(BaseModel):
-    filename: str
-    content_type: str
-
-
-class UploadUrlResponse(BaseModel):
-    upload_url: str
+class UploadResponse(BaseModel):
     public_url: str
     key: str
 
@@ -42,42 +36,28 @@ def _get_r2_client() -> Any:
     )
 
 
-def _build_upload_response(body: UploadUrlRequest, user_id: str) -> UploadUrlResponse:
-    if body.content_type not in ALLOWED_CONTENT_TYPES:
-        raise HTTPException(status_code=400, detail=f"Content type not allowed: {body.content_type}")
+@router.post("/upload", response_model=UploadResponse)
+async def upload_asset(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    if file.content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"Content type not allowed: {file.content_type}")
 
     if not settings.R2_ACCESS_KEY_ID:
         raise HTTPException(status_code=503, detail="Asset storage not configured")
 
-    ext = body.filename.rsplit(".", 1)[-1] if "." in body.filename else ""
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1] if "." in filename else ""
+    user_id = str(current_user.id)
     key = f"uploads/{user_id}/{uuid_lib.uuid4()}.{ext}" if ext else f"uploads/{user_id}/{uuid_lib.uuid4()}"
 
-    client = _get_r2_client()
-    upload_url = client.generate_presigned_url(
-        "put_object",
-        Params={
-            "Bucket": settings.R2_BUCKET_NAME,
-            "Key": key,
-            "ContentType": body.content_type,
-        },
-        ExpiresIn=300,
+    content = await file.read()
+    _get_r2_client().put_object(
+        Bucket=settings.R2_BUCKET_NAME,
+        Key=key,
+        Body=content,
+        ContentType=file.content_type or "application/octet-stream",
     )
 
-    public_url = f"{settings.R2_PUBLIC_URL}/{key}"
-    return UploadUrlResponse(upload_url=upload_url, public_url=public_url, key=key)
-
-
-@router.post("/upload", response_model=UploadUrlResponse)
-async def get_presigned_upload_url(
-    body: UploadUrlRequest,
-    current_user: User = Depends(get_current_user),
-):
-    return _build_upload_response(body, str(current_user.id))
-
-
-@router.post("/upload-url", response_model=UploadUrlResponse)
-async def get_upload_url(
-    body: UploadUrlRequest,
-    current_user: User = Depends(get_current_user),
-):
-    return _build_upload_response(body, str(current_user.id))
+    return UploadResponse(public_url=f"{settings.R2_PUBLIC_URL}/{key}", key=key)

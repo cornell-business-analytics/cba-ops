@@ -61,11 +61,16 @@ function ImageUploadField({
     if (!file) return;
     setUploading(true);
     try {
-      const { upload_url, public_url } = await api().post<{ upload_url: string; public_url: string; key: string }>(
-        "/ops/v1/assets/upload",
-        { filename: file.name, content_type: file.type },
-      );
-      await fetch(upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${BACKEND}/ops/v1/assets/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.accessToken}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+      const { public_url } = await res.json() as { public_url: string };
       onChange(public_url);
     } finally {
       setUploading(false);
