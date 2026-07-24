@@ -9,9 +9,10 @@ export interface Membership {
   id: string;
   user_id: string;
   cohort_id: string;
-  project_id: string | null;
   role_title: string;
   headshot_url: string | null;
+  headshot_focal_x: number;
+  headshot_focal_y: number;
   hometown: string | null;
   major: string | null;
   grad_year: string | null;
@@ -39,6 +40,8 @@ export interface MemberPublic {
   interests: string | null;
   bio: string | null;
   headshot_url: string | null;
+  headshot_focal_x: number;
+  headshot_focal_y: number;
   linkedin_url: string | null;
   cohort_semester: string;
 }

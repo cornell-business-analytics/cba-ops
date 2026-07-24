@@ -13,15 +13,12 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Drop project_id FK + column from memberships before dropping projects
-    op.drop_constraint("memberships_project_id_fkey", "memberships", type_="foreignkey")
-    op.drop_index("ix_memberships_project_id", table_name="memberships")
-    op.drop_column("memberships", "project_id")
-
-    # Drop tables (CASCADE handles any remaining FKs)
-    op.drop_table("interview_assignments")
-    op.drop_table("candidate_di_data")
-    op.drop_table("projects")
+    op.execute('ALTER TABLE memberships DROP CONSTRAINT IF EXISTS "memberships_project_id_fkey"')
+    op.execute("DROP INDEX IF EXISTS ix_memberships_project_id")
+    op.execute("ALTER TABLE memberships DROP COLUMN IF EXISTS project_id")
+    op.execute("DROP TABLE IF EXISTS interview_assignments")
+    op.execute("DROP TABLE IF EXISTS candidate_di_data")
+    op.execute("DROP TABLE IF EXISTS projects")
 
 
 def downgrade() -> None:

@@ -61,12 +61,12 @@ function ImageUploadField({
     if (!file) return;
     setUploading(true);
     try {
-      const { uploadUrl, publicUrl } = await api().post<{ uploadUrl: string; publicUrl: string; key: string }>(
+      const { upload_url, public_url } = await api().post<{ upload_url: string; public_url: string; key: string }>(
         "/ops/v1/assets/upload",
         { filename: file.name, content_type: file.type },
       );
-      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      onChange(publicUrl);
+      await fetch(upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      onChange(public_url);
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
