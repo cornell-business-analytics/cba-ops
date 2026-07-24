@@ -188,7 +188,8 @@ export default function MemberProfilePage() {
         "/ops/v1/assets/upload",
         { filename: file.name, content_type: file.type },
       );
-      await fetch(upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      const r2Res = await fetch(upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      if (!r2Res.ok) throw new Error(`Upload failed (${r2Res.status})`);
       await api().patch(`/ops/v1/members/${id}/headshot`, { headshot_url: public_url });
       qc.invalidateQueries({ queryKey: ["members", id] });
     } catch (err) {
