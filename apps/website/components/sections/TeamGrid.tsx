@@ -19,7 +19,7 @@ function GroupSection({ title, members, cols = "sm:grid-cols-3 lg:grid-cols-4" }
   return (
     <div>
       <h2 className="text-2xl font-bold text-cba-dark">{title}</h2>
-      <div className={`mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 ${cols}`}>
+      <div className={`mt-8 grid grid-cols-2 gap-6 ${cols}`}>
         {members.map((member) => (
           <MemberCard key={member.id} member={member} />
         ))}
@@ -29,11 +29,11 @@ function GroupSection({ title, members, cols = "sm:grid-cols-3 lg:grid-cols-4" }
 }
 
 export function TeamGrid({ eboard, directors, pms, analysts }: TeamGridProps) {
+  const staff = [...directors, ...pms];
   return (
     <section className="container-section py-16 space-y-16" aria-label="Team">
-      <GroupSection title="Executive Board" members={eboard} cols="sm:grid-cols-2 lg:grid-cols-4" />
-      <GroupSection title="Directors" members={directors} cols="sm:grid-cols-2 lg:grid-cols-3" />
-      <GroupSection title="Project Managers" members={pms} cols="sm:grid-cols-2 lg:grid-cols-3" />
+      <GroupSection title="Executive Board" members={eboard} cols="sm:grid-cols-3 lg:grid-cols-5" />
+      <GroupSection title="Directors & Project Managers" members={staff} cols="sm:grid-cols-2 lg:grid-cols-4" />
       <GroupSection title="Analysts" members={analysts} cols="sm:grid-cols-2 lg:grid-cols-4" />
     </section>
   );

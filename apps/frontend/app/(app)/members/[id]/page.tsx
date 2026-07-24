@@ -75,6 +75,7 @@ export default function MemberProfilePage() {
 
   const isDirectorOrAbove =
     currentUser ? (ROLE_ORDER[currentUser.role] ?? 0) >= ROLE_ORDER["director"] : false;
+  const isEboard = currentUser?.role === "eboard";
   const isSocialDirector =
     currentUser?.role_title?.toLowerCase().includes("social director") ?? false;
 
@@ -357,8 +358,8 @@ export default function MemberProfilePage() {
           </div>
         </div>
 
-        {/* Website section — directors only, separate from profile form */}
-        {canDirectEdit && (
+        {/* Website section — eboard only */}
+        {isEboard && (
           <div className="rounded-lg border bg-white p-4 space-y-2">
             <h2 className="text-sm font-semibold">Website</h2>
             <p className="text-xs text-muted-foreground">Controls which section this member appears in on the public team page. Independent of their ops tool role.</p>
@@ -376,8 +377,8 @@ export default function MemberProfilePage() {
                 <SelectContent>
                   <SelectItem value="default">Default (use tool role)</SelectItem>
                   <SelectItem value="eboard">Executive Board</SelectItem>
-                  <SelectItem value="director">Directors</SelectItem>
-                  <SelectItem value="pm">Project Managers</SelectItem>
+                  <SelectItem value="director">Directors & PMs — Director</SelectItem>
+                  <SelectItem value="pm">Directors & PMs — Project Manager</SelectItem>
                   <SelectItem value="analyst">Analysts</SelectItem>
                   <SelectItem value="hidden">Hidden (not on website)</SelectItem>
                 </SelectContent>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Search, Plus } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
@@ -200,10 +201,12 @@ export default function MembersPage() {
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2.5">
                         {m.headshot_url ? (
-                          <img
+                          <Image
                             src={m.headshot_url}
                             alt={m.user_name}
-                            className="w-7 h-7 rounded-full object-cover shrink-0"
+                            width={28}
+                            height={28}
+                            className="rounded-full object-cover shrink-0"
                           />
                         ) : (
                           <span
