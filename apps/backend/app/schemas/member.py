@@ -18,6 +18,8 @@ class MemberPublic(BaseModel):
     interests: str | None
     bio: str | None
     headshot_url: str | None
+    headshot_focal_x: float = 50.0
+    headshot_focal_y: float = 50.0
     linkedin_url: str | None
     cohort_semester: str
 
@@ -35,6 +37,8 @@ class MembershipPublic(BaseModel):
     cohort_id: uuid.UUID
     role_title: str
     headshot_url: str | None
+    headshot_focal_x: float
+    headshot_focal_y: float
     hometown: str | None
     major: str | None
     grad_year: str | None
@@ -70,6 +74,8 @@ class MembershipCreate(BaseModel):
 class MembershipUpdate(BaseModel):
     role_title: str | None = None
     headshot_url: str | None = None
+    headshot_focal_x: float | None = None
+    headshot_focal_y: float | None = None
     hometown: str | None = None
     major: str | None = None
     grad_year: str | None = None

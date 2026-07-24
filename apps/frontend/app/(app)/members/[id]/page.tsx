@@ -63,6 +63,7 @@ export default function MemberProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [adjustingCrop, setAdjustingCrop] = useState(false);
 
   const api = () => createApi(session?.accessToken);
 
@@ -141,18 +142,31 @@ export default function MemberProfilePage() {
     }
   };
 
+  const updateFocalPoint = useMutation({
+    mutationFn: ({ x, y }: { x: number; y: number }) =>
+      api().patch(`/ops/v1/members/${id}/headshot`, { headshot_focal_x: x, headshot_focal_y: y }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["members", id] }),
+  });
+
+  const handleFocalClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+    updateFocalPoint.mutate({ x, y });
+  };
+
   const handleHeadshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
     setUploadError(null);
     try {
-      const { uploadUrl, publicUrl } = await api().post<{ uploadUrl: string; publicUrl: string; key: string }>(
+      const { upload_url, public_url } = await api().post<{ upload_url: string; public_url: string; key: string }>(
         "/ops/v1/assets/upload",
         { filename: file.name, content_type: file.type },
       );
-      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      await api().patch(`/ops/v1/members/${id}/headshot`, { headshot_url: publicUrl });
+      await fetch(upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      await api().patch(`/ops/v1/members/${id}/headshot`, { headshot_url: public_url });
       qc.invalidateQueries({ queryKey: ["members", id] });
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed. Please try again.");
@@ -213,12 +227,53 @@ export default function MemberProfilePage() {
           {uploadError && (
             <p className="mt-1 text-xs text-destructive">{uploadError}</p>
           )}
+          {(canDirectEdit || canRequestEdit) && membership.headshot_url && (
+            <button
+              onClick={() => setAdjustingCrop((v) => !v)}
+              className="mt-2 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            >
+              {adjustingCrop ? "Done adjusting" : "Adjust crop"}
+            </button>
+          )}
         </div>
 
         {isReadOnly && (
           <Badge variant="outline">View only</Badge>
         )}
       </div>
+
+      {/* Focal point picker */}
+      {adjustingCrop && membership.headshot_url && (
+        <div className="rounded-lg border bg-white p-4 space-y-2">
+          <p className="text-sm font-semibold">Adjust crop</p>
+          <p className="text-xs text-muted-foreground">Click anywhere on the photo to set where it centers in the card.</p>
+          <div
+            className="relative w-full overflow-hidden rounded-md cursor-crosshair"
+            style={{ aspectRatio: "3 / 2" }}
+            onClick={handleFocalClick}
+          >
+            <img
+              src={membership.headshot_url}
+              alt=""
+              className="w-full h-full object-cover select-none"
+              style={{ objectPosition: `${membership.headshot_focal_x}% ${membership.headshot_focal_y}%` }}
+              draggable={false}
+            />
+            {/* Focal point dot */}
+            <div
+              className="absolute w-4 h-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow pointer-events-none"
+              style={{
+                left: `${membership.headshot_focal_x}%`,
+                top: `${membership.headshot_focal_y}%`,
+                background: "rgba(255,255,255,0.4)",
+              }}
+            />
+          </div>
+          {updateFocalPoint.isPending && (
+            <p className="text-xs text-muted-foreground">Saving…</p>
+          )}
+        </div>
+      )}
 
       {/* Profile form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

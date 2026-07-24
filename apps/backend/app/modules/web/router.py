@@ -51,6 +51,8 @@ async def get_member(
         interests=m.interests,
         bio=m.bio,
         headshot_url=m.headshot_url,
+        headshot_focal_x=m.headshot_focal_x,
+        headshot_focal_y=m.headshot_focal_y,
         linkedin_url=m.linkedin_url,
         cohort_semester=m.cohort.semester,
     )
@@ -87,6 +89,8 @@ async def get_members(
             interests=m.interests,
             bio=m.bio,
             headshot_url=m.headshot_url,
+            headshot_focal_x=m.headshot_focal_x,
+            headshot_focal_y=m.headshot_focal_y,
             linkedin_url=m.linkedin_url,
             cohort_semester=m.cohort.semester,
         ))

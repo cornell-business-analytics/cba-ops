@@ -1,11 +1,13 @@
 import uuid
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.membership import Membership, ProfileEditRequest
 from app.models.user import User, UserRole
@@ -21,6 +23,21 @@ from app.schemas.member import (
 )
 
 router = APIRouter(tags=["members"])
+
+
+async def _revalidate_member(user_id: str) -> None:
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(
+                f"{settings.WEBSITE_URL}/api/revalidate",
+                params={"secret": settings.REVALIDATE_SECRET, "tag": "members"},
+            )
+            await client.post(
+                f"{settings.WEBSITE_URL}/api/revalidate",
+                params={"secret": settings.REVALIDATE_SECRET, "tag": f"member-{user_id}"},
+            )
+    except httpx.HTTPError:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -104,11 +121,14 @@ async def update_membership(
         setattr(membership, field, value)
     await db.commit()
     await db.refresh(membership)
+    await _revalidate_member(str(membership.user_id))
     return membership
 
 
 class HeadshotUpdate(BaseModel):
-    headshot_url: str
+    headshot_url: str | None = None
+    headshot_focal_x: float | None = None
+    headshot_focal_y: float | None = None
 
 
 @router.patch("/members/{membership_id}/headshot", response_model=MembershipPublic)
@@ -118,7 +138,7 @@ async def update_headshot(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Any member can update their own headshot; directors can update anyone's."""
+    """Any member can update their own headshot or focal point; directors can update anyone's."""
     result = await db.execute(select(Membership).where(Membership.id == membership_id))
     membership = result.scalar_one_or_none()
     if not membership:
@@ -129,9 +149,15 @@ async def update_headshot(
     if not is_director and not is_own:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    membership.headshot_url = body.headshot_url
+    if body.headshot_url is not None:
+        membership.headshot_url = body.headshot_url
+    if body.headshot_focal_x is not None:
+        membership.headshot_focal_x = max(0.0, min(100.0, body.headshot_focal_x))
+    if body.headshot_focal_y is not None:
+        membership.headshot_focal_y = max(0.0, min(100.0, body.headshot_focal_y))
     await db.commit()
     await db.refresh(membership)
+    await _revalidate_member(str(membership.user_id))
     return membership
 
 

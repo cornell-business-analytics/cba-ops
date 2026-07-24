@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -27,6 +27,8 @@ class Membership(UUIDMixin, TimestampMixin, Base):
     # Public profile fields
     role_title: Mapped[str] = mapped_column(String(100), nullable=False, default="Analyst")
     headshot_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    headshot_focal_x: Mapped[float] = mapped_column(Float, nullable=False, default=50.0)
+    headshot_focal_y: Mapped[float] = mapped_column(Float, nullable=False, default=50.0)
     hometown: Mapped[str | None] = mapped_column(String(100), nullable=True)
     major: Mapped[str | None] = mapped_column(String(200), nullable=True)
     grad_year: Mapped[str | None] = mapped_column(String(20), nullable=True)
