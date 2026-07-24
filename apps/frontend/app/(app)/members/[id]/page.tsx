@@ -64,6 +64,8 @@ export default function MemberProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [adjustingCrop, setAdjustingCrop] = useState(false);
+  const [pasteUrl, setPasteUrl] = useState("");
+  const [showUrlInput, setShowUrlInput] = useState(false);
 
   const api = () => createApi(session?.accessToken);
 
@@ -141,6 +143,16 @@ export default function MemberProfilePage() {
       requestEdit.mutate(changes);
     }
   };
+
+  const setHeadshotUrl = useMutation({
+    mutationFn: (url: string) =>
+      api().patch(`/ops/v1/members/${id}/headshot`, { headshot_url: url }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["members", id] });
+      setPasteUrl("");
+      setShowUrlInput(false);
+    },
+  });
 
   const updateFocalPoint = useMutation({
     mutationFn: ({ x, y }: { x: number; y: number }) =>
@@ -227,13 +239,41 @@ export default function MemberProfilePage() {
           {uploadError && (
             <p className="mt-1 text-xs text-destructive">{uploadError}</p>
           )}
-          {(canDirectEdit || canRequestEdit) && membership.headshot_url && (
-            <button
-              onClick={() => setAdjustingCrop((v) => !v)}
-              className="mt-2 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-            >
-              {adjustingCrop ? "Done adjusting" : "Adjust crop"}
-            </button>
+          {(canDirectEdit || canRequestEdit) && (
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+              {membership.headshot_url && (
+                <button
+                  onClick={() => setAdjustingCrop((v) => !v)}
+                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                >
+                  {adjustingCrop ? "Done adjusting" : "Adjust crop"}
+                </button>
+              )}
+              <button
+                onClick={() => setShowUrlInput((v) => !v)}
+                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+              >
+                {showUrlInput ? "Cancel" : "Paste URL"}
+              </button>
+            </div>
+          )}
+          {showUrlInput && (
+            <div className="mt-2 flex gap-2">
+              <Input
+                value={pasteUrl}
+                onChange={(e) => setPasteUrl(e.target.value)}
+                placeholder="https://..."
+                className="h-7 text-xs"
+              />
+              <Button
+                size="sm"
+                className="h-7 text-xs px-3"
+                disabled={!pasteUrl.trim() || setHeadshotUrl.isPending}
+                onClick={() => setHeadshotUrl.mutate(pasteUrl.trim())}
+              >
+                Set
+              </Button>
+            </div>
           )}
         </div>
 
