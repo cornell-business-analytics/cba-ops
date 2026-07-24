@@ -199,11 +199,19 @@ export default function MembersPage() {
                     {/* Name + avatar */}
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2.5">
-                        <span
-                          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-xs font-semibold shrink-0 ${avatarColor(m.user_name ?? "")}`}
-                        >
-                          {initials}
-                        </span>
+                        {m.headshot_url ? (
+                          <img
+                            src={m.headshot_url}
+                            alt={m.user_name}
+                            className="w-7 h-7 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <span
+                            className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-xs font-semibold shrink-0 ${avatarColor(m.user_name ?? "")}`}
+                          >
+                            {initials}
+                          </span>
+                        )}
                         <span className="font-medium">{m.user_name}</span>
                       </div>
                     </td>

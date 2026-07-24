@@ -11,7 +11,7 @@ interface MemberCardProps {
 export function MemberCard({ member }: MemberCardProps) {
   return (
     <Link href={`/team/${member.id}`} className="flex flex-col rounded-lg border border-gray-100 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      <div className="relative h-48 w-full bg-cba-dark/10 flex-shrink-0">
+      <div className="relative w-full aspect-[3/4] bg-cba-dark/10 flex-shrink-0">
         {member.headshot_url ? (
           <Image
             src={member.headshot_url}
