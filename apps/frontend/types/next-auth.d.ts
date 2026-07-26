@@ -4,7 +4,7 @@ import type { UserRole } from "@cba/types";
 
 declare module "next-auth" {
   interface Session {
-    accessToken: string;
+    accessToken?: string;
     role?: UserRole;
     error?: "RefreshTokenError";
   }

@@ -49,27 +49,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
 
   callbacks: {
+    authorized({ auth }) {
+      // Block through if backend exchange failed or token is missing
+      if (!auth || auth.error || !auth.accessToken) return false;
+      return true;
+    },
+
     async jwt({ token, account }) {
       // Initial sign-in — exchange Google id_token for our backend JWT
       if (account?.id_token) {
-        const res = await fetch(`${BACKEND_URL}/ops/v1/auth/google`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id_token: account.id_token }),
-        });
+        try {
+          const res = await fetch(`${BACKEND_URL}/ops/v1/auth/google`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id_token: account.id_token }),
+            signal: AbortSignal.timeout(15000),
+          });
 
-        if (!res.ok) {
+          if (!res.ok) throw new Error(`Backend ${res.status}`);
+
+          const tokens = await res.json();
+          return {
+            ...token,
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            accessTokenExpires: Date.now() + 55 * 60 * 1000,
+            role: decodeJwtRole(tokens.access_token),
+          };
+        } catch {
           return { ...token, error: "RefreshTokenError" as const };
         }
-
-        const tokens = await res.json();
-        return {
-          ...token,
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
-          accessTokenExpires: Date.now() + 55 * 60 * 1000,
-          role: decodeJwtRole(tokens.access_token),
-        };
       }
 
       // Token still valid

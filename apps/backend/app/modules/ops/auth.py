@@ -44,9 +44,16 @@ async def google_auth(
     user = result.scalar_one_or_none()
 
     if user is None:
-        user = User(email=email, name=name, google_sub=google_sub)
-        db.add(user)
-        await db.flush()
+        # Check for a placeholder user created via invite (no google_sub yet)
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        if user is not None:
+            user.google_sub = google_sub
+            user.name = name
+        else:
+            user = User(email=email, name=name, google_sub=google_sub)
+            db.add(user)
+            await db.flush()
     else:
         user.email = email
         user.name = name

@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.membership import Membership, ProfileEditRequest
-from app.models.user import User, UserRole
+from app.models.user import AllowedEmail, User, UserRole
 from app.modules.ops.deps import get_current_user, require_role
 from app.schemas.member import (
     MembershipCreate,
@@ -79,6 +79,56 @@ async def create_membership(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Member already exists in this cohort")
 
     membership = Membership(**body.model_dump())
+    db.add(membership)
+    await db.commit()
+    await db.refresh(membership)
+    return membership
+
+
+class MemberInviteCreate(BaseModel):
+    email: str
+    name: str = ""
+    cohort_id: uuid.UUID
+    role_title: str = "Analyst"
+    grad_year: str | None = None
+    major: str | None = None
+
+
+@router.post("/members/invite", response_model=MembershipPublic, status_code=status.HTTP_201_CREATED)
+async def invite_member(
+    body: MemberInviteCreate,
+    current_user: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    email = body.email.strip().lower()
+
+    # Add to allowlist if not already there
+    allowed = await db.execute(select(AllowedEmail).where(AllowedEmail.email == email))
+    if not allowed.scalar_one_or_none():
+        db.add(AllowedEmail(email=email, added_by_id=current_user.id))
+
+    # Find or create placeholder user
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if user is None:
+        user = User(email=email, name=body.name or email.split("@")[0])
+        db.add(user)
+        await db.flush()
+
+    # Check for existing membership in this cohort
+    existing = await db.execute(
+        select(Membership).where(Membership.user_id == user.id, Membership.cohort_id == body.cohort_id)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Member already exists in this cohort")
+
+    membership = Membership(
+        user_id=user.id,
+        cohort_id=body.cohort_id,
+        role_title=body.role_title,
+        grad_year=body.grad_year,
+        major=body.major,
+    )
     db.add(membership)
     await db.commit()
     await db.refresh(membership)

@@ -26,10 +26,11 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { createApi } from "@/lib/api";
-import type { MembershipDetail, User, Cohort } from "@cba/types";
+import type { MembershipDetail, Cohort } from "@cba/types";
 
 interface MemberCreate {
-  userId: string;
+  email: string;
+  name: string;
   cohortId: string;
   roleTitle: string;
   gradYear: string;
@@ -58,7 +59,8 @@ export default function MembersPage() {
   const [cohortOpen, setCohortOpen] = useState(false);
   const [newSemester, setNewSemester] = useState({ term: "Fall", year: new Date().getFullYear().toString() });
   const [form, setForm] = useState<MemberCreate>({
-    userId: "",
+    email: "",
+    name: "",
     cohortId: "",
     roleTitle: "Analyst",
     gradYear: "",
@@ -80,12 +82,6 @@ export default function MembersPage() {
     enabled: !!session?.accessToken,
   });
 
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["users"],
-    queryFn: () => api.get("/ops/v1/users"),
-    enabled: !!session?.accessToken && addOpen,
-  });
-
   const createCohort = useMutation({
     mutationFn: () => api.post<Cohort>("/ops/v1/cohorts", { semester: `${newSemester.term} ${newSemester.year}` }),
     onSuccess: () => {
@@ -104,8 +100,9 @@ export default function MembersPage() {
 
   const addMutation = useMutation({
     mutationFn: () =>
-      api.post<MembershipDetail>("/ops/v1/members", {
-        user_id: form.userId,
+      api.post<MembershipDetail>("/ops/v1/members/invite", {
+        email: form.email.trim().toLowerCase(),
+        name: form.name.trim(),
         cohort_id: form.cohortId,
         role_title: form.roleTitle,
         grad_year: form.gradYear || null,
@@ -114,7 +111,7 @@ export default function MembersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["members"] });
       setAddOpen(false);
-      setForm({ userId: "", cohortId: "", roleTitle: "Analyst", gradYear: "", major: "" });
+      setForm({ email: "", name: "", cohortId: "", roleTitle: "Analyst", gradYear: "", major: "" });
     },
   });
 
@@ -291,17 +288,21 @@ export default function MembersPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>User</Label>
-              <Select value={form.userId} onValueChange={(v) => setForm((f) => ({ ...f, userId: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select user…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.name} — {u.email}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Cornell Email</Label>
+              <Input
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="netid@cornell.edu"
+                type="email"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Name <span className="text-muted-foreground text-xs">(optional — updated when they log in)</span></Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="First Last"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Cohort</Label>
@@ -347,7 +348,7 @@ export default function MembersPage() {
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
             <Button
               onClick={() => addMutation.mutate()}
-              disabled={!form.userId || !form.cohortId || addMutation.isPending}
+              disabled={!form.email.trim() || !form.cohortId || addMutation.isPending}
             >
               {addMutation.isPending ? "Adding…" : "Add Member"}
             </Button>
