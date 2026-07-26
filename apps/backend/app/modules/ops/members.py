@@ -111,7 +111,11 @@ async def invite_member(
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user is None:
-        user = User(email=email, name=body.name or email.split("@")[0])
+        user = User(
+            email=email,
+            name=body.name or email.split("@")[0],
+            google_sub=f"pending:{email}",
+        )
         db.add(user)
         await db.flush()
 

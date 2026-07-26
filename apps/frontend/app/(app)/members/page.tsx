@@ -344,6 +344,11 @@ export default function MembersPage() {
               </div>
             </div>
           </div>
+          {addMutation.isError && (
+            <p className="text-xs text-destructive px-1">
+              {(addMutation.error as Error)?.message ?? "Something went wrong"}
+            </p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
             <Button
