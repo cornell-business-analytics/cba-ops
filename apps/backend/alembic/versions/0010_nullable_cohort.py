@@ -7,7 +7,7 @@ Create Date: 2026-07-27
 from alembic import op
 
 revision = "0010_nullable_cohort"
-down_revision = "0009_headshot_focal_point"
+down_revision = "0009"
 branch_labels = None
 depends_on = None
 
