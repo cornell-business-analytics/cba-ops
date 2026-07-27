@@ -59,7 +59,7 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
       <div className="grid gap-10 lg:grid-cols-[280px_1fr]">
         {/* Left column — headshot */}
         <div className="flex flex-col items-center lg:items-start gap-4">
-          <div className="relative w-56 h-56 rounded-2xl overflow-hidden flex-shrink-0 bg-cba-dark">
+          <div className="relative w-56 aspect-[3/4] rounded-2xl overflow-hidden flex-shrink-0 bg-cba-dark">
             {member.headshot_url ? (
               <Image
                 src={member.headshot_url}

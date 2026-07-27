@@ -34,7 +34,7 @@ class MembershipPublic(BaseModel):
     """Full membership record for the internal ops tool."""
     id: uuid.UUID
     user_id: uuid.UUID
-    cohort_id: uuid.UUID
+    cohort_id: uuid.UUID | None
     role_title: str
     headshot_url: str | None
     headshot_focal_x: float
@@ -56,7 +56,7 @@ class MembershipPublic(BaseModel):
 
 class MembershipCreate(BaseModel):
     user_id: uuid.UUID
-    cohort_id: uuid.UUID
+    cohort_id: uuid.UUID | None
     role_title: str = "Analyst"
     headshot_url: str | None = None
     hometown: str | None = None

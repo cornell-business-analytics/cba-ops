@@ -103,7 +103,7 @@ export default function MembersPage() {
       api.post<MembershipDetail>("/ops/v1/members/invite", {
         email: form.email.trim().toLowerCase(),
         name: form.name.trim(),
-        cohort_id: form.cohortId,
+        cohort_id: form.cohortId || null,
         role_title: form.roleTitle,
         grad_year: form.gradYear || null,
         major: form.major || null,
@@ -305,12 +305,13 @@ export default function MembersPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Cohort</Label>
-              <Select value={form.cohortId} onValueChange={(v) => setForm((f) => ({ ...f, cohortId: v }))}>
+              <Label>Cohort <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Select value={form.cohortId} onValueChange={(v) => setForm((f) => ({ ...f, cohortId: v === "__none__" ? "" : v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select cohort…" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">No cohort</SelectItem>
                   {sortedCohorts.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.semester}</SelectItem>
                   ))}
@@ -353,7 +354,7 @@ export default function MembersPage() {
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
             <Button
               onClick={() => addMutation.mutate()}
-              disabled={!form.email.trim() || !form.cohortId || addMutation.isPending}
+              disabled={!form.email.trim() || addMutation.isPending}
             >
               {addMutation.isPending ? "Adding…" : "Add Member"}
             </Button>

@@ -88,7 +88,7 @@ async def create_membership(
 class MemberInviteCreate(BaseModel):
     email: str
     name: str = ""
-    cohort_id: uuid.UUID
+    cohort_id: uuid.UUID | None = None
     role_title: str = "Analyst"
     grad_year: str | None = None
     major: str | None = None
@@ -119,12 +119,13 @@ async def invite_member(
         db.add(user)
         await db.flush()
 
-    # Check for existing membership in this cohort
-    existing = await db.execute(
-        select(Membership).where(Membership.user_id == user.id, Membership.cohort_id == body.cohort_id)
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Member already exists in this cohort")
+    # Check for duplicate membership (only when cohort is specified)
+    if body.cohort_id is not None:
+        existing = await db.execute(
+            select(Membership).where(Membership.user_id == user.id, Membership.cohort_id == body.cohort_id)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Member already exists in this cohort")
 
     membership = Membership(
         user_id=user.id,
