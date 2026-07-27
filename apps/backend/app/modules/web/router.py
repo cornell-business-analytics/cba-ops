@@ -92,7 +92,7 @@ async def get_members(
             headshot_focal_x=m.headshot_focal_x,
             headshot_focal_y=m.headshot_focal_y,
             linkedin_url=m.linkedin_url,
-            cohort_semester=m.cohort.semester,
+            cohort_semester=m.cohort.semester if m.cohort else "",
         ))
     return out
 

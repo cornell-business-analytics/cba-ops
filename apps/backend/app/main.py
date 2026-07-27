@@ -2,9 +2,11 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
-from app.core.middleware import RequestTimingMiddleware, add_cors
+from app.core.middleware import RequestTimingMiddleware, add_cors, limiter
 from app.db.session import engine
 from app.modules.ops.router import router as ops_router
 from app.modules.web.router import router as web_router
@@ -30,6 +32,8 @@ app = FastAPI(
 
 add_cors(app)
 app.add_middleware(RequestTimingMiddleware)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(web_router, prefix="/web/v1")
 app.include_router(ops_router, prefix="/ops/v1")

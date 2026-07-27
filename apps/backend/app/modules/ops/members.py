@@ -24,6 +24,11 @@ from app.schemas.member import (
 
 router = APIRouter(tags=["members"])
 
+MEMBER_EDITABLE_FIELDS = {
+    "bio", "interests", "campus_involvements", "professional_experience",
+    "hometown", "linkedin_url", "major", "grad_year",
+}
+
 
 async def _revalidate_member(user_id: str) -> None:
     try:
@@ -239,6 +244,10 @@ async def submit_edit_request(
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Membership not found")
 
+    invalid = set(body.changes.keys()) - MEMBER_EDITABLE_FIELDS
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Fields not editable: {', '.join(invalid)}")
+
     req = ProfileEditRequest(membership_id=membership_id, changes=body.changes)
     db.add(req)
     await db.commit()
@@ -286,7 +295,7 @@ async def review_edit_request(
         membership = m_result.scalar_one_or_none()
         if membership:
             for field, value in req.changes.items():
-                if hasattr(membership, field):
+                if field in MEMBER_EDITABLE_FIELDS:
                     setattr(membership, field, value)
 
     await db.commit()

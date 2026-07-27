@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +12,7 @@ from app.core.security import (
     verify_google_id_token,
     verify_token_hash,
 )
+from app.core.middleware import limiter
 from app.db.session import get_db
 from app.models.user import AllowedEmail, User, UserSession
 from app.schemas.auth import GoogleAuthRequest, LogoutRequest, RefreshRequest, TokenResponse
@@ -20,7 +21,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/google", response_model=TokenResponse)
+@limiter.limit("10/minute")
 async def google_auth(
+    request: Request,
     body: GoogleAuthRequest,
     db: AsyncSession = Depends(get_db),
 ):
