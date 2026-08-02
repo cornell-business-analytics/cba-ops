@@ -438,6 +438,31 @@ export default function MemberProfilePage() {
           </div>
         </div>
 
+        {/* Active status — directors+ */}
+        {canDirectEdit && (
+          <div className="rounded-lg border bg-white p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold">Member status</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Inactive members are hidden from the website and excluded from analytics.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => directUpdate.mutate({ is_active: !membership.is_active } as never)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                membership.is_active ? "bg-green-600" : "bg-muted-foreground/30"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  membership.is_active ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+        )}
+
         {/* Website section — eboard only */}
         {isEboard && (
           <div className="rounded-lg border bg-white p-4 space-y-2">
