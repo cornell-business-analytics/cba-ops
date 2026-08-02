@@ -38,10 +38,11 @@ function eboardOrder(roleTitle: string): number {
 
 export function TeamGrid({ eboard, directors, pms, analysts, abroad }: TeamGridProps) {
   const sortedEboard = [...eboard].sort((a, b) => eboardOrder(a.role_title) - eboardOrder(b.role_title));
+  const sortedDirectors = [...directors].sort((a, b) => a.role_title.localeCompare(b.role_title));
   return (
     <section className="container-section py-16 space-y-16" aria-label="Team">
       <GroupSection title="Executive Board" members={sortedEboard} cols="sm:grid-cols-2 lg:grid-cols-4" />
-      <GroupSection title="Directors" members={directors} cols="sm:grid-cols-2 lg:grid-cols-4" />
+      <GroupSection title="Directors" members={sortedDirectors} cols="sm:grid-cols-2 lg:grid-cols-4" />
       <GroupSection title="Project Managers" members={pms} cols="sm:grid-cols-2 lg:grid-cols-4" />
       <GroupSection title="Analysts" members={analysts} cols="sm:grid-cols-2 lg:grid-cols-4" />
       <GroupSection title="Abroad" members={abroad} cols="sm:grid-cols-2 lg:grid-cols-4" />
