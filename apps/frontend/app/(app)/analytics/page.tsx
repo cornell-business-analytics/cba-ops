@@ -10,12 +10,11 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  LineChart,
-  Line,
-  CartesianGrid,
+  PieChart,
+  Pie,
   Legend,
 } from "recharts";
-import { Users, UserSearch, Globe, CalendarDays, TrendingUp, Percent } from "lucide-react";
+import { Users, UserSearch, TrendingUp, Percent } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { createApi } from "@/lib/api";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -23,12 +22,11 @@ import type { AnalyticsOverview, RecruitmentAnalytics, MembersAnalytics } from "
 
 const FUNNEL_ORDER = ["applied", "coffee_chat", "interviewing", "offer", "accepted"];
 const FUNNEL_COLORS = ["#94a3b8", "#818cf8", "#f59e0b", "#22d3ee", "#22c55e"];
-const ROLE_COLORS: Record<string, string> = {
-  member: "#94a3b8",
-  pm: "#818cf8",
-  director: "#f59e0b",
-  eboard: "#1a7a3c",
-};
+const PIE_COLORS = [
+  "#1a7a3c", "#2a9e52", "#4DB8A0", "#818cf8", "#f59e0b",
+  "#22d3ee", "#f43f5e", "#a78bfa", "#fb923c", "#34d399",
+  "#60a5fa", "#e879f9", "#facc15", "#38bdf8", "#4ade80",
+];
 
 export default function AnalyticsPage() {
   const { data: session } = useSession();
@@ -58,37 +56,22 @@ export default function AnalyticsPage() {
     color: FUNNEL_COLORS[i],
   }));
 
-  const cohortData = members?.cohort_growth ?? [];
+  const gradYearData = Object.entries(members?.grad_year_distribution ?? {})
+    .map(([year, value]) => ({ name: year, value }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  const cycleData = (recruitment?.cycles ?? []).map((c) => ({
-    name: c.name,
-    applicants: c.total_applicants,
-    offers: c.offers,
-    accepted: c.accepted,
-  }));
-
-  const roleData = Object.entries(members?.role_distribution ?? {}).map(([role, count]) => ({
-    name: role,
-    count,
-    color: ROLE_COLORS[role] ?? "#94a3b8",
-  }));
+  const majorData = Object.entries(members?.major_distribution ?? {})
+    .map(([name, value]) => ({ name, value }));
 
   const stats = [
     { label: "Total Members", value: overview?.total_members, icon: Users },
     { label: "Active Candidates", value: overview?.active_candidates, icon: UserSearch },
-    { label: "Published Pages", value: overview?.published_pages, icon: Globe },
-    { label: "Events This Semester", value: overview?.events_this_semester, icon: CalendarDays },
-  ];
-
-  const recruitmentStats = [
     { label: "Total Applicants", value: recruitment?.total_applicants, icon: TrendingUp },
-    { label: "Offers Extended", value: recruitment?.offers, icon: UserSearch },
     {
       label: "Acceptance Rate",
-      value:
-        recruitment?.acceptance_rate != null
-          ? `${(recruitment.acceptance_rate * 100).toFixed(0)}%`
-          : undefined,
+      value: recruitment?.acceptance_rate != null
+        ? `${(recruitment.acceptance_rate * 100).toFixed(0)}%`
+        : undefined,
       icon: Percent,
     },
   ];
@@ -116,60 +99,67 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Recruitment Funnel</CardTitle>
+            <CardTitle>Grad Year Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              {recruitmentStats.map(({ label, value, icon: Icon }) => (
-                <div key={label} className="text-center">
-                  <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
-                    <Icon className="h-3 w-3" />
-                    {label}
-                  </div>
-                  <p className="text-lg font-semibold">{value ?? "—"}</p>
-                </div>
-              ))}
-            </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={funnelData} margin={{ left: -10 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                  {funnelData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {gradYearData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={gradYearData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    labelLine={false}
+                  >
+                    {gradYearData.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => [`${v} members`]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[280px] flex items-center justify-center text-muted-foreground text-sm">
+                No grad year data available
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Cohort Growth</CardTitle>
+            <CardTitle>Major Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            {cohortData.length > 0 ? (
+            {majorData.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={cohortData} margin={{ left: -10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="semester" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="count"
-                    stroke="#1a7a3c"
-                    strokeWidth={2}
-                    dot={{ r: 4, fill: "#1a7a3c" }}
-                    name="Members"
-                  />
-                </LineChart>
+                <PieChart>
+                  <Pie
+                    data={majorData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    label={({ name, percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ""}
+                    labelLine={false}
+                  >
+                    {majorData.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v, name) => [`${v} members`, name]} />
+                  <Legend />
+                </PieChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-[280px] flex items-center justify-center text-muted-foreground text-sm">
-                No cohort data available
+                No major data available
               </div>
             )}
           </CardContent>
@@ -178,52 +168,35 @@ export default function AnalyticsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Role Distribution</CardTitle>
+          <CardTitle>Recruitment Funnel</CardTitle>
         </CardHeader>
         <CardContent>
-          {roleData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={roleData} margin={{ left: -10 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]} name="Members">
-                  {roleData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-              No role data available
-            </div>
-          )}
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            {[
+              { label: "Applicants", value: recruitment?.total_applicants },
+              { label: "Offers", value: recruitment?.offers },
+              { label: "Acceptance Rate", value: recruitment?.acceptance_rate != null ? `${(recruitment.acceptance_rate * 100).toFixed(0)}%` : undefined },
+            ].map(({ label, value }) => (
+              <div key={label} className="text-center">
+                <p className="text-xs text-muted-foreground mb-1">{label}</p>
+                <p className="text-lg font-semibold">{value ?? "—"}</p>
+              </div>
+            ))}
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={funnelData} margin={{ left: -10 }}>
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip />
+              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                {funnelData.map((entry, i) => (
+                  <Cell key={i} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
-
-      {cycleData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recruitment by Cycle</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={cycleData} margin={{ left: -10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="applicants" name="Applicants" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="offers" name="Offers" fill="#818cf8" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="accepted" name="Accepted" fill="#22c55e" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

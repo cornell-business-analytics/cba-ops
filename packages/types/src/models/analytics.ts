@@ -34,6 +34,6 @@ export interface CohortGrowthPoint {
 }
 
 export interface MembersAnalytics {
-  cohort_growth: CohortGrowthPoint[];
-  role_distribution: Record<string, number>;
+  grad_year_distribution: Record<string, number>;
+  major_distribution: Record<string, number>;
 }

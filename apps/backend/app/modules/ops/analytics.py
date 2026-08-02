@@ -158,20 +158,20 @@ async def members_analytics(
     _: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    growth_result = await db.execute(
-        select(Cohort.semester, func.count(Membership.id).label("count"))
-        .join(Membership, Membership.cohort_id == Cohort.id)
-        .where(Membership.is_active == True)
-        .group_by(Cohort.semester)
-        .order_by(Cohort.semester)
+    grad_result = await db.execute(
+        select(Membership.grad_year, func.count(Membership.id).label("count"))
+        .where(Membership.is_active == True, Membership.grad_year.is_not(None))
+        .group_by(Membership.grad_year)
+        .order_by(Membership.grad_year)
     )
-    cohort_growth = [{"semester": row.semester, "count": row.count} for row in growth_result.all()]
+    grad_year_distribution = {row.grad_year: row.count for row in grad_result.all()}
 
-    role_result = await db.execute(
-        select(User.role, func.count(User.id).label("count"))
-        .where(User.is_active == True)
-        .group_by(User.role)
+    major_result = await db.execute(
+        select(Membership.major, func.count(Membership.id).label("count"))
+        .where(Membership.is_active == True, Membership.major.is_not(None))
+        .group_by(Membership.major)
+        .order_by(func.count(Membership.id).desc())
     )
-    role_distribution = {row.role.value: row.count for row in role_result.all()}
+    major_distribution = {row.major: row.count for row in major_result.all()}
 
-    return {"cohort_growth": cohort_growth, "role_distribution": role_distribution}
+    return {"grad_year_distribution": grad_year_distribution, "major_distribution": major_distribution}
