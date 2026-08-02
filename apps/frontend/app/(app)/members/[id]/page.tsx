@@ -51,13 +51,17 @@ function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const image = document.createElement("img");
     image.onload = () => {
+      const MIN_OUTPUT = 1200;
+      const scale = Math.max(1, MIN_OUTPUT / Math.min(pixelCrop.width, pixelCrop.height));
+      const outW = Math.round(pixelCrop.width * scale);
+      const outH = Math.round(pixelCrop.height * scale);
       const canvas = document.createElement("canvas");
-      canvas.width = pixelCrop.width;
-      canvas.height = pixelCrop.height;
+      canvas.width = outW;
+      canvas.height = outH;
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("No canvas context"));
-      ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height);
-      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Canvas is empty")), "image/jpeg", 0.92);
+      ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, outW, outH);
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Canvas is empty")), "image/jpeg", 0.95);
     };
     image.onerror = reject;
     image.src = imageSrc;

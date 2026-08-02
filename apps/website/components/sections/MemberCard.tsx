@@ -19,6 +19,7 @@ export function MemberCard({ member }: MemberCardProps) {
             fill
             className="object-cover"
             style={{ objectPosition: `${member.headshot_focal_x}% ${member.headshot_focal_y}%` }}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-cba-dark text-4xl font-bold text-white">
