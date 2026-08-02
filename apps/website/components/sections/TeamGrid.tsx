@@ -32,7 +32,7 @@ export function TeamGrid({ eboard, directors, pms, analysts }: TeamGridProps) {
   const staff = [...directors, ...pms];
   return (
     <section className="container-section py-16 space-y-16" aria-label="Team">
-      <GroupSection title="Executive Board" members={eboard} cols="sm:grid-cols-3 lg:grid-cols-5" />
+      <GroupSection title="Executive Board" members={eboard} cols="sm:grid-cols-2 lg:grid-cols-4" />
       <GroupSection title="Directors & Project Managers" members={staff} cols="sm:grid-cols-2 lg:grid-cols-4" />
       <GroupSection title="Analysts" members={analysts} cols="sm:grid-cols-2 lg:grid-cols-4" />
     </section>
