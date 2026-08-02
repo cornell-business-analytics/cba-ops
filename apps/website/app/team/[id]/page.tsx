@@ -7,8 +7,8 @@ import { getMember, getMembers } from "@/lib/api";
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
-  const { eboard, directors, pms, analysts } = await getMembers();
-  return [...eboard, ...directors, ...pms, ...analysts].map((m) => ({ id: m.id }));
+  const { eboard, directors, pms, analysts, abroad } = await getMembers();
+  return [...eboard, ...directors, ...pms, ...analysts, ...abroad].map((m) => ({ id: m.id }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {

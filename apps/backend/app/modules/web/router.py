@@ -29,7 +29,7 @@ async def get_member(
 ):
     result = await db.execute(
         select(Membership)
-        .where(Membership.user_id == member_id, Membership.is_active == True)
+        .where(Membership.user_id == member_id)
         .options(selectinload(Membership.user), selectinload(Membership.cohort))
         .order_by(Membership.display_order)
         .limit(1)
@@ -43,6 +43,7 @@ async def get_member(
         email=m.user.email,
         role=m.user.role.value,
         role_title=m.role_title,
+        is_active=m.is_active,
         major=m.major,
         grad_year=m.grad_year,
         hometown=m.hometown,
@@ -65,7 +66,6 @@ async def get_members(
 ):
     result = await db.execute(
         select(Membership)
-        .where(Membership.is_active == True)
         .options(selectinload(Membership.user), selectinload(Membership.cohort))
         .order_by(Membership.display_order)
     )
@@ -82,6 +82,7 @@ async def get_members(
             email=m.user.email,
             role=effective_role,
             role_title=m.role_title,
+            is_active=m.is_active,
             major=m.major,
             grad_year=m.grad_year,
             hometown=m.hometown,

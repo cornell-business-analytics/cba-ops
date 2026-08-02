@@ -3,7 +3,7 @@ import { getMembers } from "@/lib/api";
 import { TeamGrid } from "@/components/sections/TeamGrid";
 
 export async function TeamListBlockRenderer({ block }: { block: TeamListBlock }) {
-  const { eboard, directors, pms, analysts } = await getMembers();
+  const { eboard, directors, pms, analysts, abroad } = await getMembers();
   return (
     <section aria-label={block.title ?? "Team"}>
       {block.title && (
@@ -11,7 +11,7 @@ export async function TeamListBlockRenderer({ block }: { block: TeamListBlock })
           <h2 className="text-2xl font-bold text-cba-dark">{block.title}</h2>
         </div>
       )}
-      <TeamGrid eboard={eboard} directors={directors} pms={pms} analysts={analysts} />
+      <TeamGrid eboard={eboard} directors={directors} pms={pms} analysts={analysts} abroad={abroad} />
     </section>
   );
 }

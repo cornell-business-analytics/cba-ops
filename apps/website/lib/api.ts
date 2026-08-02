@@ -20,23 +20,28 @@ export interface MemberGroups {
   directors: MemberPublic[];
   pms: MemberPublic[];
   analysts: MemberPublic[];
+  abroad: MemberPublic[];
 }
 
 export async function getMembers(): Promise<MemberGroups> {
-  const data = await apiFetch<MemberPublic[]>("/web/v1/members?active=true", "members");
+  const data = await apiFetch<MemberPublic[]>("/web/v1/members", "members");
   if (!data) {
     return {
       eboard: PLACEHOLDER_EXEC,
       directors: PLACEHOLDER_ANALYSTS.filter((m) => m.role === "director"),
       pms: PLACEHOLDER_ANALYSTS.filter((m) => m.role === "pm"),
       analysts: PLACEHOLDER_ANALYSTS.filter((m) => m.role === "member"),
+      abroad: [],
     };
   }
+  const active = data.filter((m) => m.is_active);
+  const inactive = data.filter((m) => !m.is_active);
   return {
-    eboard: data.filter((m) => m.role === "eboard"),
-    directors: data.filter((m) => m.role === "director"),
-    pms: data.filter((m) => m.role === "pm"),
-    analysts: data.filter((m) => m.role === "member" || m.role === "analyst"),
+    eboard: active.filter((m) => m.role === "eboard"),
+    directors: active.filter((m) => m.role === "director"),
+    pms: active.filter((m) => m.role === "pm"),
+    analysts: active.filter((m) => m.role === "member" || m.role === "analyst"),
+    abroad: inactive,
   };
 }
 

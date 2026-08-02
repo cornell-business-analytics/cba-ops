@@ -10,6 +10,7 @@ class MemberPublic(BaseModel):
     email: str
     role: str
     role_title: str
+    is_active: bool
     major: str | None
     grad_year: str | None
     hometown: str | None

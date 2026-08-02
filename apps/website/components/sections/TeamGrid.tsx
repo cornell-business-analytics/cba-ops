@@ -6,6 +6,7 @@ interface TeamGridProps {
   directors: MemberPublic[];
   pms: MemberPublic[];
   analysts: MemberPublic[];
+  abroad: MemberPublic[];
 }
 
 interface GroupSectionProps {
@@ -35,7 +36,7 @@ function eboardOrder(roleTitle: string): number {
   return 50;
 }
 
-export function TeamGrid({ eboard, directors, pms, analysts }: TeamGridProps) {
+export function TeamGrid({ eboard, directors, pms, analysts, abroad }: TeamGridProps) {
   const sortedEboard = [...eboard].sort((a, b) => eboardOrder(a.role_title) - eboardOrder(b.role_title));
   return (
     <section className="container-section py-16 space-y-16" aria-label="Team">
@@ -43,6 +44,7 @@ export function TeamGrid({ eboard, directors, pms, analysts }: TeamGridProps) {
       <GroupSection title="Directors" members={directors} cols="sm:grid-cols-2 lg:grid-cols-4" />
       <GroupSection title="Project Managers" members={pms} cols="sm:grid-cols-2 lg:grid-cols-4" />
       <GroupSection title="Analysts" members={analysts} cols="sm:grid-cols-2 lg:grid-cols-4" />
+      <GroupSection title="Abroad" members={abroad} cols="sm:grid-cols-2 lg:grid-cols-4" />
     </section>
   );
 }

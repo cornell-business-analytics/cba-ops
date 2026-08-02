@@ -33,6 +33,7 @@ export interface MemberPublic {
   email: string;
   role: string;
   role_title: string;
+  is_active: boolean;
   major: string | null;
   grad_year: string | null;
   hometown: string | null;

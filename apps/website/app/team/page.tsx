@@ -26,11 +26,11 @@ export default async function TeamPage() {
     );
   }
 
-  const { eboard, directors, pms, analysts } = await getMembers();
+  const { eboard, directors, pms, analysts, abroad } = await getMembers();
   return (
     <>
       <Hero heading="Meet the team" />
-      <TeamGrid eboard={eboard} directors={directors} pms={pms} analysts={analysts} />
+      <TeamGrid eboard={eboard} directors={directors} pms={pms} analysts={analysts} abroad={abroad} />
     </>
   );
 }
