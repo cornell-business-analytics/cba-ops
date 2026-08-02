@@ -48,13 +48,14 @@ async def get_member(
         hometown=m.hometown,
         campus_involvements=m.campus_involvements,
         professional_experience=m.professional_experience,
+        professional_is_interests=m.professional_is_interests,
         interests=m.interests,
         bio=m.bio,
         headshot_url=m.headshot_url,
         headshot_focal_x=m.headshot_focal_x,
         headshot_focal_y=m.headshot_focal_y,
         linkedin_url=m.linkedin_url,
-        cohort_semester=m.cohort.semester,
+        cohort_semester=m.cohort.semester if m.cohort else "",
     )
 
 
