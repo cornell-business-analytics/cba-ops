@@ -121,6 +121,15 @@ async def get_recruitment_steps(
     return row.value if row else []
 
 
+@router.get("/recruitment-no-events-message")
+async def get_recruitment_no_events_message(
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(SiteSetting).where(SiteSetting.key == "recruitment_no_events_message"))
+    row = result.scalar_one_or_none()
+    return {"message": row.value if row else ""}
+
+
 @router.get("/pages/{slug}", response_model=PagePublic)
 async def get_page(
     slug: str,

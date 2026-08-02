@@ -58,3 +58,8 @@ export async function getRecruitmentSteps(): Promise<RecruitmentStep[]> {
   const data = await apiFetch<RecruitmentStep[]>("/web/v1/recruitment-steps", "recruitment-steps");
   return data ?? [];
 }
+
+export async function getRecruitmentNoEventsMessage(): Promise<string> {
+  const data = await apiFetch<{ message: string }>("/web/v1/recruitment-no-events-message", "recruitment-no-events-message");
+  return data?.message ?? "";
+}

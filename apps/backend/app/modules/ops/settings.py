@@ -53,3 +53,43 @@ async def update_recruitment_steps(
         pass
 
     return steps
+
+
+class NoEventsMessage(BaseModel):
+    message: str
+
+
+@router.get("/recruitment-no-events-message", response_model=NoEventsMessage)
+async def get_recruitment_no_events_message(
+    _: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(SiteSetting).where(SiteSetting.key == "recruitment_no_events_message"))
+    row = result.scalar_one_or_none()
+    return {"message": row.value if row else ""}
+
+
+@router.put("/recruitment-no-events-message", response_model=NoEventsMessage)
+async def update_recruitment_no_events_message(
+    body: NoEventsMessage,
+    _: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(SiteSetting).where(SiteSetting.key == "recruitment_no_events_message"))
+    row = result.scalar_one_or_none()
+    if row is None:
+        db.add(SiteSetting(key="recruitment_no_events_message", value=body.message))
+    else:
+        row.value = body.message
+    await db.commit()
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(
+                f"{settings.WEBSITE_URL}/api/revalidate",
+                params={"secret": settings.REVALIDATE_SECRET, "tag": "recruitment-no-events-message"},
+            )
+    except httpx.HTTPError:
+        pass
+
+    return body

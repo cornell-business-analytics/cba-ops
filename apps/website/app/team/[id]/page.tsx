@@ -59,7 +59,7 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
       <div className="grid gap-10 lg:grid-cols-[280px_1fr]">
         {/* Left column — headshot */}
         <div className="flex flex-col items-center lg:items-start gap-4">
-          <div className="relative w-56 aspect-[3/4] rounded-2xl overflow-hidden flex-shrink-0 bg-cba-dark">
+          <div className="relative w-full max-w-[280px] aspect-square rounded-xl overflow-hidden flex-shrink-0 bg-cba-dark/10">
             {member.headshot_url ? (
               <Image
                 src={member.headshot_url}
@@ -67,10 +67,10 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
                 fill
                 className="object-cover"
                 style={{ objectPosition: `${member.headshot_focal_x}% ${member.headshot_focal_y}%` }}
-                sizes="224px"
+                sizes="(max-width: 1024px) 50vw, 280px"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-5xl font-bold text-white">
+              <div className="flex h-full w-full items-center justify-center bg-cba-dark text-5xl font-bold text-white">
                 {initials}
               </div>
             )}

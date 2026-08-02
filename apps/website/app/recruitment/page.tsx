@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Hero } from "@/components/sections/Hero";
 import { RecruitmentTimeline } from "@/components/sections/RecruitmentTimeline";
 import { BlockRenderer } from "@/components/blocks/BlockRenderer";
-import { getEvents, getPage, getRecruitmentSteps } from "@/lib/api";
+import { getEvents, getPage, getRecruitmentSteps, getRecruitmentNoEventsMessage } from "@/lib/api";
 import { buildMetadata } from "@/lib/metadata";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -27,10 +27,13 @@ export default async function RecruitmentPage() {
     );
   }
 
-  const [events, steps] = await Promise.all([
+  const [events, steps, noEventsMessage] = await Promise.all([
     getEvents("recruitment"),
     getRecruitmentSteps(),
+    getRecruitmentNoEventsMessage(),
   ]);
+
+  const hasEvents = events.length > 0;
 
   return (
     <>
@@ -42,17 +45,21 @@ export default async function RecruitmentPage() {
       />
 
       <section className="container-section py-16">
-        <div className={`grid gap-12 ${events.length > 0 ? "lg:grid-cols-2" : ""}`}>
-          {events.length > 0 && (
-            <div>
-              <h2 className="text-2xl font-bold text-cba-dark">Upcoming events</h2>
+        <div className={`grid gap-12 ${hasEvents ? "lg:grid-cols-2" : ""}`}>
+          <div>
+            <h2 className="text-2xl font-bold text-cba-dark">Upcoming events</h2>
+            {hasEvents ? (
               <div className="mt-8">
                 <RecruitmentTimeline events={events} />
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="mt-4 text-gray-500 leading-relaxed">
+                {noEventsMessage || "No upcoming events. Check back soon."}
+              </p>
+            )}
+          </div>
 
-          <div className={events.length === 0 ? "max-w-xl" : ""}>
+          <div className={!hasEvents ? "max-w-xl" : ""}>
             <h2 className="text-2xl font-bold text-cba-dark">The process</h2>
             <ol className="mt-6 space-y-6">
               {steps.map(({ title, desc }, i) => (
