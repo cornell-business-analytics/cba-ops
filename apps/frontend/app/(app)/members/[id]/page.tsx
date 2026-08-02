@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Cropper from "react-easy-crop";
+import type { Area } from "react-easy-crop";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
@@ -45,6 +47,23 @@ const EDIT_FIELDS: { key: keyof ProfileFields; label: string; multiline?: boolea
 
 const ROLE_ORDER: Record<string, number> = { member: 0, pm: 1, director: 2, eboard: 3 };
 
+function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const image = document.createElement("img");
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = pixelCrop.width;
+      canvas.height = pixelCrop.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("No canvas context"));
+      ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height);
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Canvas is empty")), "image/jpeg", 0.92);
+    };
+    image.onerror = reject;
+    image.src = imageSrc;
+  });
+}
+
 function statusVariant(status: string) {
   if (status === "approved") return "success" as const;
   if (status === "rejected") return "destructive" as const;
@@ -70,6 +89,10 @@ export default function MemberProfilePage() {
   const [pasteUrl, setPasteUrl] = useState("");
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [professionalIsInterests, setProfessionalIsInterests] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   const api = () => createApi(session?.accessToken);
 
@@ -193,15 +216,31 @@ export default function MemberProfilePage() {
     updateFocalPoint.mutate({ x, y });
   };
 
-  const handleHeadshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleHeadshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropSrc(reader.result as string);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleCropConfirm = async () => {
+    if (!cropSrc || !croppedAreaPixels) return;
     setUploading(true);
     setUploadError(null);
+    const src = cropSrc;
+    const pixels = croppedAreaPixels;
+    setCropSrc(null);
     try {
+      const blob = await getCroppedBlob(src, pixels);
       const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", blob, "headshot.jpg");
       const res = await fetch(`${BACKEND}/ops/v1/assets/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session?.accessToken}` },
@@ -211,7 +250,7 @@ export default function MemberProfilePage() {
         const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
         throw new Error(err.detail ?? `Upload failed (${res.status})`);
       }
-      const { public_url } = await res.json() as { public_url: string };
+      const { public_url } = (await res.json()) as { public_url: string };
       await api().patch(`/ops/v1/members/${id}/headshot`, { headshot_url: public_url });
       qc.invalidateQueries({ queryKey: ["members", id] });
     } catch (err) {
@@ -443,6 +482,45 @@ export default function MemberProfilePage() {
           <p className="text-sm text-green-600 text-right">Edit request submitted.</p>
         )}
       </form>
+
+      {cropSrc && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="px-4 py-3 border-b">
+              <p className="font-semibold text-sm">Crop headshot</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Drag to reposition · pinch or use slider to zoom</p>
+            </div>
+            <div className="relative w-full" style={{ height: 300 }}>
+              <Cropper
+                image={cropSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(_: Area, pixels: Area) => setCroppedAreaPixels(pixels)}
+              />
+            </div>
+            <div className="px-4 py-3 border-t space-y-3">
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.01}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full"
+              />
+              <div className="flex justify-end gap-2">
+                <Button size="sm" variant="outline" onClick={() => setCropSrc(null)}>Cancel</Button>
+                <Button size="sm" onClick={handleCropConfirm} disabled={uploading}>
+                  {uploading ? "Uploading…" : "Crop & Upload"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pending edit requests (directors only) */}
       {isDirectorOrAbove && memberEditRequests.length > 0 && (

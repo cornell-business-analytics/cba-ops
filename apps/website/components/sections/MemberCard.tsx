@@ -11,7 +11,7 @@ interface MemberCardProps {
 export function MemberCard({ member }: MemberCardProps) {
   return (
     <Link href={`/team/${member.id}`} className="flex flex-col rounded-lg border border-gray-100 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-      <div className="relative w-full aspect-[3/4] bg-cba-dark/10 flex-shrink-0">
+      <div className="relative w-full aspect-square bg-cba-dark/10 flex-shrink-0">
         {member.headshot_url ? (
           <Image
             src={member.headshot_url}
@@ -31,7 +31,7 @@ export function MemberCard({ member }: MemberCardProps) {
         )}
       </div>
 
-      <div className="flex flex-col gap-3 p-4">
+      <div className="flex flex-col gap-2 p-4">
         <div>
           <p className="font-semibold text-cba-dark">{member.name}</p>
           <p className="text-sm text-cba-green font-medium">{member.role_title}</p>
@@ -39,36 +39,10 @@ export function MemberCard({ member }: MemberCardProps) {
             <p className="mt-0.5 text-xs text-gray-500">
               {[member.major, member.grad_year ? `'${member.grad_year.slice(-2)}` : null]
                 .filter(Boolean)
-                .join(" · ")}
+                .join(", ")}
             </p>
-          )}
-          {member.hometown && (
-            <p className="text-xs text-gray-400">{member.hometown}</p>
           )}
         </div>
-
-        {member.campus_involvements && (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">On Campus</p>
-            <p className="mt-0.5 text-xs text-gray-600 line-clamp-2">{member.campus_involvements}</p>
-          </div>
-        )}
-
-        {member.professional_experience && (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-              {member.professional_is_interests ? "Professional Interests" : "Experience"}
-            </p>
-            <p className="mt-0.5 text-xs text-gray-600 line-clamp-2">{member.professional_experience}</p>
-          </div>
-        )}
-
-        {member.interests && (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Interests</p>
-            <p className="mt-0.5 text-xs text-gray-600 line-clamp-2">{member.interests}</p>
-          </div>
-        )}
 
         <div className="mt-auto flex items-center gap-3 pt-1 border-t border-gray-100">
           {member.email && (
