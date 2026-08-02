@@ -52,7 +52,7 @@ export function Hero({ heading, subheading, ctaLabel, ctaHref, image, compact }:
                   <div className="mt-10 flex flex-wrap gap-4">
                     <Link
                       href={ctaHref}
-                      className="rounded-md bg-cba-green px-6 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-cba-green-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cba-green"
+                      className="rounded-md bg-cba-green px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-cba-green-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cba-green"
                     >
                       {ctaLabel}
                     </Link>
@@ -85,7 +85,7 @@ export function Hero({ heading, subheading, ctaLabel, ctaHref, image, compact }:
                 <div className="mt-10 flex flex-wrap gap-4">
                   <Link
                     href={ctaHref}
-                    className="rounded-md bg-cba-green px-6 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-cba-green-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cba-green"
+                    className="rounded-md bg-cba-green px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-cba-green-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cba-green"
                   >
                     {ctaLabel}
                   </Link>

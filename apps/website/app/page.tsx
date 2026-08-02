@@ -85,7 +85,7 @@ export default async function HomePage() {
           </p>
           <Link
             href="/recruitment"
-            className="mt-8 inline-block rounded-md bg-white px-8 py-3 text-sm font-semibold text-cba-green shadow transition-colors hover:bg-green-50"
+            className="mt-8 inline-block rounded-md bg-white px-8 py-3 text-sm font-semibold text-cba-green transition-colors hover:bg-green-50"
           >
             Learn how to apply
           </Link>

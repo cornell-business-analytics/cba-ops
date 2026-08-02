@@ -111,8 +111,8 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
         {/* Right column — profile fields */}
         <div className="space-y-6">
           {(member.major || member.grad_year || member.hometown) && (
-            <div className="rounded-xl border border-gray-100 bg-white p-6 space-y-4">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-cba-dark">Background</h2>
+            <div className="space-y-4 py-6 border-b border-gray-100">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-cba-green">Background</h2>
               <ProfileField label="Major" value={member.major} />
               <ProfileField label="Graduation Year" value={member.grad_year} />
               <ProfileField label="Hometown" value={member.hometown} />
@@ -120,8 +120,8 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
           )}
 
           {(member.campus_involvements || member.professional_experience || member.interests) && (
-            <div className="rounded-xl border border-gray-100 bg-white p-6 space-y-4">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-cba-dark">About</h2>
+            <div className="space-y-4 py-6 border-b border-gray-100">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-cba-green">About</h2>
               <ProfileField label="Campus Involvements" value={member.campus_involvements} />
               <ProfileField
                 label={member.professional_is_interests ? "Professional Interests" : "Professional Experience"}
@@ -132,8 +132,8 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
           )}
 
           {member.bio && (
-            <div className="rounded-xl border border-gray-100 bg-white p-6">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-cba-dark mb-3">Bio</h2>
+            <div className="py-6">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-cba-green mb-3">Bio</h2>
               <p className="text-gray-700 leading-relaxed">{member.bio}</p>
             </div>
           )}
