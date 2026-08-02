@@ -64,7 +64,7 @@ async def list_members(
     result = await db.execute(query.order_by(Membership.display_order))
     members = result.scalars().all()
     return [
-        {**{c.key: getattr(m, c.key) for c in m.__table__.columns}, "user_name": m.user.name, "user_email": m.user.email}
+        {**{c.key: getattr(m, c.key) for c in m.__table__.columns}, "user_name": m.user.name, "user_email": m.user.email, "user_role": m.user.role.value}
         for m in members
     ]
 
@@ -163,6 +163,7 @@ async def get_membership(
         **{c.key: getattr(m, c.key) for c in m.__table__.columns},
         "user_name": m.user.name,
         "user_email": m.user.email,
+        "user_role": m.user.role.value,
     }
 
 

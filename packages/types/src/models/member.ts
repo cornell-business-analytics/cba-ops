@@ -60,6 +60,7 @@ export interface ProfileEditRequest {
 export interface MembershipDetail extends Membership {
   user_name: string;
   user_email: string;
+  user_role: string;
 }
 
 // Keep old Member alias for compatibility

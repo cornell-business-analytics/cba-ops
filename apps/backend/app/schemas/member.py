@@ -95,9 +95,10 @@ class MembershipUpdate(BaseModel):
 
 
 class MembershipDetail(MembershipPublic):
-    """Single-record response — includes the linked user's name and email."""
+    """Single-record response — includes the linked user's name, email, and role."""
     user_name: str
     user_email: str
+    user_role: str
 
 
 class ProfileEditRequestCreate(BaseModel):

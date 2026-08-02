@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,9 @@ interface MemberCreate {
   major: string;
 }
 
+type SortField = "name" | "role" | "major" | "grad_year";
+const ROLE_RANK: Record<string, number> = { eboard: 3, director: 2, pm: 1, member: 0 };
+
 const AVATAR_PALETTE = [
   "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-yellow-500",
   "bg-lime-600", "bg-green-600", "bg-teal-600", "bg-cyan-600",
@@ -55,6 +58,8 @@ export default function MembersPage() {
 
   const [search, setSearch] = useState("");
   const [cohortFilter, setCohortFilter] = useState<string>("all");
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [addOpen, setAddOpen] = useState(false);
   const [cohortOpen, setCohortOpen] = useState(false);
   const [newSemester, setNewSemester] = useState({ term: "Fall", year: new Date().getFullYear().toString() });
@@ -115,15 +120,31 @@ export default function MembersPage() {
     },
   });
 
-  const filtered = members.filter((m) => {
-    const matchSearch =
-      !search ||
-      m.user_name.toLowerCase().includes(search.toLowerCase()) ||
-      m.role_title.toLowerCase().includes(search.toLowerCase()) ||
-      (m.major ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchCohort = cohortFilter === "all" || m.cohort_id === cohortFilter;
-    return matchSearch && matchCohort;
-  });
+  const handleSort = (field: SortField) => {
+    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortField(field); setSortDir("asc"); }
+  };
+
+  const filtered = members
+    .filter((m) => {
+      const matchSearch =
+        !search ||
+        m.user_name.toLowerCase().includes(search.toLowerCase()) ||
+        m.role_title.toLowerCase().includes(search.toLowerCase()) ||
+        (m.major ?? "").toLowerCase().includes(search.toLowerCase());
+      const matchCohort = cohortFilter === "all" || m.cohort_id === cohortFilter;
+      return matchSearch && matchCohort;
+    })
+    .sort((a, b) => {
+      if (!sortField) return 0;
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortField === "role") {
+        return dir * ((ROLE_RANK[b.user_role ?? "member"] ?? 0) - (ROLE_RANK[a.user_role ?? "member"] ?? 0));
+      }
+      const valA = sortField === "name" ? (a.user_name ?? "") : sortField === "major" ? (a.major ?? "") : (a.grad_year ?? "");
+      const valB = sortField === "name" ? (b.user_name ?? "") : sortField === "major" ? (b.major ?? "") : (b.grad_year ?? "");
+      return dir * valA.localeCompare(valB);
+    });
 
   return (
     <div className="p-6 space-y-4">
@@ -180,9 +201,28 @@ export default function MembersPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 sticky top-0">
               <tr>
-                {["Name", "Role", "Major", "Grad Year", "Status", ""].map((h) => (
-                  <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">{h}</th>
-                ))}
+                {([
+                  { label: "Name", field: "name" as SortField },
+                  { label: "Role", field: "role" as SortField },
+                  { label: "Major", field: "major" as SortField },
+                  { label: "Grad Year", field: "grad_year" as SortField },
+                ] as const).map(({ label, field }) => {
+                  const active = sortField === field;
+                  const Icon = active ? (sortDir === "asc" ? ChevronUp : ChevronDown) : ChevronsUpDown;
+                  return (
+                    <th key={field} className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">
+                      <button
+                        onClick={() => handleSort(field)}
+                        className="flex items-center gap-1 hover:text-foreground transition-colors"
+                      >
+                        {label}
+                        <Icon className={`h-3 w-3 ${active ? "text-foreground" : "opacity-40"}`} />
+                      </button>
+                    </th>
+                  );
+                })}
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Status</th>
+                <th className="px-4 py-2.5" />
               </tr>
             </thead>
             <tbody className="divide-y">
