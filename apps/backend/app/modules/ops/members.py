@@ -173,11 +173,18 @@ async def update_membership(
     _: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Membership).where(Membership.id == membership_id))
+    result = await db.execute(
+        select(Membership).options(selectinload(Membership.user)).where(Membership.id == membership_id)
+    )
     membership = result.scalar_one_or_none()
     if not membership:
         raise HTTPException(status_code=404, detail="Membership not found")
-    for field, value in body.model_dump(exclude_none=True).items():
+    data = body.model_dump(exclude_none=True)
+    if "name" in data:
+        membership.user.name = data.pop("name")
+    if "email" in data:
+        membership.user.email = data.pop("email")
+    for field, value in data.items():
         setattr(membership, field, value)
     await db.commit()
     await db.refresh(membership)

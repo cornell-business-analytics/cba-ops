@@ -74,6 +74,8 @@ class MembershipCreate(BaseModel):
 
 
 class MembershipUpdate(BaseModel):
+    name: str | None = None
+    email: str | None = None
     role_title: str | None = None
     headshot_url: str | None = None
     headshot_focal_x: float | None = None
