@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Roboto } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { Nav } from "@/components/layout/Nav";
 import { Footer } from "@/components/layout/Footer";
 import { PageTransition } from "@/components/layout/PageTransition";
 import "./globals.css";
 
-const inter = Inter({
+const roboto = Roboto({
+  weight: ["400", "500", "700"],
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-roboto",
   display: "swap",
 });
 
@@ -39,7 +40,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${GeistSans.variable}`}>
+    <html lang="en" className={`${roboto.variable} ${GeistSans.variable}`}>
       <body className="flex min-h-screen flex-col">
         <Nav />
         <main className="flex-1">
