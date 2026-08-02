@@ -1,6 +1,6 @@
 import type { MemberPublic, EventPublic } from "@cba/types";
 
-const focal = { headshot_focal_x: 50, headshot_focal_y: 50 };
+const focal = { headshot_focal_x: 50, headshot_focal_y: 50, professional_is_interests: false };
 
 export const PLACEHOLDER_EXEC: MemberPublic[] = [
   { id: "1", name: "Fadi Ismail", email: "", role: "eboard", role_title: "President", headshot_url: null, ...focal, bio: null, major: null, grad_year: null, hometown: null, campus_involvements: null, professional_experience: null, interests: null, linkedin_url: null, cohort_semester: "Spring 2026" },
