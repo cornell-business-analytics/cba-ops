@@ -167,11 +167,15 @@ async def members_analytics(
     grad_year_distribution = {row.grad_year: row.count for row in grad_result.all()}
 
     major_result = await db.execute(
-        select(Membership.major, func.count(Membership.id).label("count"))
+        select(Membership.major)
         .where(Membership.is_active == True, Membership.major.is_not(None))
-        .group_by(Membership.major)
-        .order_by(func.count(Membership.id).desc())
     )
-    major_distribution = {row.major: row.count for row in major_result.all()}
+    major_counts: dict[str, int] = {}
+    for (raw,) in major_result.all():
+        for part in raw.split("+"):
+            major = part.strip()
+            if major:
+                major_counts[major] = major_counts.get(major, 0) + 1
+    major_distribution = dict(sorted(major_counts.items(), key=lambda x: x[1], reverse=True))
 
     return {"grad_year_distribution": grad_year_distribution, "major_distribution": major_distribution}
