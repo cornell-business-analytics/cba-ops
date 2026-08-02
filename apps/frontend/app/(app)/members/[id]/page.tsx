@@ -42,7 +42,6 @@ const EDIT_FIELDS: { key: keyof ProfileFields; label: string; multiline?: boolea
   { key: "linkedin_url", label: "LinkedIn URL" },
   { key: "campus_involvements", label: "Campus Involvements", multiline: true },
   { key: "interests", label: "Interests", multiline: true },
-  { key: "bio", label: "Bio", multiline: true },
 ];
 
 const ROLE_ORDER: Record<string, number> = { member: 0, pm: 1, director: 2, eboard: 3 };
