@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, DM_Serif_Display } from "next/font/google";
+import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
 import { Nav } from "@/components/layout/Nav";
 import { Footer } from "@/components/layout/Footer";
 import { PageTransition } from "@/components/layout/PageTransition";
@@ -11,13 +12,6 @@ const inter = Inter({
   display: "swap",
 });
 
-const serif = DM_Serif_Display({
-  weight: "400",
-  style: ["normal", "italic"],
-  subsets: ["latin"],
-  variable: "--font-serif",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -45,7 +39,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${serif.variable}`}>
+    <html lang="en" className={`${inter.variable} ${GeistSans.variable}`}>
       <body className="flex min-h-screen flex-col">
         <Nav />
         <main className="flex-1">

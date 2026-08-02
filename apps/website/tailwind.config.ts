@@ -19,7 +19,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        display: ["var(--font-serif)", "Georgia", "serif"],
+        display: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
       },
       keyframes: {
         "fade-in": {
