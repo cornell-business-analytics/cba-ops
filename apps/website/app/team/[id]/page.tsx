@@ -123,7 +123,10 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
             <div className="rounded-xl border border-gray-100 bg-white p-6 space-y-4">
               <h2 className="text-sm font-bold uppercase tracking-wide text-cba-dark">About</h2>
               <ProfileField label="Campus Involvements" value={member.campus_involvements} />
-              <ProfileField label="Professional Experience" value={member.professional_experience} />
+              <ProfileField
+                label={member.professional_is_interests ? "Professional Interests" : "Professional Experience"}
+                value={member.professional_experience}
+              />
               <ProfileField label="Interests" value={member.interests} />
             </div>
           )}

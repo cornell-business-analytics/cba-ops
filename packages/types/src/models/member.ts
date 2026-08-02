@@ -18,6 +18,7 @@ export interface Membership {
   grad_year: string | null;
   campus_involvements: string | null;
   professional_experience: string | null;
+  professional_is_interests: boolean;
   interests: string | null;
   bio: string | null;
   linkedin_url: string | null;
@@ -37,6 +38,7 @@ export interface MemberPublic {
   hometown: string | null;
   campus_involvements: string | null;
   professional_experience: string | null;
+  professional_is_interests: boolean;
   interests: string | null;
   bio: string | null;
   headshot_url: string | null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
@@ -39,7 +39,6 @@ const EDIT_FIELDS: { key: keyof ProfileFields; label: string; multiline?: boolea
   { key: "hometown", label: "Hometown" },
   { key: "linkedin_url", label: "LinkedIn URL" },
   { key: "campus_involvements", label: "Campus Involvements", multiline: true },
-  { key: "professional_experience", label: "Professional Experience", multiline: true },
   { key: "interests", label: "Interests", multiline: true },
   { key: "bio", label: "Bio", multiline: true },
 ];
@@ -70,6 +69,7 @@ export default function MemberProfilePage() {
   const [adjustingCrop, setAdjustingCrop] = useState(false);
   const [pasteUrl, setPasteUrl] = useState("");
   const [showUrlInput, setShowUrlInput] = useState(false);
+  const [professionalIsInterests, setProfessionalIsInterests] = useState(false);
 
   const api = () => createApi(session?.accessToken);
 
@@ -84,6 +84,10 @@ export default function MemberProfilePage() {
     queryFn: () => api().get(`/ops/v1/members/${id}`),
     enabled: !!session?.accessToken,
   });
+
+  useEffect(() => {
+    if (membership) setProfessionalIsInterests(membership.professional_is_interests ?? false);
+  }, [membership?.professional_is_interests]);
 
   const { data: editRequests = [] } = useQuery<ProfileEditRequest[]>({
     queryKey: ["edit-requests"],
@@ -115,10 +119,20 @@ export default function MemberProfilePage() {
   });
 
   const directUpdate = useMutation({
-    mutationFn: (data: Partial<ProfileFields>) =>
+    mutationFn: (data: Partial<ProfileFields> | Record<string, unknown>) =>
       api().patch(`/ops/v1/members/${id}`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["members", id] }),
   });
+
+  const toggleProfessionalIsInterests = () => {
+    const next = !professionalIsInterests;
+    setProfessionalIsInterests(next);
+    if (canDirectEdit) {
+      directUpdate.mutate({ professional_is_interests: next });
+    } else if (canRequestEdit) {
+      requestEdit.mutate({ professional_is_interests: next } as never);
+    }
+  };
 
   const requestEdit = useMutation({
     mutationFn: (changes: Partial<ProfileFields>) =>
@@ -355,6 +369,30 @@ export default function MemberProfilePage() {
                 )}
               </div>
             ))}
+
+            {/* Professional experience / interests toggle */}
+            <div className="col-span-2 space-y-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">
+                  {professionalIsInterests ? "Professional Interests" : "Professional Experience"}
+                </Label>
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={toggleProfessionalIsInterests}
+                    className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  >
+                    Switch to {professionalIsInterests ? "Experience" : "Professional Interests"}
+                  </button>
+                )}
+              </div>
+              <textarea
+                {...register("professional_experience")}
+                disabled={isReadOnly}
+                rows={3}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
+              />
+            </div>
           </div>
         </div>
 

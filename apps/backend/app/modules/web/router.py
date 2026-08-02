@@ -86,6 +86,7 @@ async def get_members(
             hometown=m.hometown,
             campus_involvements=m.campus_involvements,
             professional_experience=m.professional_experience,
+            professional_is_interests=m.professional_is_interests,
             interests=m.interests,
             bio=m.bio,
             headshot_url=m.headshot_url,

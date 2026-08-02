@@ -56,7 +56,9 @@ export function MemberCard({ member }: MemberCardProps) {
 
         {member.professional_experience && (
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Experience</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              {member.professional_is_interests ? "Professional Interests" : "Experience"}
+            </p>
             <p className="mt-0.5 text-xs text-gray-600 line-clamp-2">{member.professional_experience}</p>
           </div>
         )}

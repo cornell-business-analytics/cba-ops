@@ -43,6 +43,8 @@ class Membership(UUIDMixin, TimestampMixin, Base):
     # Values: "eboard" | "director" | "pm" | "analyst" | "hidden" | None (falls back to user.role)
     website_role: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
+    professional_is_interests: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     # Private fields
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 

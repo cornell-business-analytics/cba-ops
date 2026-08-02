@@ -15,6 +15,7 @@ class MemberPublic(BaseModel):
     hometown: str | None
     campus_involvements: str | None
     professional_experience: str | None
+    professional_is_interests: bool
     interests: str | None
     bio: str | None
     headshot_url: str | None
@@ -44,6 +45,7 @@ class MembershipPublic(BaseModel):
     grad_year: str | None
     campus_involvements: str | None
     professional_experience: str | None
+    professional_is_interests: bool
     interests: str | None
     bio: str | None
     linkedin_url: str | None
@@ -81,6 +83,7 @@ class MembershipUpdate(BaseModel):
     grad_year: str | None = None
     campus_involvements: str | None = None
     professional_experience: str | None = None
+    professional_is_interests: bool | None = None
     interests: str | None = None
     bio: str | None = None
     linkedin_url: str | None = None

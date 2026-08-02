@@ -26,7 +26,7 @@ router = APIRouter(tags=["members"])
 
 MEMBER_EDITABLE_FIELDS = {
     "bio", "interests", "campus_involvements", "professional_experience",
-    "hometown", "linkedin_url", "major", "grad_year",
+    "professional_is_interests", "hometown", "linkedin_url", "major", "grad_year",
 }
 
 
