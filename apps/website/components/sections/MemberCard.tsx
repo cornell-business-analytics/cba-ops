@@ -40,7 +40,7 @@ export function MemberCard({ member }: MemberCardProps) {
             <p className="mt-0.5 text-xs text-gray-500">
               {[member.major, member.grad_year ? `'${member.grad_year.slice(-2)}` : null]
                 .filter(Boolean)
-                .join(", ")}
+                .join(" ")}
             </p>
           )}
         </div>
