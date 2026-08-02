@@ -193,6 +193,20 @@ async def update_membership(
     return membership
 
 
+@router.delete("/members/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_membership(
+    membership_id: uuid.UUID,
+    _: User = Depends(require_role(UserRole.eboard)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Membership).where(Membership.id == membership_id))
+    membership = result.scalar_one_or_none()
+    if not membership:
+        raise HTTPException(status_code=404, detail="Membership not found")
+    await db.delete(membership)
+    await db.commit()
+
+
 class HeadshotUpdate(BaseModel):
     headshot_url: str | None = None
     headshot_focal_x: float | None = None

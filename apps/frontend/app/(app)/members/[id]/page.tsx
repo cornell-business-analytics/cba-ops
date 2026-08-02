@@ -92,6 +92,7 @@ export default function MemberProfilePage() {
   const [pasteUrl, setPasteUrl] = useState("");
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [professionalIsInterests, setProfessionalIsInterests] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -148,6 +149,12 @@ export default function MemberProfilePage() {
     mutationFn: (data: Partial<ProfileFields> | Record<string, unknown>) =>
       api().patch(`/ops/v1/members/${id}`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["members", id] }),
+  });
+
+  const deleteMembership = useMutation({
+    mutationFn: () =>
+      api().delete(`/ops/v1/members/${id}`),
+    onSuccess: () => router.push("/members"),
   });
 
   const toggleProfessionalIsInterests = () => {
@@ -489,6 +496,43 @@ export default function MemberProfilePage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        )}
+
+        {/* Delete — eboard only */}
+        {isEboard && (
+          <div className="rounded-lg border border-destructive/30 bg-white p-4 space-y-2">
+            <h2 className="text-sm font-semibold text-destructive">Danger zone</h2>
+            {confirmDelete ? (
+              <div className="flex items-center gap-3">
+                <p className="text-xs text-muted-foreground flex-1">
+                  This permanently removes the membership record. Are you sure?
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={deleteMembership.isPending}
+                  onClick={() => deleteMembership.mutate()}
+                >
+                  {deleteMembership.isPending ? "Deleting…" : "Yes, delete"}
+                </Button>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setConfirmDelete(true)}
+              >
+                Delete member
+              </Button>
+            )}
           </div>
         )}
 
