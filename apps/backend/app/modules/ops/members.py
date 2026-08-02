@@ -184,7 +184,18 @@ async def update_membership(
     if "name" in data:
         membership.user.name = data.pop("name")
     if "email" in data:
-        membership.user.email = data.pop("email")
+        new_email = data.pop("email").strip().lower()
+        old_email = membership.user.email
+        if new_email != old_email:
+            # Update AllowedEmail: remove old, add new
+            old_allowed = await db.execute(select(AllowedEmail).where(AllowedEmail.email == old_email))
+            old_row = old_allowed.scalar_one_or_none()
+            if old_row:
+                await db.delete(old_row)
+            new_allowed = await db.execute(select(AllowedEmail).where(AllowedEmail.email == new_email))
+            if not new_allowed.scalar_one_or_none():
+                db.add(AllowedEmail(email=new_email, added_by_id=membership.user_id))
+            membership.user.email = new_email
     for field, value in data.items():
         setattr(membership, field, value)
     await db.commit()
