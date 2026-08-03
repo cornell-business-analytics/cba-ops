@@ -96,7 +96,7 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Grad Year Distribution</CardTitle>
@@ -137,15 +137,15 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             {majorData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={480}>
                 <PieChart>
                   <Pie
                     data={majorData}
                     dataKey="value"
                     nameKey="name"
                     cx="50%"
-                    cy="50%"
-                    outerRadius={100}
+                    cy="45%"
+                    outerRadius={150}
                     label={({ name, percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ""}
                     labelLine={false}
                   >
