@@ -17,6 +17,7 @@ export function MemberCard({ member }: MemberCardProps) {
             src={member.headshot_url}
             alt={member.name}
             fill
+            quality={90}
             className="object-cover"
             style={{ objectPosition: `${member.headshot_focal_x}% ${member.headshot_focal_y}%` }}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"

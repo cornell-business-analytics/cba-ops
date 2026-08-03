@@ -65,6 +65,7 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
                 src={member.headshot_url}
                 alt={member.name}
                 fill
+                quality={90}
                 className="object-cover"
                 style={{ objectPosition: `${member.headshot_focal_x}% ${member.headshot_focal_y}%` }}
                 sizes="(max-width: 1024px) 50vw, 280px"
