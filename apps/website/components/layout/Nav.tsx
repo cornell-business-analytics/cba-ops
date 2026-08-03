@@ -26,7 +26,7 @@ export function Nav() {
         <Link href="/" className="flex items-center gap-2.5 group" aria-label="Cornell Business Analytics home">
           <img src="/logo.png" alt="" aria-hidden="true" width={32} height={32} />
           <span className="font-sans text-sm font-semibold leading-tight text-cba-dark group-hover:text-cba-green transition-colors">
-            cornell<br />business analytics
+            cornell<br />business analytics club
           </span>
         </Link>
 

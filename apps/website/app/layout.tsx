@@ -19,15 +19,15 @@ export const metadata: Metadata = {
     process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://www.cornellbusinessanalytics.org",
   ),
   title: {
-    default: "Cornell Business Analytics",
-    template: "%s | Cornell Business Analytics",
+    default: "Cornell Business Analytics Club",
+    template: "%s | Cornell Business Analytics Club",
   },
   description:
     "Data-driven solutions for data-driven clients. Cornell's premier student analytics consulting organization.",
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "Cornell Business Analytics",
+    siteName: "Cornell Business Analytics Club",
   },
   twitter: {
     card: "summary_large_image",
