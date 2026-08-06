@@ -34,13 +34,35 @@ GMAIL_SCOPES = "https://mail.google.com/ https://www.googleapis.com/auth/spreads
 # ---------------------------------------------------------------------------
 
 def _grad_date_to_year(grad_date: str) -> str:
-    mapping = {
-        "Spring 2029": "freshman", "Fall 2028": "freshman",
-        "Spring 2028": "sophomore", "Fall 2027": "sophomore",
-        "Spring 2027": "junior", "Fall 2026": "junior",
-        "Spring 2026": "senior", "Fall 2025": "senior",
+    """Converts a grad date string (e.g. 'Spring 2028') or plain year (e.g. '2026') to a class label."""
+    now = datetime.now(timezone.utc)
+    # Determine current academic year — fall semester starts Aug 1
+    academic_year = now.year if now.month >= 8 else now.year - 1
+
+    s = str(grad_date).strip()
+
+    # Plain 4-digit year
+    if s.isdigit():
+        delta = int(s) - academic_year
+        mapping = {1: "senior", 2: "junior", 3: "sophomore", 4: "freshman"}
+        return mapping.get(delta, s)
+
+    # "Season YYYY" format
+    season_mapping = {
+        "Spring": 0,
+        "Fall": -1,
     }
-    return mapping.get(str(grad_date).strip(), grad_date or "")
+    for season, offset in season_mapping.items():
+        if s.startswith(season):
+            try:
+                year = int(s.split()[-1]) + offset
+                delta = year - academic_year
+                label_map = {1: "senior", 2: "junior", 3: "sophomore", 4: "freshman"}
+                return label_map.get(delta, s)
+            except (ValueError, IndexError):
+                pass
+
+    return s
 
 
 async def _get_valid_token(db: AsyncSession) -> GmailToken:
@@ -76,7 +98,7 @@ def _build_email(to: str, cc: str | None, subject: str, body_html: str) -> str:
     if cc:
         msg["cc"] = cc
     msg["subject"] = subject
-    msg.attach(MIMEText(body_html, "html"))
+    msg.attach(MIMEText(body_html, "html", "utf-8"))
     return base64.urlsafe_b64encode(msg.as_bytes()).decode()
 
 
@@ -658,8 +680,8 @@ async def send_rejection_email(
     applicant = result.scalar_one_or_none()
     if not applicant:
         raise HTTPException(status_code=404, detail="Applicant not found")
-    if applicant.pairing_status == "sent":
-        raise HTTPException(status_code=409, detail="Pairing email already sent")
+    if applicant.pairing_status in ("sent", "rejected"):
+        raise HTTPException(status_code=409, detail="Email already sent for this applicant")
 
     cycle_result = await db.execute(select(RecruitmentCycle).where(RecruitmentCycle.id == cycle_id))
     cycle = cycle_result.scalar_one_or_none()

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Download, Send, X, Settings, Check } from "lucide-react";
+import { ArrowLeft, Download, Send, X, Settings, Check, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,15 +64,19 @@ export default function CycleDetailPage() {
   const qc = useQueryClient();
   const api = createApi(session?.accessToken);
 
+  const isEboard = session?.role === "eboard";
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [colMap, setColMap] = useState<ColMap>({
     name_col: "Full Name", email_col: "Cornell Email Address",
     grad_col: "Graduation Date", major_col: "Intended Major(s)", request_col: "Paired Member",
   });
-  const [sendingId, setSendingId] = useState<string | null>(null);
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [markingId, setMarkingId] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    applicantId: string; applicantName: string; action: "send" | "reject" | "reset";
+  } | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [settingsForm, setSettingsForm] = useState<Partial<Cycle>>({});
 
   const { data: cycle } = useQuery<Cycle>({
@@ -93,6 +97,9 @@ export default function CycleDetailPage() {
     enabled: !!session?.accessToken,
   });
 
+  // Only active members available for pairing
+  const activeMembers = members.filter(m => m.is_active);
+
   const { data: sheetCols } = useQuery<{ columns: string[] }>({
     queryKey: ["sheet-cols", id],
     queryFn: () => api.get<{ columns: string[] }>(`/ops/v1/recruitment/cycles/${id}/sheet-columns`),
@@ -103,8 +110,7 @@ export default function CycleDetailPage() {
     mutationFn: () => api.post<{ imported: number; skipped: number }>(`/ops/v1/recruitment/cycles/${id}/import`, colMap),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["applicants", id] });
-      setImportOpen(false);
-      alert(`Imported ${data.imported} applicants, skipped ${data.skipped} duplicates.`);
+      setImportResult(data);
     },
   });
 
@@ -119,21 +125,28 @@ export default function CycleDetailPage() {
   const sendPairing = useMutation({
     mutationFn: (applicantId: string) =>
       api.post<void>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/send-pairing-email`, {}),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["applicants", id] }); setSendingId(null); },
-    onError: (err: Error) => { alert(`Failed to send: ${err.message}`); setSendingId(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["applicants", id] }); setConfirmDialog(null); setActionError(null); },
+    onError: (err: Error) => { setActionError(`Failed to send: ${err.message}`); },
   });
 
   const markSent = useMutation({
     mutationFn: (applicantId: string) =>
       api.post<void>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/mark-sent`, {}),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["applicants", id] }); setMarkingId(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["applicants", id] }); },
   });
 
   const sendRejection = useMutation({
     mutationFn: (applicantId: string) =>
       api.post<void>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/send-rejection-email`, {}),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["applicants", id] }); setRejectingId(null); },
-    onError: (err: Error) => { alert(`Failed to send rejection: ${err.message}`); setRejectingId(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["applicants", id] }); setConfirmDialog(null); setActionError(null); },
+    onError: (err: Error) => { setActionError(`Failed to send rejection: ${err.message}`); },
+  });
+
+  const resetStatus = useMutation({
+    mutationFn: (applicantId: string) =>
+      api.post<void>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/reset-status`, {}),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["applicants", id] }); setConfirmDialog(null); setActionError(null); },
+    onError: (err: Error) => { setActionError(`Failed to reset: ${err.message}`); },
   });
 
   const updateCycle = useMutation({
@@ -158,6 +171,16 @@ export default function CycleDetailPage() {
     setSettingsOpen(true);
   };
 
+  const handleConfirm = () => {
+    if (!confirmDialog) return;
+    setActionError(null);
+    if (confirmDialog.action === "send") sendPairing.mutate(confirmDialog.applicantId);
+    else if (confirmDialog.action === "reject") sendRejection.mutate(confirmDialog.applicantId);
+    else if (confirmDialog.action === "reset") resetStatus.mutate(confirmDialog.applicantId);
+  };
+
+  const isPending = sendPairing.isPending || sendRejection.isPending || resetStatus.isPending;
+
   const unpairedCount = applicants.filter(a => a.pairing_status === "unpaired").length;
   const sentCount = applicants.filter(a => a.pairing_status === "sent").length;
 
@@ -181,7 +204,7 @@ export default function CycleDetailPage() {
             <Settings className="h-4 w-4 mr-1" /> Settings
           </Button>
           {cycle?.sheet_id ? (
-            <Button size="sm" onClick={() => setImportOpen(true)}>
+            <Button size="sm" onClick={() => { setImportResult(null); setImportOpen(true); }}>
               <Download className="h-4 w-4 mr-1" /> Import from Sheet
             </Button>
           ) : (
@@ -236,7 +259,7 @@ export default function CycleDetailPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">— Unassigned —</SelectItem>
-                          {members.map(m => (
+                          {activeMembers.map(m => (
                             <SelectItem key={m.id} value={m.id}>{m.user_name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -249,32 +272,27 @@ export default function CycleDetailPage() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {a.pairing_status === "paired" && (
                         <>
-                          <Button size="sm" className="h-7 text-xs" disabled={sendingId === a.id}
-                            onClick={() => { setSendingId(a.id); sendPairing.mutate(a.id); }}>
-                            <Send className="h-3 w-3 mr-1" />
-                            {sendingId === a.id ? "Sending…" : "Send"}
+                          <Button size="sm" className="h-7 text-xs"
+                            onClick={() => setConfirmDialog({ applicantId: a.id, applicantName: a.name, action: "send" })}>
+                            <Send className="h-3 w-3 mr-1" /> Send
                           </Button>
                           <Button size="sm" variant="outline" className="h-7 text-xs"
-                            disabled={markingId === a.id}
                             title="Mark as sent without emailing"
-                            onClick={() => { if (!confirm(`Mark ${a.name} as sent without emailing?`)) return; setMarkingId(a.id); markSent.mutate(a.id); }}>
-                            <Check className="h-3 w-3 mr-1" />
-                            {markingId === a.id ? "Marking…" : "Mark sent"}
+                            onClick={() => markSent.mutate(a.id)}>
+                            <Check className="h-3 w-3 mr-1" /> Mark sent
                           </Button>
                           <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:text-destructive"
-                            disabled={rejectingId === a.id}
-                            onClick={() => { if (!confirm(`Send rejection to ${a.name}?`)) return; setRejectingId(a.id); sendRejection.mutate(a.id); }}>
+                            onClick={() => setConfirmDialog({ applicantId: a.id, applicantName: a.name, action: "reject" })}>
                             <X className="h-3 w-3 mr-1" /> Reject
                           </Button>
                         </>
                       )}
                       {a.pairing_status === "unpaired" && (
                         <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:text-destructive"
-                          disabled={rejectingId === a.id}
-                          onClick={() => { if (!confirm(`Send rejection to ${a.name}?`)) return; setRejectingId(a.id); sendRejection.mutate(a.id); }}>
+                          onClick={() => setConfirmDialog({ applicantId: a.id, applicantName: a.name, action: "reject" })}>
                           <X className="h-3 w-3 mr-1" /> Reject
                         </Button>
                       )}
@@ -286,6 +304,13 @@ export default function CycleDetailPage() {
                       {a.pairing_status === "rejected" && (
                         <span className="text-xs text-muted-foreground">Rejected</span>
                       )}
+                      {isEboard && (a.pairing_status === "sent" || a.pairing_status === "rejected") && (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
+                          title="Eboard: reset status to re-send"
+                          onClick={() => setConfirmDialog({ applicantId: a.id, applicantName: a.name, action: "reset" })}>
+                          <RotateCcw className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -294,6 +319,35 @@ export default function CycleDetailPage() {
           </table>
         )}
       </div>
+
+      {/* Action confirm dialog */}
+      <Dialog open={!!confirmDialog} onOpenChange={(o) => { if (!o) { setConfirmDialog(null); setActionError(null); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {confirmDialog?.action === "send" && "Send pairing email"}
+              {confirmDialog?.action === "reject" && "Send rejection email"}
+              {confirmDialog?.action === "reset" && "Reset email status"}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {confirmDialog?.action === "send" && `Send pairing email to ${confirmDialog.applicantName}? This will CC the paired member.`}
+            {confirmDialog?.action === "reject" && `Send a rejection email to ${confirmDialog?.applicantName}?`}
+            {confirmDialog?.action === "reset" && `Reset status for ${confirmDialog?.applicantName}? This allows re-sending an email.`}
+          </p>
+          {actionError && <p className="text-sm text-destructive">{actionError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setConfirmDialog(null); setActionError(null); }}>Cancel</Button>
+            <Button
+              variant={confirmDialog?.action === "reject" ? "destructive" : "default"}
+              onClick={handleConfirm}
+              disabled={isPending}
+            >
+              {isPending ? "Sending…" : confirmDialog?.action === "send" ? "Send email" : confirmDialog?.action === "reject" ? "Send rejection" : "Reset"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Settings dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
@@ -310,7 +364,7 @@ export default function CycleDetailPage() {
                 <Input value={settingsForm.sheet_id ?? ""} onChange={e => setSettingsForm(f => ({ ...f, sheet_id: e.target.value }))} placeholder="From the sheet URL" />
               </div>
               <div className="col-span-2 space-y-1.5">
-                <Label>Sender title <span className="text-xs text-muted-foreground font-normal">(shared — sender name comes from whoever is signed in)</span></Label>
+                <Label>Sender title <span className="text-xs text-muted-foreground font-normal">(sender name comes from whoever is signed in)</span></Label>
                 <Input value={settingsForm.sender_title ?? ""} onChange={e => setSettingsForm(f => ({ ...f, sender_title: e.target.value }))} placeholder="Director of Recruitment" />
               </div>
             </div>
@@ -345,35 +399,52 @@ export default function CycleDetailPage() {
       </Dialog>
 
       {/* Import dialog */}
-      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+      <Dialog open={importOpen} onOpenChange={(o) => { if (!o) { setImportOpen(false); setImportResult(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Import from Google Sheet</DialogTitle></DialogHeader>
-          <div className="space-y-3 py-2 text-sm">
-            <p className="text-muted-foreground">Map your sheet&apos;s column headers to the fields below.</p>
-            {sheetCols?.columns && (
-              <p className="text-xs text-muted-foreground">
-                Detected columns: <span className="font-mono">{sheetCols.columns.join(", ")}</span>
+          {importResult ? (
+            <div className="py-4 text-center space-y-2">
+              <p className="text-sm font-medium text-green-700">
+                Imported {importResult.imported} applicant{importResult.imported !== 1 ? "s" : ""}
               </p>
-            )}
-            {(["name_col", "email_col", "grad_col", "major_col", "request_col"] as (keyof ColMap)[]).map(key => {
-              const labels: Record<keyof ColMap, string> = {
-                name_col: "Full Name column", email_col: "Cornell Email column",
-                grad_col: "Graduation Date column", major_col: "Major column", request_col: "Requested Member column",
-              };
-              return (
-                <div key={key} className="space-y-1">
-                  <Label className="text-xs">{labels[key]}</Label>
-                  <Input value={colMap[key]} onChange={e => setColMap(m => ({ ...m, [key]: e.target.value }))} />
-                </div>
-              );
-            })}
-            <p className="text-xs text-muted-foreground">Existing applicants (matched by netID + timestamp) will be skipped.</p>
-          </div>
+              {importResult.skipped > 0 && (
+                <p className="text-xs text-muted-foreground">Skipped {importResult.skipped} duplicate{importResult.skipped !== 1 ? "s" : ""}</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3 py-2 text-sm">
+              <p className="text-muted-foreground">Map your sheet&apos;s column headers to the fields below.</p>
+              {sheetCols?.columns && (
+                <p className="text-xs text-muted-foreground">
+                  Detected columns: <span className="font-mono">{sheetCols.columns.join(", ")}</span>
+                </p>
+              )}
+              {(["name_col", "email_col", "grad_col", "major_col", "request_col"] as (keyof ColMap)[]).map(key => {
+                const labels: Record<keyof ColMap, string> = {
+                  name_col: "Full Name column", email_col: "Cornell Email column",
+                  grad_col: "Graduation Date column", major_col: "Major column", request_col: "Requested Member column",
+                };
+                return (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-xs">{labels[key]}</Label>
+                    <Input value={colMap[key]} onChange={e => setColMap(m => ({ ...m, [key]: e.target.value }))} />
+                  </div>
+                );
+              })}
+              <p className="text-xs text-muted-foreground">Existing applicants (matched by netID + timestamp) will be skipped.</p>
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
-            <Button onClick={() => importMutation.mutate()} disabled={importMutation.isPending}>
-              {importMutation.isPending ? "Importing…" : "Import"}
-            </Button>
+            {importResult ? (
+              <Button onClick={() => { setImportOpen(false); setImportResult(null); }}>Done</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
+                <Button onClick={() => importMutation.mutate()} disabled={importMutation.isPending}>
+                  {importMutation.isPending ? "Importing…" : "Import"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
