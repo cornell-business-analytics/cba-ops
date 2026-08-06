@@ -64,7 +64,7 @@ export default function CycleDetailPage() {
   const qc = useQueryClient();
   const api = createApi(session?.accessToken);
 
-  const isEboard = session?.role === "eboard";
+  const canManageRecruitment = session?.role === "recruitment" || session?.role === "eboard";
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -304,7 +304,7 @@ export default function CycleDetailPage() {
                       {a.pairing_status === "rejected" && (
                         <span className="text-xs text-muted-foreground">Rejected</span>
                       )}
-                      {isEboard && (a.pairing_status === "sent" || a.pairing_status === "rejected") && (
+                      {canManageRecruitment && (a.pairing_status === "sent" || a.pairing_status === "rejected") && (
                         <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
                           title="Eboard: reset status to re-send"
                           onClick={() => setConfirmDialog({ applicantId: a.id, applicantName: a.name, action: "reset" })}>

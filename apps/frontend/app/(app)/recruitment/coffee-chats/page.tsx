@@ -48,10 +48,12 @@ export default function CoffeeChatsPage() {
     enabled: !!session?.accessToken,
   });
 
+  const canConnectGmail = session?.role === "recruitment" || session?.role === "eboard";
+
   const { data: authUrlData } = useQuery<{ url: string }>({
     queryKey: ["gmail-auth-url"],
     queryFn: () => api.get("/ops/v1/recruitment/gmail-auth-url"),
-    enabled: !!session?.accessToken && session?.role === "eboard",
+    enabled: !!session?.accessToken && canConnectGmail,
   });
 
   const createCycle = useMutation({
@@ -88,7 +90,7 @@ export default function CoffeeChatsPage() {
           <>
             <Wifi className="h-4 w-4 shrink-0" />
             <span>Gmail connected as <strong>{gmailStatus.account_email}</strong></span>
-            {session?.role === "eboard" && authUrlData?.url && (
+            {canConnectGmail && authUrlData?.url && (
               <a href={authUrlData.url} className="ml-auto text-xs underline">Reconnect</a>
             )}
           </>
@@ -96,11 +98,11 @@ export default function CoffeeChatsPage() {
           <>
             <WifiOff className="h-4 w-4 shrink-0" />
             <span>Gmail not connected — emails cannot be sent.</span>
-            {session?.role === "eboard" && authUrlData?.url && (
+            {canConnectGmail && authUrlData?.url && (
               <a href={authUrlData.url} className="ml-auto underline font-medium">Connect Gmail →</a>
             )}
-            {session?.role !== "eboard" && (
-              <span className="ml-auto text-xs">Ask eboard to connect Gmail.</span>
+            {!canConnectGmail && (
+              <span className="ml-auto text-xs">Ask recruitment or eboard to connect Gmail.</span>
             )}
           </>
         )}

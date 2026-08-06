@@ -171,7 +171,7 @@ DEFAULT_REJECTION_BODY = """<p>Hello {{applicant_first}},</p>
 # ---------------------------------------------------------------------------
 
 @router.get("/gmail-auth-url")
-async def gmail_auth_url(_: User = Depends(require_role(UserRole.eboard))):
+async def gmail_auth_url(_: User = Depends(require_role(UserRole.recruitment))):
     if not settings.GMAIL_CLIENT_ID:
         raise HTTPException(status_code=503, detail="GMAIL_CLIENT_ID not configured")
     url = (
@@ -708,10 +708,10 @@ async def send_rejection_email(
 async def reset_email_status(
     cycle_id: uuid.UUID,
     applicant_id: uuid.UUID,
-    _: User = Depends(require_role(UserRole.eboard)),
+    _: User = Depends(require_role(UserRole.recruitment)),
     db: AsyncSession = Depends(get_db),
 ):
-    """Eboard only — resets status so an email can be resent if needed."""
+    """Recruitment+ — resets status so an email can be resent if needed."""
     result = await db.execute(
         select(CoffeeChatApplicant).where(
             CoffeeChatApplicant.id == applicant_id, CoffeeChatApplicant.cycle_id == cycle_id
