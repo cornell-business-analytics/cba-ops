@@ -26,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createApi, ApiError } from "@/lib/api";
 import type { AllowedEmail, User, UserRole } from "@cba/types";
 
-const ROLES: UserRole[] = ["member", "pm", "director", "eboard"];
+const ROLES: UserRole[] = ["member", "pm", "director", "recruitment", "eboard"];
 
 export default function AccessPage() {
   const { data: session } = useSession();

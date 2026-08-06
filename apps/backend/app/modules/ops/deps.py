@@ -16,7 +16,8 @@ ROLE_ORDER = {
     UserRole.member: 0,
     UserRole.pm: 1,
     UserRole.director: 2,
-    UserRole.eboard: 3,
+    UserRole.recruitment: 3,
+    UserRole.eboard: 4,
 }
 
 

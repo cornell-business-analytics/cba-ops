@@ -13,6 +13,7 @@ class UserRole(str, enum.Enum):
     member = "member"
     pm = "pm"
     director = "director"
+    recruitment = "recruitment"
     eboard = "eboard"
 
 

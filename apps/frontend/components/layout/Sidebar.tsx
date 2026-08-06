@@ -17,20 +17,29 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const nav = [
+const baseNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/recruitment", label: "Recruitment", icon: UserSearch },
-  { href: "/recruitment/coffee-chats", label: "Coffee Chats", icon: Coffee },
   { href: "/members", label: "Members", icon: Users },
   { href: "/website", label: "Website", icon: Globe },
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
+const recruitmentNav = [
+  { href: "/recruitment", label: "Recruitment", icon: UserSearch },
+  { href: "/recruitment/coffee-chats", label: "Coffee Chats", icon: Coffee },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const isEboard = session?.role === "eboard";
+  const role = session?.role;
+  const isEboard = role === "eboard";
+  const hasRecruitmentAccess = role === "recruitment" || role === "eboard";
+
+  const nav = hasRecruitmentAccess
+    ? [baseNav[0], ...recruitmentNav, ...baseNav.slice(1)]
+    : baseNav;
 
   return (
     <aside className="flex h-screen w-56 flex-col bg-sidebar text-sidebar-foreground">
