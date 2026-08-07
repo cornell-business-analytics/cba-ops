@@ -43,7 +43,7 @@ interface Applicant {
   sent_at: string | null;
 }
 
-type ColMap = { name_col: string; email_col: string; grad_col: string; major_col: string; request_col: string };
+type ColMap = { name_col: string; email_col: string; grad_col: string; major_col: string; request_col: string; timestamp_col: string };
 
 const STATUS_BADGE: Record<string, "outline" | "warning" | "success" | "destructive"> = {
   unpaired: "outline",
@@ -68,10 +68,11 @@ export default function CycleDetailPage() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; missing_cols: string[] } | null>(null);
   const [colMap, setColMap] = useState<ColMap>({
     name_col: "Full Name", email_col: "Cornell Email Address",
-    grad_col: "Graduation Date", major_col: "Intended Major(s)", request_col: "Paired Member",
+    grad_col: "Graduation Date", major_col: "Intended Major(s)",
+    request_col: "Paired Member", timestamp_col: "Timestamp",
   });
   const [confirmDialog, setConfirmDialog] = useState<{
     applicantId: string; applicantName: string; action: "send" | "reject" | "reset";
@@ -106,11 +107,16 @@ export default function CycleDetailPage() {
     enabled: !!session?.accessToken && importOpen,
   });
 
+  const [importError, setImportError] = useState<string | null>(null);
   const importMutation = useMutation({
-    mutationFn: () => api.post<{ imported: number; skipped: number }>(`/ops/v1/recruitment/cycles/${id}/import`, colMap),
+    mutationFn: () => api.post<{ imported: number; skipped: number; missing_cols: string[] }>(`/ops/v1/recruitment/cycles/${id}/import`, colMap),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["applicants", id] });
       setImportResult(data);
+      setImportError(null);
+    },
+    onError: (err: Error) => {
+      setImportError(err.message);
     },
   });
 
@@ -204,7 +210,7 @@ export default function CycleDetailPage() {
             <Settings className="h-4 w-4 mr-1" /> Settings
           </Button>
           {cycle?.sheet_id ? (
-            <Button size="sm" onClick={() => { setImportResult(null); setImportOpen(true); }}>
+            <Button size="sm" onClick={() => { setImportResult(null); setImportError(null); setImportOpen(true); }}>
               <Download className="h-4 w-4 mr-1" /> Import from Sheet
             </Button>
           ) : (
@@ -399,16 +405,20 @@ export default function CycleDetailPage() {
       </Dialog>
 
       {/* Import dialog */}
-      <Dialog open={importOpen} onOpenChange={(o) => { if (!o) { setImportOpen(false); setImportResult(null); } }}>
+      <Dialog open={importOpen} onOpenChange={(o) => { if (!o) { setImportOpen(false); setImportResult(null); setImportError(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Import from Google Sheet</DialogTitle></DialogHeader>
           {importResult ? (
-            <div className="py-4 text-center space-y-2">
+            <div className="py-4 space-y-3">
               <p className="text-sm font-medium text-green-700">
                 Imported {importResult.imported} applicant{importResult.imported !== 1 ? "s" : ""}
+                {importResult.skipped > 0 && `, skipped ${importResult.skipped} duplicate${importResult.skipped !== 1 ? "s" : ""}`}.
               </p>
-              {importResult.skipped > 0 && (
-                <p className="text-xs text-muted-foreground">Skipped {importResult.skipped} duplicate{importResult.skipped !== 1 ? "s" : ""}</p>
+              {importResult.missing_cols.length > 0 && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <p className="font-medium mb-1">These columns weren&apos;t found in the sheet — those fields will be blank:</p>
+                  <p>{importResult.missing_cols.join(", ")}</p>
+                </div>
               )}
             </div>
           ) : (
@@ -419,10 +429,12 @@ export default function CycleDetailPage() {
                   Detected columns: <span className="font-mono">{sheetCols.columns.join(", ")}</span>
                 </p>
               )}
-              {(["name_col", "email_col", "grad_col", "major_col", "request_col"] as (keyof ColMap)[]).map(key => {
+              {(["name_col", "email_col", "grad_col", "major_col", "request_col", "timestamp_col"] as (keyof ColMap)[]).map(key => {
                 const labels: Record<keyof ColMap, string> = {
                   name_col: "Full Name column", email_col: "Cornell Email column",
-                  grad_col: "Graduation Date column", major_col: "Major column", request_col: "Requested Member column",
+                  grad_col: "Graduation Date column", major_col: "Major column",
+                  request_col: "Requested Member column",
+                  timestamp_col: "Timestamp column (used for dedup)",
                 };
                 return (
                   <div key={key} className="space-y-1">
@@ -431,7 +443,10 @@ export default function CycleDetailPage() {
                   </div>
                 );
               })}
-              <p className="text-xs text-muted-foreground">Existing applicants (matched by netID + timestamp) will be skipped.</p>
+              {importError && (
+                <p className="text-xs text-destructive">{importError}</p>
+              )}
+              <p className="text-xs text-muted-foreground">Existing applicants (matched by netID + timestamp) will be skipped. The Sheet ID can be a full URL or just the ID.</p>
             </div>
           )}
           <DialogFooter>

@@ -376,6 +376,15 @@ class ColumnMapping(BaseModel):
     timestamp_col: str = "Timestamp"  # Google Forms always prepends this column
 
 
+def _extract_sheet_id(raw: str) -> str:
+    """Accept either a bare sheet ID or a full Google Sheets URL and return just the ID."""
+    raw = raw.strip()
+    if "spreadsheets/d/" in raw:
+        part = raw.split("spreadsheets/d/")[1]
+        return part.split("/")[0].split("?")[0]
+    return raw
+
+
 @router.post("/cycles/{cycle_id}/import")
 async def import_from_sheet(
     cycle_id: uuid.UUID,
@@ -390,19 +399,26 @@ async def import_from_sheet(
     if not cycle.sheet_id:
         raise HTTPException(status_code=400, detail="No Google Sheet ID set for this cycle")
 
+    sheet_id = _extract_sheet_id(cycle.sheet_id)
     token = await _get_valid_token(db)
 
     async with httpx.AsyncClient() as client:
+        # Use A:ZZ to capture all rows regardless of which columns have data
         resp = await client.get(
-            f"https://sheets.googleapis.com/v4/spreadsheets/{cycle.sheet_id}/values/A1:Z",
+            f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/A:ZZ",
             headers={"Authorization": f"Bearer {token.access_token}"},
+        )
+    if resp.status_code == 403:
+        raise HTTPException(
+            status_code=502,
+            detail="Permission denied — make sure the sheet is shared with the connected Gmail account.",
         )
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail=f"Google Sheets error: {resp.text}")
 
     values = resp.json().get("values", [])
     if len(values) < 2:
-        return {"imported": 0, "skipped": 0}
+        return {"imported": 0, "skipped": 0, "missing_cols": []}
 
     headers = [h.strip() for h in values[0]]
     rows = values[1:]
@@ -414,6 +430,17 @@ async def import_from_sheet(
         except ValueError:
             return ""
 
+    # Warn about columns that weren't found in the sheet
+    configured_cols = {
+        "Name": mapping.name_col,
+        "Email": mapping.email_col,
+        "Grad Date": mapping.grad_col,
+        "Major": mapping.major_col,
+        "Requested Member": mapping.request_col,
+        "Timestamp": mapping.timestamp_col,
+    }
+    missing_cols = [label for label, col_name in configured_cols.items() if col_name not in headers]
+
     imported = 0
     skipped = 0
     for i, row in enumerate(rows):
@@ -423,7 +450,8 @@ async def import_from_sheet(
             continue
         netid = email.split("@")[0].strip().lower()
 
-        # Dedup key: netid + timestamp — allows same person to request multiple chats
+        # Dedup key: netid + timestamp — allows same person to request multiple chats.
+        # Fall back to row index only if timestamp col is missing entirely from headers.
         timestamp = col(row, mapping.timestamp_col) or str(i)
         row_key = f"{netid}_{timestamp}"
 
@@ -451,7 +479,7 @@ async def import_from_sheet(
         imported += 1
 
     await db.commit()
-    return {"imported": imported, "skipped": skipped}
+    return {"imported": imported, "skipped": skipped, "missing_cols": missing_cols}
 
 
 @router.get("/cycles/{cycle_id}/sheet-columns")
@@ -466,11 +494,17 @@ async def get_sheet_columns(
     if not cycle or not cycle.sheet_id:
         raise HTTPException(status_code=400, detail="Cycle has no sheet ID")
 
+    sheet_id = _extract_sheet_id(cycle.sheet_id)
     token = await _get_valid_token(db)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            f"https://sheets.googleapis.com/v4/spreadsheets/{cycle.sheet_id}/values/A1:Z1",
+            f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/1:1",
             headers={"Authorization": f"Bearer {token.access_token}"},
+        )
+    if resp.status_code == 403:
+        raise HTTPException(
+            status_code=502,
+            detail="Permission denied — make sure the sheet is shared with the connected Gmail account.",
         )
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail=f"Google Sheets error: {resp.text}")
