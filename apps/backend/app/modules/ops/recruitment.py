@@ -267,6 +267,7 @@ class CycleUpdate(BaseModel):
     rejection_subject: str | None = None
     rejection_body: str | None = None
     is_active: bool | None = None
+    column_mapping: dict | None = None
 
 
 class CyclePublic(BaseModel):
@@ -280,6 +281,7 @@ class CyclePublic(BaseModel):
     rejection_subject: str
     rejection_body: str
     is_active: bool
+    column_mapping: dict
     applicant_count: int = 0
     model_config = {"from_attributes": True}
 
@@ -304,7 +306,8 @@ async def list_cycles(
             sender_name=c.sender_name, sender_title=c.sender_title,
             pairing_subject=c.pairing_subject, pairing_body=c.pairing_body,
             rejection_subject=c.rejection_subject, rejection_body=c.rejection_body,
-            is_active=c.is_active, applicant_count=count,
+            is_active=c.is_active, column_mapping=c.column_mapping or {},
+            applicant_count=count,
         ))
     return out
 
@@ -331,7 +334,8 @@ async def create_cycle(
         sender_name=cycle.sender_name, sender_title=cycle.sender_title,
         pairing_subject=cycle.pairing_subject, pairing_body=cycle.pairing_body,
         rejection_subject=cycle.rejection_subject, rejection_body=cycle.rejection_body,
-        is_active=cycle.is_active, applicant_count=0,
+        is_active=cycle.is_active, column_mapping=cycle.column_mapping or {},
+        applicant_count=0,
     )
 
 
@@ -359,7 +363,8 @@ async def update_cycle(
         sender_name=cycle.sender_name, sender_title=cycle.sender_title,
         pairing_subject=cycle.pairing_subject, pairing_body=cycle.pairing_body,
         rejection_subject=cycle.rejection_subject, rejection_body=cycle.rejection_body,
-        is_active=cycle.is_active, applicant_count=count,
+        is_active=cycle.is_active, column_mapping=cycle.column_mapping or {},
+        applicant_count=count,
     )
 
 
@@ -388,7 +393,6 @@ def _extract_sheet_id(raw: str) -> str:
 @router.post("/cycles/{cycle_id}/import")
 async def import_from_sheet(
     cycle_id: uuid.UUID,
-    mapping: ColumnMapping,
     _: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
@@ -398,6 +402,18 @@ async def import_from_sheet(
         raise HTTPException(status_code=404, detail="Cycle not found")
     if not cycle.sheet_id:
         raise HTTPException(status_code=400, detail="No Google Sheet ID set for this cycle")
+
+    # Read column mapping from stored cycle settings, falling back to defaults
+    stored = cycle.column_mapping or {}
+    defaults = ColumnMapping()
+    mapping = ColumnMapping(
+        name_col=stored.get("name_col", defaults.name_col),
+        email_col=stored.get("email_col", defaults.email_col),
+        grad_col=stored.get("grad_col", defaults.grad_col),
+        major_col=stored.get("major_col", defaults.major_col),
+        request_col=stored.get("request_col", defaults.request_col),
+        timestamp_col=stored.get("timestamp_col", defaults.timestamp_col),
+    )
 
     sheet_id = _extract_sheet_id(cycle.sheet_id)
     token = await _get_valid_token(db)

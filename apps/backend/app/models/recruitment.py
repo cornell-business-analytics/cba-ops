@@ -2,10 +2,19 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
+
+_DEFAULT_COLUMN_MAPPING = {
+    "name_col": "Full Name",
+    "email_col": "Cornell Email Address",
+    "grad_col": "Graduation Date",
+    "major_col": "Intended Major(s)",
+    "request_col": "Paired Member",
+    "timestamp_col": "Timestamp",
+}
 
 
 class RecruitmentCycle(UUIDMixin, TimestampMixin, Base):
@@ -27,6 +36,7 @@ class RecruitmentCycle(UUIDMixin, TimestampMixin, Base):
     sender_name: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     sender_title: Mapped[str] = mapped_column(String(100), nullable=False, default="Director of Recruitment")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    column_mapping: Mapped[dict] = mapped_column(JSONB, nullable=False, default=_DEFAULT_COLUMN_MAPPING, server_default="{}")
 
     applicants: Mapped[list["CoffeeChatApplicant"]] = relationship(back_populates="cycle", cascade="all, delete-orphan")
 

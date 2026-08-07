@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Download, Send, X, Settings, Check, RotateCcw } from "lucide-react";
+import { ArrowLeft, Send, X, Settings, Check, RotateCcw, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { createApi } from "@/lib/api";
 import type { MembershipDetail } from "@cba/types";
+
+interface ColMap {
+  name_col: string;
+  email_col: string;
+  grad_col: string;
+  major_col: string;
+  request_col: string;
+  timestamp_col: string;
+}
 
 interface Cycle {
   id: string;
@@ -25,6 +34,7 @@ interface Cycle {
   rejection_subject: string;
   rejection_body: string;
   is_active: boolean;
+  column_mapping: ColMap;
 }
 
 interface Applicant {
@@ -43,8 +53,6 @@ interface Applicant {
   sent_at: string | null;
 }
 
-type ColMap = { name_col: string; email_col: string; grad_col: string; major_col: string; request_col: string; timestamp_col: string };
-
 const STATUS_BADGE: Record<string, "outline" | "warning" | "success" | "destructive"> = {
   unpaired: "outline",
   paired: "warning",
@@ -57,6 +65,15 @@ function statusLabel(s: string) {
   return s === "needs_attention" ? "attention" : s;
 }
 
+const DEFAULT_COL_MAP: ColMap = {
+  name_col: "Full Name",
+  email_col: "Cornell Email Address",
+  grad_col: "Graduation Date",
+  major_col: "Intended Major(s)",
+  request_col: "Paired Member",
+  timestamp_col: "Timestamp",
+};
+
 export default function CycleDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: session } = useSession();
@@ -67,18 +84,16 @@ export default function CycleDetailPage() {
   const canManageRecruitment = session?.role === "recruitment" || session?.role === "eboard";
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
-  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; missing_cols: string[] } | null>(null);
-  const [colMap, setColMap] = useState<ColMap>({
-    name_col: "Full Name", email_col: "Cornell Email Address",
-    grad_col: "Graduation Date", major_col: "Intended Major(s)",
-    request_col: "Paired Member", timestamp_col: "Timestamp",
-  });
+  const [settingsForm, setSettingsForm] = useState<Partial<Cycle & { column_mapping: ColMap }>>({});
   const [confirmDialog, setConfirmDialog] = useState<{
     applicantId: string; applicantName: string; action: "send" | "reject" | "reset";
   } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [settingsForm, setSettingsForm] = useState<Partial<Cycle>>({});
+
+  // Sync state shown in header
+  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const autoImportedRef = useRef(false);
 
   const { data: cycle } = useQuery<Cycle>({
     queryKey: ["cycle", id],
@@ -98,27 +113,36 @@ export default function CycleDetailPage() {
     enabled: !!session?.accessToken,
   });
 
-  // Only active members available for pairing
   const activeMembers = members.filter(m => m.is_active);
 
-  const { data: sheetCols } = useQuery<{ columns: string[] }>({
-    queryKey: ["sheet-cols", id],
-    queryFn: () => api.get<{ columns: string[] }>(`/ops/v1/recruitment/cycles/${id}/sheet-columns`),
-    enabled: !!session?.accessToken && importOpen,
-  });
-
-  const [importError, setImportError] = useState<string | null>(null);
   const importMutation = useMutation({
-    mutationFn: () => api.post<{ imported: number; skipped: number; missing_cols: string[] }>(`/ops/v1/recruitment/cycles/${id}/import`, colMap),
+    mutationFn: () => api.post<{ imported: number; skipped: number; missing_cols: string[] }>(`/ops/v1/recruitment/cycles/${id}/import`, {}),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["applicants", id] });
-      setImportResult(data);
-      setImportError(null);
+      setSyncStatus("done");
+      const parts: string[] = [];
+      if (data.imported > 0) parts.push(`${data.imported} new`);
+      if (data.skipped > 0) parts.push(`${data.skipped} skipped`);
+      setSyncMsg(parts.length ? parts.join(", ") : "Up to date");
+      if (data.missing_cols.length > 0) {
+        setSyncMsg(prev => `${prev} · missing cols: ${data.missing_cols.join(", ")}`);
+      }
     },
     onError: (err: Error) => {
-      setImportError(err.message);
+      setSyncStatus("error");
+      setSyncMsg(err.message);
     },
   });
+
+  // Auto-import once when cycle loads and has a sheet_id
+  useEffect(() => {
+    if (!cycle || !cycle.sheet_id || autoImportedRef.current || !session?.accessToken) return;
+    autoImportedRef.current = true;
+    setSyncStatus("syncing");
+    setSyncMsg(null);
+    importMutation.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cycle?.id, cycle?.sheet_id, session?.accessToken]);
 
   const pairMutation = useMutation({
     mutationFn: ({ applicantId, membershipId }: { applicantId: string; membershipId: string | null }) =>
@@ -164,6 +188,7 @@ export default function CycleDetailPage() {
       pairing_body: data.pairing_body,
       rejection_subject: data.rejection_subject,
       rejection_body: data.rejection_body,
+      column_mapping: data.column_mapping,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cycle", id] });
@@ -173,7 +198,10 @@ export default function CycleDetailPage() {
   });
 
   const handleOpenSettings = () => {
-    setSettingsForm(cycle ?? {});
+    setSettingsForm({
+      ...(cycle ?? {}),
+      column_mapping: cycle?.column_mapping ?? DEFAULT_COL_MAP,
+    });
     setSettingsOpen(true);
   };
 
@@ -185,18 +213,25 @@ export default function CycleDetailPage() {
     else if (confirmDialog.action === "reset") resetStatus.mutate(confirmDialog.applicantId);
   };
 
+  const handleManualSync = () => {
+    setSyncStatus("syncing");
+    setSyncMsg(null);
+    importMutation.mutate();
+  };
+
   const isPending = sendPairing.isPending || sendRejection.isPending || resetStatus.isPending;
 
   const unpairedCount = applicants.filter(a => a.pairing_status === "unpaired").length;
   const sentCount = applicants.filter(a => a.pairing_status === "sent").length;
 
-  // Count paired + sent emails per member for this cycle
   const memberEmailCounts = applicants.reduce<Record<string, number>>((acc, a) => {
     if (a.paired_membership_id && (a.pairing_status === "paired" || a.pairing_status === "sent")) {
       acc[a.paired_membership_id] = (acc[a.paired_membership_id] || 0) + 1;
     }
     return acc;
   }, {});
+
+  const colMapForm = (settingsForm.column_mapping ?? DEFAULT_COL_MAP);
 
   return (
     <div className="p-6 space-y-5 max-w-6xl">
@@ -213,15 +248,40 @@ export default function CycleDetailPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {/* Sync indicator */}
+          {cycle?.sheet_id && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {syncStatus === "syncing" && (
+                <>
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  <span>Syncing…</span>
+                </>
+              )}
+              {syncStatus === "done" && (
+                <>
+                  <Check className="h-3 w-3 text-green-600" />
+                  <span className="text-green-700">{syncMsg}</span>
+                  <button onClick={handleManualSync} className="ml-1 hover:text-foreground" title="Re-sync">
+                    <RefreshCw className="h-3 w-3" />
+                  </button>
+                </>
+              )}
+              {syncStatus === "error" && (
+                <>
+                  <span className="text-destructive">{syncMsg}</span>
+                  <button onClick={handleManualSync} className="ml-1 hover:text-foreground" title="Retry">
+                    <RefreshCw className="h-3 w-3" />
+                  </button>
+                </>
+              )}
+              {syncStatus === "idle" && null}
+            </div>
+          )}
           <Button size="sm" variant="outline" onClick={handleOpenSettings}>
             <Settings className="h-4 w-4 mr-1" /> Settings
           </Button>
-          {cycle?.sheet_id ? (
-            <Button size="sm" onClick={() => { setImportResult(null); setImportError(null); setImportOpen(true); }}>
-              <Download className="h-4 w-4 mr-1" /> Import from Sheet
-            </Button>
-          ) : (
+          {!cycle?.sheet_id && (
             <Button size="sm" variant="outline" onClick={handleOpenSettings}>
               Add Sheet ID to import
             </Button>
@@ -235,7 +295,11 @@ export default function CycleDetailPage() {
           <p className="p-4 text-sm text-muted-foreground">Loading applicants…</p>
         ) : applicants.length === 0 ? (
           <p className="p-8 text-center text-sm text-muted-foreground">
-            No applicants yet. Import from Google Sheet to get started.
+            {cycle?.sheet_id
+              ? syncStatus === "syncing"
+                ? "Syncing from sheet…"
+                : "No applicants yet. Check that the sheet is shared with the connected Gmail account."
+              : "No applicants yet. Add a Sheet ID in Settings to auto-import."}
           </p>
         ) : (
           <table className="w-full text-sm">
@@ -328,7 +392,7 @@ export default function CycleDetailPage() {
                       )}
                       {canManageRecruitment && (a.pairing_status === "sent" || a.pairing_status === "rejected") && (
                         <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
-                          title="Eboard: reset status to re-send"
+                          title="Reset status to re-send"
                           onClick={() => setConfirmDialog({ applicantId: a.id, applicantName: a.name, action: "reset" })}>
                           <RotateCcw className="h-3 w-3" />
                         </Button>
@@ -373,9 +437,10 @@ export default function CycleDetailPage() {
 
       {/* Settings dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Cycle Settings</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-5 py-2">
+            {/* Basic settings */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Cycle name</Label>
@@ -383,13 +448,44 @@ export default function CycleDetailPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Google Sheet ID</Label>
-                <Input value={settingsForm.sheet_id ?? ""} onChange={e => setSettingsForm(f => ({ ...f, sheet_id: e.target.value }))} placeholder="From the sheet URL" />
+                <Input value={settingsForm.sheet_id ?? ""} onChange={e => setSettingsForm(f => ({ ...f, sheet_id: e.target.value }))} placeholder="URL or ID from the sheet" />
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Sender title <span className="text-xs text-muted-foreground font-normal">(sender name comes from whoever is signed in)</span></Label>
                 <Input value={settingsForm.sender_title ?? ""} onChange={e => setSettingsForm(f => ({ ...f, sender_title: e.target.value }))} placeholder="Director of Recruitment" />
               </div>
             </div>
+
+            {/* Column mapping */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Sheet column names</p>
+              <p className="text-xs text-muted-foreground">Enter the exact column header from your Google Form/Sheet. These are saved and used every time the sheet syncs.</p>
+              <div className="grid grid-cols-2 gap-3">
+                {(
+                  [
+                    ["name_col", "Full Name column"],
+                    ["email_col", "Cornell Email column"],
+                    ["grad_col", "Graduation Date column"],
+                    ["major_col", "Major column"],
+                    ["request_col", "Requested Member column"],
+                    ["timestamp_col", "Timestamp column (for dedup)"],
+                  ] as [keyof ColMap, string][]
+                ).map(([key, label]) => (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-xs">{label}</Label>
+                    <Input
+                      value={colMapForm[key]}
+                      onChange={e => setSettingsForm(f => ({
+                        ...f,
+                        column_mapping: { ...colMapForm, [key]: e.target.value },
+                      }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Email templates */}
             <div className="space-y-1.5">
               <Label>Pairing email subject</Label>
               <Input value={settingsForm.pairing_subject ?? ""} onChange={e => setSettingsForm(f => ({ ...f, pairing_subject: e.target.value }))} />
@@ -416,66 +512,6 @@ export default function CycleDetailPage() {
             <Button onClick={() => updateCycle.mutate(settingsForm)} disabled={updateCycle.isPending}>
               {updateCycle.isPending ? "Saving…" : "Save"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Import dialog */}
-      <Dialog open={importOpen} onOpenChange={(o) => { if (!o) { setImportOpen(false); setImportResult(null); setImportError(null); } }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Import from Google Sheet</DialogTitle></DialogHeader>
-          {importResult ? (
-            <div className="py-4 space-y-3">
-              <p className="text-sm font-medium text-green-700">
-                Imported {importResult.imported} applicant{importResult.imported !== 1 ? "s" : ""}
-                {importResult.skipped > 0 && `, skipped ${importResult.skipped} duplicate${importResult.skipped !== 1 ? "s" : ""}`}.
-              </p>
-              {importResult.missing_cols.length > 0 && (
-                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  <p className="font-medium mb-1">These columns weren&apos;t found in the sheet — those fields will be blank:</p>
-                  <p>{importResult.missing_cols.join(", ")}</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3 py-2 text-sm">
-              <p className="text-muted-foreground">Map your sheet&apos;s column headers to the fields below.</p>
-              {sheetCols?.columns && (
-                <p className="text-xs text-muted-foreground">
-                  Detected columns: <span className="font-mono">{sheetCols.columns.join(", ")}</span>
-                </p>
-              )}
-              {(["name_col", "email_col", "grad_col", "major_col", "request_col", "timestamp_col"] as (keyof ColMap)[]).map(key => {
-                const labels: Record<keyof ColMap, string> = {
-                  name_col: "Full Name column", email_col: "Cornell Email column",
-                  grad_col: "Graduation Date column", major_col: "Major column",
-                  request_col: "Requested Member column",
-                  timestamp_col: "Timestamp column (used for dedup)",
-                };
-                return (
-                  <div key={key} className="space-y-1">
-                    <Label className="text-xs">{labels[key]}</Label>
-                    <Input value={colMap[key]} onChange={e => setColMap(m => ({ ...m, [key]: e.target.value }))} />
-                  </div>
-                );
-              })}
-              {importError && (
-                <p className="text-xs text-destructive">{importError}</p>
-              )}
-              <p className="text-xs text-muted-foreground">Existing applicants (matched by netID + timestamp) will be skipped. The Sheet ID can be a full URL or just the ID.</p>
-            </div>
-          )}
-          <DialogFooter>
-            {importResult ? (
-              <Button onClick={() => { setImportOpen(false); setImportResult(null); }}>Done</Button>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => setImportOpen(false)}>Cancel</Button>
-                <Button onClick={() => importMutation.mutate()} disabled={importMutation.isPending}>
-                  {importMutation.isPending ? "Importing…" : "Import"}
-                </Button>
-              </>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
