@@ -35,10 +35,11 @@ class InterviewFormat(str, enum.Enum):
 class ApplicationCycle(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "application_cycles"
 
-    name: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)  # e.g. "SP26"
+    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)  # e.g. "Fall 2025"
     open_date: Mapped[str | None] = mapped_column(Date, nullable=True)
     close_date: Mapped[str | None] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    sheet_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     candidates: Mapped[list["Candidate"]] = relationship(back_populates="cycle")
     interview_rounds: Mapped[list["InterviewRound"]] = relationship(back_populates="cycle")

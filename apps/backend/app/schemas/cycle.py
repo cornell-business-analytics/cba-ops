@@ -62,6 +62,7 @@ class CyclePublic(BaseModel):
     open_date: date | None
     close_date: date | None
     is_active: bool
+    sheet_url: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -71,9 +72,12 @@ class CycleCreate(BaseModel):
     open_date: date | None = None
     close_date: date | None = None
     is_active: bool = False
+    sheet_url: str | None = None
 
 
 class CycleUpdate(BaseModel):
+    name: str | None = None
     open_date: date | None = None
     close_date: date | None = None
     is_active: bool | None = None
+    sheet_url: str | None = None

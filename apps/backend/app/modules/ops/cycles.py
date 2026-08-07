@@ -43,7 +43,7 @@ async def list_cycles(
 @router.post("/cycles", response_model=CyclePublic, status_code=status.HTTP_201_CREATED)
 async def create_cycle(
     body: CycleCreate,
-    _: User = Depends(require_role(UserRole.eboard)),
+    _: User = Depends(require_role(UserRole.recruitment)),
     db: AsyncSession = Depends(get_db),
 ):
     cycle = ApplicationCycle(**body.model_dump())
@@ -57,7 +57,7 @@ async def create_cycle(
 async def update_cycle(
     cycle_id: uuid.UUID,
     body: CycleUpdate,
-    _: User = Depends(require_role(UserRole.eboard)),
+    _: User = Depends(require_role(UserRole.recruitment)),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(ApplicationCycle).where(ApplicationCycle.id == cycle_id))

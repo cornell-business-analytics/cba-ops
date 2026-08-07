@@ -13,6 +13,7 @@ export interface ApplicationCycle {
   open_date: string | null;
   close_date: string | null;
   is_active: boolean;
+  sheet_url: string | null;
 }
 
 export interface Candidate {
