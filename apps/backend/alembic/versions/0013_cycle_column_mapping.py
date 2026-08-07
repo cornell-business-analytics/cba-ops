@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
-revision = "0013"
-down_revision = "0012"
+revision = "0013_cycle_column_mapping"
+down_revision = "0012_add_recruitment_role"
 branch_labels = None
 depends_on = None
 

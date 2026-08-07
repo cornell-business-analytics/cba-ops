@@ -84,6 +84,7 @@ export default function CycleDetailPage() {
   const canManageRecruitment = session?.role === "recruitment" || session?.role === "eboard";
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsForm, setSettingsForm] = useState<Partial<Cycle & { column_mapping: ColMap }>>({});
   const [confirmDialog, setConfirmDialog] = useState<{
     applicantId: string; applicantName: string; action: "send" | "reject" | "reset";
@@ -193,8 +194,10 @@ export default function CycleDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cycle", id] });
       qc.invalidateQueries({ queryKey: ["coffee-chat-cycles"] });
+      setSettingsError(null);
       setSettingsOpen(false);
     },
+    onError: (err: Error) => setSettingsError(err.message),
   });
 
   const handleOpenSettings = () => {
@@ -507,11 +510,14 @@ export default function CycleDetailPage() {
                 onChange={e => setSettingsForm(f => ({ ...f, rejection_body: e.target.value }))} />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSettingsOpen(false)}>Cancel</Button>
-            <Button onClick={() => updateCycle.mutate(settingsForm)} disabled={updateCycle.isPending}>
-              {updateCycle.isPending ? "Saving…" : "Save"}
-            </Button>
+          <DialogFooter className="flex-col items-end gap-2">
+            {settingsError && <p className="text-xs text-destructive w-full">{settingsError}</p>}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setSettingsOpen(false); setSettingsError(null); }}>Cancel</Button>
+              <Button onClick={() => updateCycle.mutate(settingsForm)} disabled={updateCycle.isPending}>
+                {updateCycle.isPending ? "Saving…" : "Save"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
