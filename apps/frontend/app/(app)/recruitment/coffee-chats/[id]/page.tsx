@@ -190,6 +190,14 @@ export default function CycleDetailPage() {
   const unpairedCount = applicants.filter(a => a.pairing_status === "unpaired").length;
   const sentCount = applicants.filter(a => a.pairing_status === "sent").length;
 
+  // Count paired + sent emails per member for this cycle
+  const memberEmailCounts = applicants.reduce<Record<string, number>>((acc, a) => {
+    if (a.paired_membership_id && (a.pairing_status === "paired" || a.pairing_status === "sent")) {
+      acc[a.paired_membership_id] = (acc[a.paired_membership_id] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
   return (
     <div className="p-6 space-y-5 max-w-6xl">
       {/* Header */}
@@ -265,9 +273,17 @@ export default function CycleDetailPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">— Unassigned —</SelectItem>
-                          {activeMembers.map(m => (
-                            <SelectItem key={m.id} value={m.id}>{m.user_name}</SelectItem>
-                          ))}
+                          {activeMembers
+                            .slice()
+                            .sort((a, b) => (memberEmailCounts[a.id] ?? 0) - (memberEmailCounts[b.id] ?? 0))
+                            .map(m => {
+                              const count = memberEmailCounts[m.id] ?? 0;
+                              return (
+                                <SelectItem key={m.id} value={m.id}>
+                                  {m.user_name}{count > 0 ? ` (${count})` : ""}
+                                </SelectItem>
+                              );
+                            })}
                         </SelectContent>
                       </Select>
                     )}
