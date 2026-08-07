@@ -114,6 +114,12 @@ export default function CycleDetailPage() {
     enabled: !!session?.accessToken,
   });
 
+  const { data: sheetCols } = useQuery<{ columns: string[] }>({
+    queryKey: ["sheet-cols", id],
+    queryFn: () => api.get<{ columns: string[] }>(`/ops/v1/recruitment/cycles/${id}/sheet-columns`),
+    enabled: !!session?.accessToken && settingsOpen && !!cycle?.sheet_id,
+  });
+
   const activeMembers = members.filter(m => m.is_active);
 
   const importMutation = useMutation({
@@ -476,7 +482,15 @@ export default function CycleDetailPage() {
             {/* Column mapping */}
             <div className="space-y-2">
               <p className="text-sm font-medium">Sheet column names</p>
-              <p className="text-xs text-muted-foreground">Enter the exact column header from your Google Form/Sheet. These are saved and used every time the sheet syncs.</p>
+              <p className="text-xs text-muted-foreground">
+                Enter the exact column header from your Google Form/Sheet. These are saved and used every time the sheet syncs.
+              </p>
+              {sheetCols?.columns && sheetCols.columns.length > 0 && (
+                <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                  <span className="font-medium">Columns in your sheet: </span>
+                  <span className="font-mono">{sheetCols.columns.join(", ")}</span>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 {(
                   [
@@ -487,18 +501,31 @@ export default function CycleDetailPage() {
                     ["request_col", "Requested Member column"],
                     ["timestamp_col", "Timestamp column (for dedup)"],
                   ] as [keyof ColMap, string][]
-                ).map(([key, label]) => (
-                  <div key={key} className="space-y-1">
-                    <Label className="text-xs">{label}</Label>
-                    <Input
-                      value={colMapForm[key]}
-                      onChange={e => setSettingsForm(f => ({
-                        ...f,
-                        column_mapping: { ...colMapForm, [key]: e.target.value },
-                      }))}
-                    />
-                  </div>
-                ))}
+                ).map(([key, label]) => {
+                  const val = colMapForm[key];
+                  const found = sheetCols?.columns?.includes(val);
+                  const checked = sheetCols?.columns !== undefined;
+                  return (
+                    <div key={key} className="space-y-1">
+                      <Label className="text-xs flex items-center gap-1">
+                        {label}
+                        {checked && (
+                          found
+                            ? <span className="text-green-600 font-normal">✓</span>
+                            : <span className="text-amber-600 font-normal">✗ not found</span>
+                        )}
+                      </Label>
+                      <Input
+                        value={val}
+                        className={checked && !found ? "border-amber-400" : ""}
+                        onChange={e => setSettingsForm(f => ({
+                          ...f,
+                          column_mapping: { ...colMapForm, [key]: e.target.value },
+                        }))}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
