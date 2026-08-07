@@ -227,6 +227,13 @@ export default function CycleDetailPage() {
   const unpairedCount = applicants.filter(a => a.pairing_status === "unpaired").length;
   const sentCount = applicants.filter(a => a.pairing_status === "sent").length;
 
+  // How many times each person has submitted a request this cycle (by email)
+  const requestCounts = applicants.reduce<Record<string, number>>((acc, a) => {
+    const key = a.email.toLowerCase();
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
   const memberEmailCounts = applicants.reduce<Record<string, number>>((acc, a) => {
     if (a.paired_membership_id && (a.pairing_status === "paired" || a.pairing_status === "sent")) {
       acc[a.paired_membership_id] = (acc[a.paired_membership_id] || 0) + 1;
@@ -317,7 +324,14 @@ export default function CycleDetailPage() {
               {applicants.map((a) => (
                 <tr key={a.id} className="hover:bg-muted/10">
                   <td className="px-4 py-3">
-                    <p className="font-medium">{a.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium">{a.name}</p>
+                      {(requestCounts[a.email.toLowerCase()] ?? 1) > 1 && (
+                        <span className="text-xs font-medium text-amber-700 bg-amber-100 rounded px-1 py-0.5">
+                          ×{requestCounts[a.email.toLowerCase()]}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">{a.netid}@cornell.edu</p>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
