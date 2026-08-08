@@ -156,19 +156,21 @@ export default async function AboutPage() {
             <p className="text-lg font-semibold text-cba-dark">
               Who go on to work at
             </p>
-            <div className="mt-6 overflow-hidden">
-              <div className="flex w-max animate-marquee items-center gap-12">
-                {[...placements, ...placements].map(({ name, logo }, i) => (
+            <div className="mt-6 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+              {placements.map(({ name, logo }) => (
+                <div
+                  key={name}
+                  className="flex items-center justify-center rounded-lg bg-white px-4 py-4 shadow-sm"
+                >
                   <Image
-                    key={`${name}-${i}`}
                     src={logo}
                     alt={name}
-                    width={120}
-                    height={48}
-                    className="h-12 w-auto object-contain"
+                    width={100}
+                    height={40}
+                    className="h-8 w-auto object-contain"
                   />
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
