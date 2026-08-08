@@ -86,7 +86,7 @@ export default function CycleDetailPage() {
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsForm, setSettingsForm] = useState<Partial<Cycle & { column_mapping: ColMap }>>({});
   const [confirmDialog, setConfirmDialog] = useState<{
-    applicantId: string; applicantName: string; action: "send" | "reject" | "reset";
+    applicantId: string; applicantName: string; action: "send" | "reject" | "reset" | "delete";
   } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -189,6 +189,13 @@ export default function CycleDetailPage() {
     onError: (err: Error) => { setActionError(`Failed to reset: ${err.message}`); },
   });
 
+  const deleteApplicant = useMutation({
+    mutationFn: (applicantId: string) =>
+      api.delete<void>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["applicants", id] }); setConfirmDialog(null); setActionError(null); },
+    onError: (err: Error) => { setActionError(`Failed to delete: ${err.message}`); },
+  });
+
   const updateCycle = useMutation({
     mutationFn: (data: Partial<Cycle>) => api.patch<Cycle>(`/ops/v1/recruitment/cycles/${id}`, {
       name: data.name,
@@ -223,6 +230,7 @@ export default function CycleDetailPage() {
     if (confirmDialog.action === "send") sendPairing.mutate(confirmDialog.applicantId);
     else if (confirmDialog.action === "reject") sendRejection.mutate(confirmDialog.applicantId);
     else if (confirmDialog.action === "reset") resetStatus.mutate(confirmDialog.applicantId);
+    else if (confirmDialog.action === "delete") deleteApplicant.mutate(confirmDialog.applicantId);
   };
 
   const handleManualSync = () => {
@@ -231,7 +239,7 @@ export default function CycleDetailPage() {
     importMutation.mutate();
   };
 
-  const isPending = sendPairing.isPending || sendRejection.isPending || resetStatus.isPending;
+  const isPending = sendPairing.isPending || sendRejection.isPending || resetStatus.isPending || deleteApplicant.isPending;
 
   const unpairedCount = applicants.filter(a => a.pairing_status === "unpaired").length;
   const sentCount = applicants.filter(a => a.pairing_status === "sent").length;
@@ -407,6 +415,13 @@ export default function CycleDetailPage() {
                           <RotateCcw className="h-3 w-3" />
                         </Button>
                       )}
+                      {canManageRecruitment && (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive"
+                          title="Delete entry"
+                          onClick={() => setConfirmDialog({ applicantId: a.id, applicantName: a.name, action: "delete" })}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -424,22 +439,24 @@ export default function CycleDetailPage() {
               {confirmDialog?.action === "send" && "Send pairing email"}
               {confirmDialog?.action === "reject" && "Send rejection email"}
               {confirmDialog?.action === "reset" && "Reset email status"}
+              {confirmDialog?.action === "delete" && "Delete entry"}
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {confirmDialog?.action === "send" && `Send pairing email to ${confirmDialog.applicantName}? This will CC the paired member.`}
             {confirmDialog?.action === "reject" && `Send a rejection email to ${confirmDialog?.applicantName}?`}
             {confirmDialog?.action === "reset" && `Reset status for ${confirmDialog?.applicantName}? This allows re-sending an email.`}
+            {confirmDialog?.action === "delete" && `Permanently delete ${confirmDialog?.applicantName}'s entry? This cannot be undone.`}
           </p>
           {actionError && <p className="text-sm text-destructive">{actionError}</p>}
           <DialogFooter>
             <Button variant="outline" onClick={() => { setConfirmDialog(null); setActionError(null); }}>Cancel</Button>
             <Button
-              variant={confirmDialog?.action === "reject" ? "destructive" : "default"}
+              variant={confirmDialog?.action === "reject" || confirmDialog?.action === "delete" ? "destructive" : "default"}
               onClick={handleConfirm}
               disabled={isPending}
             >
-              {isPending ? "Sending…" : confirmDialog?.action === "send" ? "Send email" : confirmDialog?.action === "reject" ? "Send rejection" : "Reset"}
+              {isPending ? "Working…" : confirmDialog?.action === "send" ? "Send email" : confirmDialog?.action === "reject" ? "Send rejection" : confirmDialog?.action === "delete" ? "Delete" : "Reset"}
             </Button>
           </DialogFooter>
         </DialogContent>

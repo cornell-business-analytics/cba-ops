@@ -635,6 +635,26 @@ async def remove_pairing(
     return {"ok": True}
 
 
+@router.delete("/cycles/{cycle_id}/applicants/{applicant_id}", status_code=204)
+async def delete_applicant(
+    cycle_id: uuid.UUID,
+    applicant_id: uuid.UUID,
+    _: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CoffeeChatApplicant).where(
+            CoffeeChatApplicant.id == applicant_id,
+            CoffeeChatApplicant.cycle_id == cycle_id,
+        )
+    )
+    applicant = result.scalar_one_or_none()
+    if not applicant:
+        raise HTTPException(status_code=404, detail="Applicant not found")
+    await db.delete(applicant)
+    await db.commit()
+
+
 # ---------------------------------------------------------------------------
 # Email sending
 # ---------------------------------------------------------------------------
