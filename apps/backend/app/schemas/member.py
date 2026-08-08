@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -113,6 +114,7 @@ class ProfileEditRequestPublic(BaseModel):
     changes: dict
     status: str
     reviewer_note: str | None
+    created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

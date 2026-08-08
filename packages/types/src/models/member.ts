@@ -56,6 +56,7 @@ export interface ProfileEditRequest {
   changes: Record<string, unknown>;
   status: "pending" | "approved" | "rejected";
   reviewer_note: string | null;
+  created_at: string | null;
 }
 
 export interface MembershipDetail extends Membership {
