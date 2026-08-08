@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin } from "lucide-react";
 import Link from "next/link";
@@ -14,7 +14,7 @@ function getSemester(): string {
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const firstName = session?.user?.name?.split(" ")[0];
 
   const { data: overview, isLoading: statsLoading } = useQuery<AnalyticsOverview>({

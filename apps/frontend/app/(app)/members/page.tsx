@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -52,7 +52,7 @@ function avatarColor(name: string): string {
 }
 
 export default function MembersPage() {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const queryClient = useQueryClient();
   const router = useRouter();
 

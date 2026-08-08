@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { createApi } from "@/lib/api";
 
 export function useApi() {
-  const { data: session } = useSession();
+  const session = useAppSession();
   return useMemo(() => createApi(session?.accessToken), [session?.accessToken]);
 }

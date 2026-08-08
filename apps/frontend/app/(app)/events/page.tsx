@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, MapPin, ArrowUp, ArrowDown } from "lucide-react";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -126,7 +126,7 @@ function EventGroup({
 }
 
 export default function EventsPage() {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const qc = useQueryClient();
   const api = () => createApi(session?.accessToken);
 

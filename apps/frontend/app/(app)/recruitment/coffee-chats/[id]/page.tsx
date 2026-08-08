@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Send, X, Settings, Check, RotateCcw, RefreshCw, Search, UserRound } from "lucide-react";
@@ -76,7 +76,7 @@ const DEFAULT_COL_MAP: ColMap = {
 
 export default function CycleDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: session } = useSession();
+  const session = useAppSession();
   const router = useRouter();
   const qc = useQueryClient();
   const api = createApi(session?.accessToken);

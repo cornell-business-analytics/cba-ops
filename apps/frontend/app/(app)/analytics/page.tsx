@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart,
@@ -29,7 +29,7 @@ const PIE_COLORS = [
 ];
 
 export default function AnalyticsPage() {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const api = () => createApi(session?.accessToken);
 
   const { data: overview } = useQuery<AnalyticsOverview>({

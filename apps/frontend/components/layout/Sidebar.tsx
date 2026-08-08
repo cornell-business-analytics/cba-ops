@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import {
   LayoutDashboard,
   Users,
@@ -32,7 +33,7 @@ const recruitmentNav = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const session = useAppSession();
   const role = session?.role;
   const isEboard = role === "eboard";
   const hasRecruitmentAccess = role === "recruitment" || role === "eboard";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -92,7 +92,7 @@ function SortableBlock({
 
 export default function PageEditorPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { data: session } = useSession();
+  const session = useAppSession();
   const qc = useQueryClient();
   const router = useRouter();
   const api = () => createApi(session?.accessToken);

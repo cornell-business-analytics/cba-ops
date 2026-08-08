@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -29,7 +29,7 @@ import type { AllowedEmail, User, UserRole } from "@cba/types";
 const ROLES: UserRole[] = ["member", "pm", "director", "recruitment", "eboard"];
 
 export default function AccessPage() {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const queryClient = useQueryClient();
 
   const [addEmailOpen, setAddEmailOpen] = useState(false);

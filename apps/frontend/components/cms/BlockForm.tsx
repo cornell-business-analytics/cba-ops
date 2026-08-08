@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { ChevronDown, ChevronUp, Plus, Trash2, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,7 +51,7 @@ function ImageUploadField({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const api = () => createApi(session?.accessToken);

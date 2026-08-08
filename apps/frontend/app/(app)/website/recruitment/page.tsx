@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -15,7 +15,7 @@ import type { RecruitmentStep } from "@cba/types";
 type FormValues = { steps: RecruitmentStep[] };
 
 export default function RecruitmentStepsPage() {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const qc = useQueryClient();
   const api = () => createApi(session?.accessToken);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Check, X, Clock, ChevronRight } from "lucide-react";
@@ -28,7 +28,7 @@ function formatDate(iso: string | null) {
 }
 
 export default function EditRequestsPage() {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const api = () => createApi(session?.accessToken);
   const qc = useQueryClient();
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Search, Plus, FileSpreadsheet, ChevronRight, Users, Check, ExternalLink, FileDown } from "lucide-react";
@@ -38,7 +38,7 @@ const STATUS_BORDER: Record<CandidateStatus, string> = {
 };
 
 export default function RecruitmentPage() {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const api = () => createApi(session?.accessToken);
   const qc = useQueryClient();
 

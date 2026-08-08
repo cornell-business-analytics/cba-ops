@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Plus, Coffee, Wifi, WifiOff } from "lucide-react";
@@ -28,7 +28,7 @@ interface GmailStatus {
 }
 
 export default function CoffeeChatsPage() {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const router = useRouter();
   const qc = useQueryClient();
   const api = createApi(session?.accessToken);

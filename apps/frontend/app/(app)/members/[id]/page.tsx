@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
@@ -81,7 +81,7 @@ function statusIcon(status: string) {
 
 export default function MemberProfilePage() {
   const { id } = useParams<{ id: string }>();
-  const { data: session } = useSession();
+  const session = useAppSession();
   const { data: currentUser } = useCurrentUser();
   const qc = useQueryClient();
   const router = useRouter();

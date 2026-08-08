@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Plus } from "lucide-react";
@@ -24,7 +24,7 @@ const STATUS_VARIANT: Record<string, "outline" | "warning" | "success"> = {
 };
 
 export default function WebsitePage() {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const qc = useQueryClient();
   const api = () => createApi(session?.accessToken);
   const [open, setOpen] = useState(false);

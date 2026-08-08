@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, MessageSquare } from "lucide-react";
@@ -18,7 +18,7 @@ const ALL_STATUSES: CandidateStatus[] = [
 
 export default function CandidatePage() {
   const { id } = useParams<{ id: string }>();
-  const { data: session } = useSession();
+  const session = useAppSession();
   const qc = useQueryClient();
   const router = useRouter();
   const api = () => createApi(session?.accessToken);

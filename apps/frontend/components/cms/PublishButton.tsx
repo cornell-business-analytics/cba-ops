@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/hooks/session-context";
 import { CheckCircle, Clock, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function PublishButton({ slug, status }: Props) {
-  const { data: session } = useSession();
+  const session = useAppSession();
   const qc = useQueryClient();
   const api = () => createApi(session?.accessToken);
 
