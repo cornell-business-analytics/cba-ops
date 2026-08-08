@@ -1,18 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, MapPin } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { Plus, Pencil, Trash2, MapPin, ArrowUp, ArrowDown } from "lucide-react";
+import { useForm, useFieldArray } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createApi } from "@/lib/api";
-import type { Event } from "@cba/types";
+import type { Event, RecruitmentStep } from "@cba/types";
 
 type EventForm = {
   title: string;
@@ -179,6 +180,37 @@ export default function EventsPage() {
     setOpen(true);
   }
 
+  // Recruitment settings
+  const { data: steps = [] } = useQuery<RecruitmentStep[]>({
+    queryKey: ["recruitment-steps"],
+    queryFn: () => api().get("/ops/v1/settings/recruitment-steps"),
+    enabled: !!session?.accessToken,
+  });
+
+  type StepsForm = { steps: RecruitmentStep[] };
+  const stepsForm = useForm<StepsForm>({ values: { steps } });
+  const { fields, append, remove: removeStep, move } = useFieldArray({ control: stepsForm.control, name: "steps" });
+
+  const saveSteps = useMutation({
+    mutationFn: (data: StepsForm) => api().put("/ops/v1/settings/recruitment-steps", data.steps),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["recruitment-steps"] }),
+  });
+
+  const { data: noEventsData } = useQuery<{ message: string }>({
+    queryKey: ["recruitment-no-events-message"],
+    queryFn: () => api().get("/ops/v1/settings/recruitment-no-events-message"),
+    enabled: !!session?.accessToken,
+  });
+  const [noEventsMessage, setNoEventsMessage] = useState("");
+  useEffect(() => {
+    if (noEventsData?.message !== undefined) setNoEventsMessage(noEventsData.message);
+  }, [noEventsData]);
+
+  const saveMessage = useMutation({
+    mutationFn: () => api().put("/ops/v1/settings/recruitment-no-events-message", { message: noEventsMessage }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["recruitment-no-events-message"] }),
+  });
+
   const now = new Date();
   const upcoming = events
     .filter((e) => new Date(e.event_date) >= now)
@@ -296,6 +328,75 @@ export default function EventsPage() {
           <EventGroup label="Past" events={past} onEdit={openEdit} onDelete={(id) => remove.mutate(id)} />
         </div>
       )}
+
+      {/* Recruitment page settings */}
+      <div className="border-t pt-6 space-y-6 max-w-2xl">
+        <div>
+          <h2 className="text-lg font-semibold">Recruitment Page Settings</h2>
+          <p className="text-sm text-muted-foreground">Controls what appears on the public recruitment page.</p>
+        </div>
+
+        {/* No-events message */}
+        <div className="space-y-2">
+          <Label>No Events Message</Label>
+          <p className="text-xs text-muted-foreground">Shown when there are no upcoming events listed.</p>
+          <Textarea
+            value={noEventsMessage}
+            onChange={(e) => setNoEventsMessage(e.target.value)}
+            placeholder="e.g. Applications open Fall 2026 — check back soon!"
+            rows={3}
+          />
+          <div className="flex items-center gap-3">
+            <Button size="sm" onClick={() => saveMessage.mutate()} disabled={saveMessage.isPending}>
+              {saveMessage.isPending ? "Saving…" : "Save message"}
+            </Button>
+            {saveMessage.isSuccess && <span className="text-sm text-muted-foreground">Saved.</span>}
+          </div>
+        </div>
+
+        {/* Process steps */}
+        <div className="space-y-3">
+          <div>
+            <Label>Recruitment Process Steps</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">These steps appear on the public recruitment page.</p>
+          </div>
+          <form onSubmit={stepsForm.handleSubmit((d) => saveSteps.mutate(d))} className="space-y-3">
+            <ol className="space-y-2">
+              {fields.map((field, i) => (
+                <li key={field.id} className="flex gap-3 items-start rounded-lg border bg-white p-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-700 text-xs font-bold text-white mt-0.5">
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 grid grid-cols-2 gap-2">
+                    <Input {...stepsForm.register(`steps.${i}.title`, { required: true })} placeholder="Step title" />
+                    <Input {...stepsForm.register(`steps.${i}.desc`, { required: true })} placeholder="Brief description" />
+                  </div>
+                  <div className="flex gap-0.5 shrink-0">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => move(i, i - 1)} disabled={i === 0} className="h-7 w-7 p-0">
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => move(i, i + 1)} disabled={i === fields.length - 1} className="h-7 w-7 p-0">
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => removeStep(i)} className="h-7 w-7 p-0 text-destructive hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <Button type="button" variant="outline" size="sm" onClick={() => append({ title: "", desc: "" })}>
+              <Plus className="h-4 w-4 mr-1" /> Add step
+            </Button>
+            <div className="flex items-center gap-3">
+              <Button type="submit" size="sm" disabled={saveSteps.isPending}>
+                {saveSteps.isPending ? "Saving…" : "Save steps"}
+              </Button>
+              {saveSteps.isSuccess && <span className="text-sm text-muted-foreground">Saved.</span>}
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

@@ -63,10 +63,9 @@ export default function DashboardPage() {
             <p className="mt-2 text-sm text-muted-foreground">active members this semester</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-6 border-t pt-6">
+          <div className="grid grid-cols-2 gap-6 border-t pt-6">
             {[
               { key: "active_candidates" as const, label: "In recruitment pipeline" },
-              { key: "published_pages" as const, label: "Web pages live" },
               { key: "events_this_semester" as const, label: "Events this semester" },
             ].map(({ key, label }) => (
               <div key={key}>
