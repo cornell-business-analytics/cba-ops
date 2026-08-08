@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 const BASE_URL =
-  process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://www.cornellbusinessanalytics.org";
+  process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://cornellbusinessanalytics.org";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const routes = ["/", "/about", "/team", "/clients", "/recruitment", "/contact"];
