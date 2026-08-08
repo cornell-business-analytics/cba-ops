@@ -161,14 +161,14 @@ export default async function AboutPage() {
               {placements.map(({ name, logo }) => (
                 <div
                   key={name}
-                  className="flex items-center justify-center rounded-lg bg-white px-4 py-4 shadow-sm"
+                  className="flex items-center justify-center rounded-lg bg-white px-3 py-5 shadow-sm"
                 >
                   <Image
                     src={logo}
                     alt={name}
-                    width={100}
-                    height={40}
-                    className="h-10 w-auto object-contain"
+                    width={160}
+                    height={64}
+                    className="w-full h-auto object-contain"
                   />
                 </div>
               ))}
