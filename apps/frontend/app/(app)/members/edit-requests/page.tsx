@@ -68,7 +68,7 @@ export default function EditRequestsPage() {
   if (!isDirectorOrAbove) {
     return (
       <div className="p-6">
-        <p className="text-sm text-muted-foreground">You don't have permission to view this page.</p>
+        <p className="text-sm text-muted-foreground">You don&apos;t have permission to view this page.</p>
       </div>
     );
   }
