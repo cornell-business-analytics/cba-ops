@@ -18,7 +18,7 @@ const config: Config = {
         "cba-gray": "#F4F7F5",
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        sans: ["var(--font-jost)", "system-ui", "sans-serif"],
         display: ["var(--font-poppins)", "system-ui", "sans-serif"],
       },
       keyframes: {
