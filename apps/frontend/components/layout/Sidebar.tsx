@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   Users,
   UserSearch,
-  Globe,
+
   CalendarDays,
   BarChart3,
   LogOut,
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 const baseNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/members", label: "Members", icon: Users },
-  { href: "/website", label: "Website", icon: Globe },
+
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
