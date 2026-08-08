@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
@@ -514,10 +515,12 @@ export default function CycleDetailPage() {
                     >
                       <div className="flex items-start gap-3">
                         {m.headshot_url ? (
-                          <img
+                          <Image
                             src={m.headshot_url}
                             alt=""
-                            className="h-10 w-10 rounded-full object-cover shrink-0"
+                            width={40}
+                            height={40}
+                            className="rounded-full object-cover shrink-0"
                           />
                         ) : (
                           <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">

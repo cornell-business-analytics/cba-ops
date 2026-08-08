@@ -375,10 +375,11 @@ export default function MemberProfilePage() {
             style={{ aspectRatio: "3 / 2" }}
             onClick={handleFocalClick}
           >
-            <img
+            <Image
               src={membership.headshot_url}
               alt=""
-              className="w-full h-full object-cover select-none"
+              fill
+              className="object-cover select-none"
               style={{ objectPosition: `${membership.headshot_focal_x}% ${membership.headshot_focal_y}%` }}
               draggable={false}
             />
