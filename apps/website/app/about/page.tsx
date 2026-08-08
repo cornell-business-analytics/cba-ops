@@ -35,6 +35,7 @@ const placements = [
   { name: "Goldman Sachs", logo: "/logos/goldman-sachs.png" },
   { name: "McKinsey & Company", logo: "/logos/mckinsey.png" },
   { name: "BCG", logo: "/logos/bcg.png" },
+  { name: "Bain & Company", logo: "/logos/bain.jpg" },
   { name: "J.P. Morgan", logo: "/logos/jpmorgan.png" },
   { name: "BlackRock", logo: "/logos/blackrock.png" },
   { name: "Citadel", logo: "/logos/citadel.png" },
