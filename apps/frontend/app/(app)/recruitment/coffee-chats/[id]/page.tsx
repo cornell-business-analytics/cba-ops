@@ -4,12 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, X, Settings, Check, RotateCcw, RefreshCw } from "lucide-react";
+import { ArrowLeft, Send, X, Settings, Check, RotateCcw, RefreshCw, Search, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { createApi } from "@/lib/api";
 import type { MembershipDetail } from "@cba/types";
@@ -90,6 +89,10 @@ export default function CycleDetailPage() {
     applicantId: string; applicantName: string; action: "send" | "reject" | "reset";
   } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Member picker dialog
+  const [pickerApplicant, setPickerApplicant] = useState<{ id: string; name: string } | null>(null);
+  const [memberSearch, setMemberSearch] = useState("");
 
   // Sync state shown in header
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
@@ -351,28 +354,12 @@ export default function CycleDetailPage() {
                     {a.pairing_status === "sent" || a.pairing_status === "rejected" ? (
                       <span className="text-sm text-muted-foreground">{a.paired_member_name ?? "—"}</span>
                     ) : (
-                      <Select
-                        value={a.paired_membership_id ?? "none"}
-                        onValueChange={(v) => pairMutation.mutate({ applicantId: a.id, membershipId: v === "none" ? null : v })}
+                      <button
+                        onClick={() => { setPickerApplicant({ id: a.id, name: a.name }); setMemberSearch(""); }}
+                        className="h-8 max-w-44 truncate rounded-md border border-input bg-background px-3 text-xs text-left hover:bg-muted/50 transition-colors"
                       >
-                        <SelectTrigger className="h-8 w-44 text-xs">
-                          <SelectValue placeholder="Assign member…" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">— Unassigned —</SelectItem>
-                          {activeMembers
-                            .slice()
-                            .sort((a, b) => (memberEmailCounts[a.id] ?? 0) - (memberEmailCounts[b.id] ?? 0))
-                            .map(m => {
-                              const count = memberEmailCounts[m.id] ?? 0;
-                              return (
-                                <SelectItem key={m.id} value={m.id}>
-                                  {m.user_name}{count > 0 ? ` (${count})` : ""}
-                                </SelectItem>
-                              );
-                            })}
-                        </SelectContent>
-                      </Select>
+                        {a.paired_member_name ?? <span className="text-muted-foreground">Assign member…</span>}
+                      </button>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -454,6 +441,120 @@ export default function CycleDetailPage() {
             >
               {isPending ? "Sending…" : confirmDialog?.action === "send" ? "Send email" : confirmDialog?.action === "reject" ? "Send rejection" : "Reset"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Member picker dialog */}
+      <Dialog open={!!pickerApplicant} onOpenChange={(o) => { if (!o) setPickerApplicant(null); }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col gap-0 p-0">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b">
+            <DialogTitle className="text-base">
+              Assign member{pickerApplicant ? ` — ${pickerApplicant.name}` : ""}
+            </DialogTitle>
+            <div className="relative mt-2">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                autoFocus
+                className="pl-8 h-9"
+                placeholder="Search by name, major…"
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+              />
+            </div>
+          </DialogHeader>
+
+          <div className="overflow-y-auto flex-1 p-4">
+            <div className="grid grid-cols-2 gap-3">
+              {activeMembers
+                .slice()
+                .sort((a, b) => (memberEmailCounts[a.id] ?? 0) - (memberEmailCounts[b.id] ?? 0))
+                .filter((m) => {
+                  const q = memberSearch.toLowerCase();
+                  return !q
+                    || m.user_name.toLowerCase().includes(q)
+                    || (m.major ?? "").toLowerCase().includes(q);
+                })
+                .map((m) => {
+                  const count = memberEmailCounts[m.id] ?? 0;
+                  const isSelected = pickerApplicant
+                    && applicants.find(a => a.id === pickerApplicant.id)?.paired_membership_id === m.id;
+                  const profText = m.professional_is_interests
+                    ? m.professional_experience
+                    : m.professional_experience;
+                  const profLabel = m.professional_is_interests ? "Interests" : "Experience";
+
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        pairMutation.mutate({ applicantId: pickerApplicant!.id, membershipId: m.id });
+                        setPickerApplicant(null);
+                      }}
+                      className={`text-left rounded-lg border p-3 transition-colors hover:border-foreground/40 hover:bg-muted/30 ${
+                        isSelected ? "border-foreground bg-muted/20" : "border-border"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        {m.headshot_url ? (
+                          <img
+                            src={m.headshot_url}
+                            alt=""
+                            className="h-10 w-10 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                            <UserRound className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium truncate">{m.user_name}</p>
+                            <span className={`shrink-0 text-xs font-medium rounded px-1.5 py-0.5 ${
+                              count >= 3 ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"
+                            }`}>
+                              {count} assigned
+                            </span>
+                          </div>
+                          {(m.major || m.grad_year) && (
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                              {[m.major, m.grad_year ? `'${m.grad_year.slice(-2)}` : null].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
+                          {profText && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                              <span className="font-medium text-foreground/60">{profLabel}: </span>
+                              {profText}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+            </div>
+            {memberSearch && activeMembers.filter(m =>
+              m.user_name.toLowerCase().includes(memberSearch.toLowerCase()) ||
+              (m.major ?? "").toLowerCase().includes(memberSearch.toLowerCase())
+            ).length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-8">No members match your search.</p>
+            )}
+          </div>
+
+          <DialogFooter className="px-5 py-3 border-t">
+            {pickerApplicant && applicants.find(a => a.id === pickerApplicant.id)?.paired_membership_id && (
+              <Button
+                variant="outline"
+                className="mr-auto text-destructive hover:text-destructive"
+                onClick={() => {
+                  pairMutation.mutate({ applicantId: pickerApplicant.id, membershipId: null });
+                  setPickerApplicant(null);
+                }}
+              >
+                <X className="h-4 w-4 mr-1" /> Unassign
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setPickerApplicant(null)}>Cancel</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

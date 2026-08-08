@@ -47,6 +47,14 @@ export function Nav() {
               </Link>
             </li>
           ))}
+          <li>
+            <a
+              href={process.env.NEXT_PUBLIC_OPS_URL ?? "https://ops.cornellbusinessanalytics.com"}
+              className="rounded-md bg-cba-green px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-cba-green-dark"
+            >
+              Log In
+            </a>
+          </li>
         </ul>
 
         {/* Mobile hamburger */}
@@ -86,6 +94,15 @@ export function Nav() {
                 </Link>
               </li>
             ))}
+            <li className="mt-2 pt-2 border-t border-gray-100">
+              <a
+                href={process.env.NEXT_PUBLIC_OPS_URL ?? "https://ops.cornellbusinessanalytics.com"}
+                onClick={() => setMenuOpen(false)}
+                className="block rounded-md bg-cba-green px-3 py-2 text-sm font-medium text-white hover:bg-cba-green-dark transition-colors"
+              >
+                Log In
+              </a>
+            </li>
           </ul>
         </div>
       )}

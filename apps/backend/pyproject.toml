@@ -24,6 +24,7 @@ dependencies = [
   "boto3>=1.35.0",
   "python-multipart>=0.0.9",
   "slowapi>=0.1.9",
+  "python-pptx>=1.0.0",
 ]
 
 [project.optional-dependencies]

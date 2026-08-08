@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { Search, Plus, FileSpreadsheet, ChevronRight, Users, Check, ExternalLink } from "lucide-react";
+import { Search, Plus, FileSpreadsheet, ChevronRight, Users, Check, ExternalLink, FileDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -100,6 +100,29 @@ export default function RecruitmentPage() {
       setSheetSaved(true);
     },
   });
+
+  const [delibLoading, setDelibLoading] = useState(false);
+
+  async function downloadDelibDeck() {
+    if (!session?.accessToken || !selectedCycleId) return;
+    setDelibLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? ""}/ops/v1/cycles/${selectedCycleId}/delib-deck`,
+        { headers: { Authorization: `Bearer ${session.accessToken}` } }
+      );
+      if (!res.ok) throw new Error("Failed to generate deck");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `delib_${selectedCycle?.name ?? "deck"}.pptx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDelibLoading(false);
+    }
+  }
 
   const toggleActive = useMutation({
     mutationFn: (cycle: ApplicationCycle) =>
@@ -296,8 +319,18 @@ export default function RecruitmentPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            {canManage && (
-              <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={downloadDelibDeck}
+                disabled={delibLoading || candidates.length === 0}
+                title="Download PowerPoint delib deck for interviewing/offer/accepted candidates"
+              >
+                <FileDown className="h-4 w-4 mr-1" />
+                {delibLoading ? "Generating…" : "Delib Deck"}
+              </Button>
+              {canManage && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -306,8 +339,8 @@ export default function RecruitmentPage() {
                 >
                   {selectedCycle.is_active ? "Close cycle" : "Mark active"}
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Table */}

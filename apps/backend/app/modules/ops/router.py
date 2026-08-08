@@ -17,6 +17,7 @@ from app.modules.ops.cycles import router as cycles_router
 from app.modules.ops.events import router as events_router
 from app.modules.ops.members import router as members_router
 from app.modules.ops.pages import router as pages_router
+from app.modules.ops.delib import router as delib_router
 from app.modules.ops.recruitment import router as recruitment_router
 from app.modules.ops.settings import router as settings_router
 from app.modules.ops.users import router as users_router
@@ -39,6 +40,7 @@ router.include_router(assets_router)
 router.include_router(analytics_router)
 router.include_router(settings_router)
 router.include_router(recruitment_router)
+router.include_router(delib_router)
 
 
 class AuditLogPublic(BaseModel):
