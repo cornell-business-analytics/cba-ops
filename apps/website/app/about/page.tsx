@@ -168,7 +168,7 @@ export default async function AboutPage() {
                     alt={name}
                     width={160}
                     height={64}
-                    className="w-full h-auto object-contain"
+                    className="w-4/5 h-auto object-contain"
                   />
                 </div>
               ))}
