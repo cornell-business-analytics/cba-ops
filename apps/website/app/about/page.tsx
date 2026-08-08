@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Hero } from "@/components/sections/Hero";
 import { BlockRenderer } from "@/components/blocks/BlockRenderer";
 import { getPage } from "@/lib/api";
@@ -158,10 +159,12 @@ export default async function AboutPage() {
             <div className="mt-6 overflow-hidden">
               <div className="flex w-max animate-marquee items-center gap-12">
                 {[...placements, ...placements].map(({ name, logo }, i) => (
-                  <img
+                  <Image
                     key={`${name}-${i}`}
                     src={logo}
                     alt={name}
+                    width={120}
+                    height={48}
                     className="h-12 w-auto object-contain"
                   />
                 ))}

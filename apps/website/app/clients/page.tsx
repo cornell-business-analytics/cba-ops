@@ -202,7 +202,7 @@ export default async function ClientsPage() {
             clients weekly or bi-weekly.
           </p>
 
-          <div className="mt-10 flex items-center justify-between max-w-xl">
+          <div className="mt-10 flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between sm:max-w-xl">
             <div className="space-y-5">
               {[
                 { count: "1", label: "E-Board Advisor" },

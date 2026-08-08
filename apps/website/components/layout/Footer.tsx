@@ -41,7 +41,7 @@ export function Footer() {
               <li>
                 <a
                   href="mailto:cornellbusinessanalytics@gmail.com"
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors break-all"
                 >
                   cornellbusinessanalytics@gmail.com
                 </a>

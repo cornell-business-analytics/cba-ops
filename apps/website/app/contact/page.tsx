@@ -47,7 +47,7 @@ export default async function ContactPage() {
                 <p className="text-sm font-medium text-gray-500">Email</p>
                 <a
                   href="mailto:cornellbusinessanalytics@gmail.com"
-                  className="mt-0.5 block font-medium text-cba-green hover:underline"
+                  className="mt-0.5 block font-medium text-cba-green hover:underline break-all"
                 >
                   cornellbusinessanalytics@gmail.com
                 </a>

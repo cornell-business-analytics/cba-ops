@@ -12,33 +12,20 @@ interface HeroProps {
 
 export function Hero({ heading, subheading, ctaLabel, ctaHref, image, compact }: HeroProps) {
   return (
-    <section className={`relative text-white${compact ? " h-[92vh]" : ""}`} aria-label="Hero">
+    <section className={`relative text-white${compact ? " h-[92vh]" : " min-h-[85vh]"}`} aria-label="Hero">
       {image ? (
         <>
-          {compact ? (
-            <Image
-              src={image}
-              alt=""
-              aria-hidden="true"
-              fill
-              priority
-              className="object-cover object-bottom"
-            />
-          ) : (
-            <Image
-              src={image}
-              alt=""
-              aria-hidden="true"
-              width={0}
-              height={0}
-              sizes="100vw"
-              priority
-              className="block w-full h-auto"
-            />
-          )}
+          <Image
+            src={image}
+            alt=""
+            aria-hidden="true"
+            fill
+            priority
+            className={`object-cover ${compact ? "object-bottom" : "object-center"}`}
+          />
           <div className="absolute inset-0 bg-gradient-to-r from-cba-dark/85 via-cba-dark/60 to-cba-dark/30" />
           <div className="absolute inset-0 flex items-center">
-            <div className="container-section w-full">
+            <div className="container-section w-full py-24 sm:py-0">
               <div className="max-w-2xl xl:max-w-3xl">
                 <h1 className="font-display text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl xl:text-7xl">
                   {heading}

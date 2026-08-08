@@ -9,7 +9,7 @@ import { buildMetadata } from "@/lib/metadata";
 export async function generateMetadata(): Promise<Metadata> {
   const page = await getPage("home");
   return buildMetadata(page, {
-    title: "Cornell Business Analytics",
+    title: "Cornell Business Analytics Club",
     description:
       "Data-driven solutions for data-driven clients. Cornell's premier student analytics consulting organization.",
   });
@@ -65,11 +65,11 @@ export default async function HomePage() {
         },
       ].map(({ title, image, alt }, i) => (
         <section key={title} className="flex flex-col md:flex-row min-h-[50vh]">
-          <div className={`relative w-full md:w-1/2 min-h-[40vw] md:min-h-0 bg-cba-gray ${i % 2 === 1 ? "md:order-2" : ""}`}>
+          <div className={`relative w-full md:w-1/2 aspect-[4/3] md:aspect-auto md:min-h-0 bg-cba-gray ${i % 2 === 1 ? "md:order-2" : ""}`}>
             <Image src={image} alt={alt} fill className="object-cover" />
           </div>
           <div className={`w-full md:w-1/2 flex items-center bg-white ${i % 2 === 1 ? "md:order-1" : ""}`}>
-            <div className="px-8 py-14 md:px-16 lg:px-20">
+            <div className="px-8 py-10 sm:py-14 md:px-16 lg:px-20">
               <p className="text-xs font-semibold uppercase tracking-widest text-cba-green">0{i + 1}</p>
               <h2 className="mt-3 font-display text-3xl font-bold text-cba-dark lg:text-4xl">{title}</h2>
             </div>
