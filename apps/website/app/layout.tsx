@@ -1,22 +1,27 @@
 import type { Metadata } from "next";
-import { Roboto } from "next/font/google";
-import { GeistSans } from "geist/font/sans";
+import { Poppins, Inter } from "next/font/google";
 import { Nav } from "@/components/layout/Nav";
 import { Footer } from "@/components/layout/Footer";
 import { PageTransition } from "@/components/layout/PageTransition";
 import "./globals.css";
 
-const roboto = Roboto({
-  weight: ["400", "500", "700"],
+const poppins = Poppins({
+  weight: ["600", "700", "800"],
   subsets: ["latin"],
-  variable: "--font-roboto",
+  variable: "--font-poppins",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
   display: "swap",
 });
 
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://www.cornellbusinessanalytics.org",
+    process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://cornellbusinessanalytics.org",
   ),
   title: {
     default: "Cornell Business Analytics Club",
@@ -40,7 +45,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${roboto.variable} ${GeistSans.variable}`}>
+    <html lang="en" className={`${poppins.variable} ${inter.variable}`}>
       <body className="flex min-h-screen flex-col">
         <Nav />
         <main className="flex-1">

@@ -18,8 +18,8 @@ const config: Config = {
         "cba-gray": "#F4F7F5",
       },
       fontFamily: {
-        sans: ["var(--font-roboto)", "system-ui", "sans-serif"],
-        display: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        display: ["var(--font-poppins)", "system-ui", "sans-serif"],
       },
       keyframes: {
         "fade-in": {
