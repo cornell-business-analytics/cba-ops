@@ -114,7 +114,7 @@ export default function MemberProfilePage() {
 
   useEffect(() => {
     if (membership) setProfessionalIsInterests(membership.professional_is_interests ?? false);
-  }, [membership?.professional_is_interests]);
+  }, [membership?.professional_is_interests]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: editRequests = [] } = useQuery<ProfileEditRequest[]>({
     queryKey: ["edit-requests"],
