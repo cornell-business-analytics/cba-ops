@@ -12,7 +12,7 @@ interface HeroProps {
 
 export function Hero({ heading, subheading, ctaLabel, ctaHref, image, compact }: HeroProps) {
   return (
-    <section className={`relative text-white${compact ? " h-[92vh]" : " min-h-[85vh]"}`} aria-label="Hero">
+    <section className={`relative text-white${compact ? " h-[92vh]" : image ? " min-h-[85vh]" : ""}`} aria-label="Hero">
       {image ? (
         <>
           <Image
