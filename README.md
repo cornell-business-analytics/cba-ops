@@ -81,21 +81,25 @@ See `agent.py` at the project root.
 
 ---
 
-## Current State (as of July 20, 2026)
+## Current State (as of August 9, 2026)
 
 ### Done
-- Full backend built: FastAPI, async SQLAlchemy, Alembic migrations (8 total), JWT (RS256), Google OAuth, CORS, R2 file storage config, Sentry, OpenTelemetry
-- Ops tool frontend built: auth (NextAuth v5 + Google SSO), full recruitment pipeline UI, member directory, CMS page editor, events CRUD, coffee chat recruitment (Sheets import + Gmail send), shared types package
+- Full backend built: FastAPI, async SQLAlchemy, Alembic migrations, JWT (RS256), Google OAuth, CORS, Sentry, OpenTelemetry
+- Ops tool frontend built: auth (NextAuth v5 + Google SSO), member directory with role-aware edit/approval flow, CMS page editor, events CRUD, analytics dashboards, shared types package
+- File/image uploads live: R2 proxy-upload endpoint (`/ops/v1/assets/upload`) backs member headshots and CMS block images — no more direct-URL-only headshots
+- Coffee-chat recruitment funnel built end-to-end: Google Sheets applicant import (configurable per-cycle column mapping), member pairing, Gmail send, dedicated `recruitment` role with its own sidebar access
+- Deliberation deck generator (`.pptx`, one slide per candidate with headshot + coffee chat + interview scores) shipped
 - Backend deployed to Railway (Postgres + Redis provisioned, migrations running on deploy)
 - Ops tool and public website deployed to Vercel
 - Google SSO working end-to-end — Cornell email enforcement on backend via tokeninfo API
 - Recruitment process steps editable from ops tool (stored in `site_settings`, ISR revalidation on save)
 - Refresh token hashing switched from bcrypt to SHA-256 (bcrypt 72-byte limit incompatible with JWT-length tokens)
-- Public website feature-complete: team directory (`/team`, `/team/[id]`), events, about, recruitment, contact, clients pages — ready for domain swap
+- Public website feature-complete: team directory (`/team`, `/team/[id]`), events, about, recruitment, contact, clients pages — live on the custom domain
 - Individual member profile pages pre-built at deploy time via `generateStaticParams`, headshot fallback to initials
+- Fixed a production crash from next-auth's `useSession()` hook by switching the ops tool to a custom server-fed React context (`session-context.tsx`)
 
 ### Left To Do
 
-- File/image uploads (R2 integration — headshots currently require a direct URL)
-- Full recruitment pipeline integrated with Google Forms/Sheets (applicant aggregation, coffee chat feedback, interview scores in one view)
-- Interview scoring UI (schema is built, frontend not wired up)
+- Interview scoring UI — the formal application pipeline's schema and API (`POST /ops/v1/interview-scores`) are built and the deliberation deck already reads from them, but there's no frontend form to submit scores yet
+- RQ/Redis background jobs are provisioned but unused — coffee-chat pairing emails currently send synchronously inline in the request handler; worth revisiting if email volume grows
+- See `docs/architecture.md` for more detail on both of the above and how the system fits together

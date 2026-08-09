@@ -46,7 +46,7 @@ const placements = [
   { name: "Google", logo: "/logos/google.png" },
   { name: "Apple", logo: "/logos/apple.png" },
   { name: "Netflix", logo: "/logos/netflix.png" },
-  { name: "Palantir", logo: "/logos/palantir.png" },
+  { name: "Datadog", logo: "/logos/datadog.png" },
   { name: "Deloitte", logo: "/logos/deloitte.png" },
   { name: "Accenture", logo: "/logos/accenture.png" },
   { name: "EY Parthenon", logo: "/logos/ey-parthenon.png" },
