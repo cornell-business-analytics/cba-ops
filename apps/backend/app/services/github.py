@@ -1,6 +1,7 @@
 """Thin GitHub REST API client used by the design-request feature to dispatch
 the agent workflow and, later, merge/close the PR it opens.
 """
+import os
 import httpx
 
 from app.core.config import settings
@@ -20,17 +21,52 @@ def _repo_path(suffix: str) -> str:
     return f"{GITHUB_API}/repos/{settings.GITHUB_REPO_OWNER}/{settings.GITHUB_REPO_NAME}{suffix}"
 
 
-async def trigger_workflow_dispatch(request_id: str, description: str) -> None:
+async def trigger_workflow_dispatch(
+    request_id: str,
+    description: str,
+    attachment_url: str | None = None,
+    target_path: str | None = None,
+) -> None:
+    inputs: dict = {"request_id": request_id, "description": description}
+    if attachment_url:
+        inputs["attachment_url"] = attachment_url
+    if target_path:
+        inputs["target_path"] = target_path
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(
             _repo_path(f"/actions/workflows/{settings.GITHUB_WORKFLOW_FILE}/dispatches"),
             headers=_headers(),
-            json={
-                "ref": "main",
-                "inputs": {"request_id": request_id, "description": description},
-            },
+            json={"ref": "main", "inputs": inputs},
         )
         resp.raise_for_status()
+
+
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg"}
+_WEBSITE_PUBLIC_PREFIX = "apps/website/public/"
+
+
+async def list_website_images() -> list[str]:
+    """Returns paths relative to apps/website/public/ for all image files in the repo."""
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(
+            _repo_path("/git/trees/main"),
+            headers=_headers(),
+            params={"recursive": "1"},
+        )
+        resp.raise_for_status()
+        tree = resp.json().get("tree", [])
+
+    results = []
+    for item in tree:
+        if item.get("type") != "blob":
+            continue
+        path: str = item.get("path", "")
+        if not path.startswith(_WEBSITE_PUBLIC_PREFIX):
+            continue
+        ext = os.path.splitext(path)[1].lower()
+        if ext in _IMAGE_EXTS:
+            results.append(path[len(_WEBSITE_PUBLIC_PREFIX):])
+    return sorted(results)
 
 
 async def get_pr(pr_number: int) -> dict:

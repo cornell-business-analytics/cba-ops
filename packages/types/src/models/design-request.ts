@@ -14,6 +14,8 @@ export interface DesignRequest {
   id: string;
   requested_by_id: string | null;
   description: string;
+  attachment_url: string | null;
+  target_path: string | null;
   status: DesignRequestStatus;
 
   reviewed_by_id: string | null;

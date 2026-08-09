@@ -65,7 +65,11 @@ async def _dispatch(db: AsyncSession, req: DesignRequest) -> None:
     """
     req.branch_name = f"design-request/{req.id}"
     try:
-        await github.trigger_workflow_dispatch(str(req.id), req.description)
+        await github.trigger_workflow_dispatch(
+            str(req.id), req.description,
+            attachment_url=req.attachment_url,
+            target_path=req.target_path,
+        )
     except httpx.HTTPError as exc:
         req.status = DesignRequestStatus.dispatch_failed.value
         req.agent_error = str(exc)
@@ -82,13 +86,26 @@ async def submit_design_request(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    req = DesignRequest(requested_by_id=current_user.id, description=body.description)
+    req = DesignRequest(
+        requested_by_id=current_user.id,
+        description=body.description,
+        attachment_url=body.attachment_url,
+        target_path=body.target_path,
+    )
     db.add(req)
     await db.flush()
     await _log(db, current_user.id, "design_request.submitted", req.id)
     await db.commit()
     await db.refresh(req)
     return req
+
+
+@router.get("/website-images", response_model=list[str])
+async def list_website_images(
+    current_user: User = Depends(get_current_user),
+):
+    """Returns paths (relative to apps/website/public/) of images in the repo."""
+    return await github.list_website_images()
 
 
 @router.get("", response_model=list[DesignRequestPublic])

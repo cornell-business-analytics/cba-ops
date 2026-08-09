@@ -15,11 +15,12 @@ async function request<T>(
   path: string,
   accessToken: string | undefined,
   options?: RequestInit,
+  isForm = false,
 ): Promise<T> {
   const res = await fetch(`${BACKEND}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(isForm ? {} : { "Content-Type": "application/json" }),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options?.headers,
     },
@@ -46,5 +47,7 @@ export function createApi(accessToken: string | undefined) {
     patch: <T>(path: string, body: unknown) =>
       request<T>(path, accessToken, { method: "PATCH", body: JSON.stringify(body) }),
     delete: <T>(path: string) => request<T>(path, accessToken, { method: "DELETE" }),
+    postForm: <T>(path: string, body: FormData) =>
+      request<T>(path, accessToken, { method: "POST", body }, true),
   };
 }

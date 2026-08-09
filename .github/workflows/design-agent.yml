@@ -22,6 +22,16 @@ on:
         description: "Free-text description of the requested change"
         required: true
         type: string
+      attachment_url:
+        description: "R2 URL of a replacement image (empty string if none)"
+        required: false
+        default: ""
+        type: string
+      target_path:
+        description: "Path within apps/website/public/ to write the image (e.g. logos/bain.jpg)"
+        required: false
+        default: ""
+        type: string
 
 concurrency:
   group: design-agent-${{ github.event.inputs.request_id }}
@@ -57,6 +67,19 @@ jobs:
 
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code
+
+      - name: Download and place image attachment
+        if: ${{ github.event.inputs.attachment_url != '' && github.event.inputs.target_path != '' }}
+        run: |
+          TARGET="${{ github.event.inputs.target_path }}"
+          if [[ "$TARGET" == *..* || "$TARGET" == /* ]]; then
+            echo "Rejected: target_path contains '..' or starts with '/': $TARGET"
+            exit 1
+          fi
+          DEST="apps/website/public/$TARGET"
+          mkdir -p "$(dirname "$DEST")"
+          curl -fsSL "${{ github.event.inputs.attachment_url }}" -o "$DEST"
+          echo "Image written to $DEST"
 
       - name: Apply agent permission guardrail
         run: |
