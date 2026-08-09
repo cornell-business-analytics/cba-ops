@@ -6,6 +6,7 @@ from app.models.candidate import (
     CoffeeChat, InterviewCategory, InterviewFormat,
     InterviewRound, InterviewScore, InterviewSession, ScoreFormat,
 )
+from app.models.design_request import DesignRequest, DesignRequestStatus
 from app.models.membership import Cohort, Membership, ProfileEditRequest
 from app.models.recruitment import CoffeeChatApplicant, GmailToken, RecruitmentCycle
 from app.models.org import Event, EventType
@@ -16,6 +17,7 @@ __all__ = [
     "User", "UserRole", "UserSession",
     "Asset", "AuditLog", "SiteSetting",
     "Cohort", "Membership", "ProfileEditRequest",
+    "DesignRequest", "DesignRequestStatus",
     "ApplicationCycle", "Candidate", "CandidateStatus",
     "CoffeeChat",
     "InterviewRound", "InterviewCategory", "InterviewSession",

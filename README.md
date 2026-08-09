@@ -65,7 +65,9 @@ You'll need a `.env.local` in each Next.js app and a `.env` in `apps/backend`. S
 
 ## Docs
 
+- [`docs/architecture.md`](docs/architecture.md) — how the system fits together
 - [`docs/swe-concepts.md`](docs/swe-concepts.md) — engineering concepts used throughout the codebase (auth, migrations, async, RBAC, etc.)
+- [`docs/handover.md`](docs/handover.md) — credential ownership and rotation steps for whoever takes this over next
 
 ## Dev Agent
 

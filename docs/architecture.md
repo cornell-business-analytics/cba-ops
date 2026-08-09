@@ -78,6 +78,40 @@ Website pages are rows in `pages` (`slug`, `status: draft|review|published`, `bl
 
 Publishing a page from the ops tool triggers on-demand ISR: the backend POSTs to `apps/website`'s `/api/revalidate` with a shared `REVALIDATE_SECRET`, tagged to that page's cache tag (`page-{slug}`), so only that page re-renders. `apps/website/lib/api.ts` is the sole point of contact with the backend from the website, and every fetch function there falls back to hardcoded data in `lib/placeholder-data.ts` if the backend call fails — the public site must never hard-fail just because the backend is briefly down.
 
+## AI design-agent (member-requested website changes)
+
+Members can request a website design change from the ops tool; a director approves it;
+an AI coding agent (Claude Code) makes the change and opens a PR; a *different* director
+confirms after reviewing the Vercel preview, which merges the PR and ships it.
+
+- **Model**: `DesignRequest` (`app/models/design_request.py`), status machine `pending →
+  approved → agent_running → pr_open → merged` with `rejected`/`dispatch_failed`/
+  `agent_failed`/`merge_failed`/`discarded` off-ramps. Endpoints in
+  `app/modules/ops/design_requests.py`.
+- **Where the agent actually runs**: not on Railway. Approving a request calls
+  `app/services/github.py::trigger_workflow_dispatch`, which fires
+  `.github/workflows/design-agent.yml` on GitHub's own runners — deliberately kept off
+  the live API container. The agent authenticates with a personal Claude Pro/Max
+  subscription (`CLAUDE_CODE_OAUTH_TOKEN`, from `claude setup-token`), not a metered
+  `ANTHROPIC_API_KEY` — see `docs/handover.md` for what that means for continuity.
+- **Scope guardrail**: the agent may only touch `apps/website/`. Enforced two ways — a
+  checked-in `.claude/settings.json` (copied at runtime from
+  `.github/design-agent/claude-settings.json`) restricting its tools, and, authoritatively,
+  a `git diff --name-only` check in the workflow that fails the job if anything outside
+  `apps/website/` changed, before any push happens.
+- **Preview**: no custom render pipeline — the agent's PR gets Vercel's existing
+  automatic PR-preview deployment for free, same as any other PR. The backend polls
+  GitHub's Deployments API (`GET /ops/v1/design-requests/{id}/status`) to surface the
+  preview URL and CI status in the ops tool.
+- **Push identity matters**: the workflow explicitly does *not* use the default
+  `secrets.GITHUB_TOKEN` for its push/PR — GitHub doesn't fire downstream
+  `pull_request`-triggered workflows (including `ci.yml`) for pushes made with that
+  token. It uses a separate `cba-ops-bot` PAT (`GITHUB_PAT_AGENT`) instead, so the
+  agent's PR gets the same lint/typecheck/test gate as any human's PR.
+- **Confirm requires a different person than the requester** — enforced server-side in
+  `confirm_design_request`, not just in the UI — so a director can't submit, approve,
+  and merge their own request unreviewed.
+
 ## Recruitment: two separate subsystems
 
 These look like one feature but are backed by different models and different backend modules — worth keeping straight:

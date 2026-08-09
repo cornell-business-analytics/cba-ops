@@ -53,5 +53,12 @@ class Settings(BaseSettings):
     R2_BUCKET_NAME: str = "cba-assets"
     R2_PUBLIC_URL: str = "http://localhost:9000/cba-assets"  # CDN or public bucket URL
 
+    # GitHub (design-request AI agent — see docs/handover.md for credential ownership)
+    GITHUB_TOKEN: str = ""
+    GITHUB_REPO_OWNER: str = "cornell-business-analytics"
+    GITHUB_REPO_NAME: str = "cba-ops"
+    GITHUB_WORKFLOW_FILE: str = "design-agent.yml"
+    DESIGN_AGENT_WEBHOOK_SECRET: str = ""
+
 
 settings = Settings()

@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Coffee,
   ClipboardList,
+  Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ const baseNav = [
 
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/design-requests", label: "Design Requests", icon: Wand2 },
 ];
 
 const recruitmentNav = [

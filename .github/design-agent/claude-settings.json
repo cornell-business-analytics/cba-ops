@@ -1,0 +1,26 @@
+{
+  "_comment": "Copied to .claude/settings.json inside the ephemeral design-agent runner (see .github/workflows/design-agent.yml) before Claude Code runs. This is a defense-in-depth layer, NOT the authoritative guardrail — the workflow's post-hoc `git diff --name-only` check is what actually blocks a push if anything outside apps/website/ changed. Verify these permission-rule names/syntax against the current Claude Code CLI docs before relying on this file alone; the permission system evolves.",
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Edit(apps/website/**)",
+      "Write(apps/website/**)"
+    ],
+    "deny": [
+      "Edit(apps/backend/**)",
+      "Edit(apps/frontend/**)",
+      "Edit(packages/**)",
+      "Edit(.github/**)",
+      "Edit(infra/**)",
+      "Edit(*.md)",
+      "Write(apps/backend/**)",
+      "Write(apps/frontend/**)",
+      "Write(packages/**)",
+      "Write(.github/**)",
+      "Write(infra/**)",
+      "Bash",
+      "WebFetch",
+      "WebSearch"
+    ]
+  }
+}

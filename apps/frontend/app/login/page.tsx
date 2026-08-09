@@ -14,7 +14,7 @@ export default async function LoginPage({
       {/* Left panel — brand */}
       <div className="hidden lg:flex lg:w-[45%] flex-col justify-between bg-[#0f2d1a] px-12 py-12 text-white">
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="CBA logo" width={32} height={32} className="shrink-0" />
+          <Image src="/logo.png" alt="CBA logo" width={32} height={32} className="shrink-0" priority />
           <span className="text-sm font-semibold tracking-wide">Cornell Business Analytics</span>
         </div>
 
@@ -28,7 +28,7 @@ export default async function LoginPage({
         <div className="w-full max-w-sm space-y-8">
           {/* Mobile-only logo */}
           <div className="flex items-center justify-center gap-2 lg:hidden">
-            <Image src="/logo.png" alt="CBA logo" width={28} height={28} />
+            <Image src="/logo.png" alt="CBA logo" width={28} height={28} priority />
             <span className="text-sm font-semibold">Cornell Business Analytics</span>
           </div>
 

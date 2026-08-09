@@ -32,6 +32,7 @@ export type {
   CohortGrowthPoint,
   MembersAnalytics,
 } from "./models/analytics";
+export type { DesignRequestStatus, DesignRequest, DesignRequestStatusCheck } from "./models/design-request";
 
 export interface RecruitmentStep {
   title: string;

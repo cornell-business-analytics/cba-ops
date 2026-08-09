@@ -1,0 +1,153 @@
+name: Design Agent
+
+# Triggered by the ops-tool backend (POST /repos/.../actions/workflows/design-agent.yml/dispatches)
+# after a director approves a member's website design-change request. Makes the
+# change on a branch scoped to apps/website/ only, opens a PR, and reports back
+# to the backend's webhook.
+#
+# NOTE: anyone with write access to this repo can also trigger this manually
+# from the GitHub UI/API, bypassing the ops-tool's approval gate — that's
+# inherent to workflow_dispatch and isn't something this file can close. Keep
+# repo write access limited to the same people who'd have director+ access in
+# the ops tool. See docs/handover.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: "DesignRequest UUID from the ops tool"
+        required: true
+        type: string
+      description:
+        description: "Free-text description of the requested change"
+        required: true
+        type: string
+
+concurrency:
+  group: design-agent-${{ github.event.inputs.request_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  agent:
+    name: Run design agent
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # We push via GITHUB_PAT_AGENT (a cba-ops-bot token) further down,
+          # not the default GITHUB_TOKEN — GitHub does not fire downstream
+          # pull_request-triggered workflows (including ci.yml) for pushes
+          # made with the default token, which would silently defeat the
+          # "every PR gets lint/typecheck/test for free" assumption this
+          # feature relies on.
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "cba-ops-bot"
+          git config user.email "cba-ops-bot@users.noreply.github.com"
+
+      - name: Create branch
+        run: git checkout -b "design-request/${{ github.event.inputs.request_id }}"
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Apply agent permission guardrail
+        run: |
+          mkdir -p .claude
+          cp .github/design-agent/claude-settings.json .claude/settings.json
+
+      - name: Run agent
+        id: run_agent
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          PROMPT="You are making a single, focused website design change to a Next.js app.
+
+          Only edit files under apps/website/. Never touch apps/backend, apps/frontend,
+          packages/, .github/, infra/, or any root config file, even if it seems related
+          to the request — if the request truly requires that, do not attempt it; stop
+          and leave the working tree unmodified instead.
+
+          Match the existing design language: see apps/website/design/BRAND.md and
+          apps/website/design/TOKENS.md for tokens, and follow the conventions of
+          whatever component you're editing.
+
+          Requested change:
+          ${{ github.event.inputs.description }}"
+
+          claude -p "$PROMPT" --output-format json --permission-mode acceptEdits \
+            | tee agent-output.json
+
+      - name: Enforce path guardrail
+        run: |
+          OUT_OF_SCOPE=$(git diff --name-only main...HEAD | grep -v '^apps/website/' || true)
+          if [ -n "$OUT_OF_SCOPE" ]; then
+            echo "Agent touched files outside apps/website/, refusing to push:"
+            echo "$OUT_OF_SCOPE"
+            exit 1
+          fi
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if git diff --quiet main...HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.check_changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_PAT_AGENT }}
+        run: |
+          git add apps/website
+          git commit -m "Design request ${{ github.event.inputs.request_id }}"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git push origin "design-request/${{ github.event.inputs.request_id }}"
+
+      - name: Open PR
+        if: steps.check_changes.outputs.changed == 'true'
+        id: open_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_PAT_AGENT }}
+        run: |
+          PR_URL=$(gh pr create \
+            --title "Design request: ${{ github.event.inputs.description }}" \
+            --body "Automated change from ops-tool design request \`${{ github.event.inputs.request_id }}\`." \
+            --head "design-request/${{ github.event.inputs.request_id }}" \
+            --base main)
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$(gh pr view "$PR_URL" --json number -q .number)" >> "$GITHUB_OUTPUT"
+
+      - name: Report success to backend
+        if: success() && steps.check_changes.outputs.changed == 'true'
+        run: |
+          curl -sf -X POST "${{ vars.BACKEND_API_URL }}/ops/v1/design-requests/webhook/agent-callback" \
+            -H "Content-Type: application/json" \
+            -H "X-Design-Agent-Secret: ${{ secrets.DESIGN_AGENT_WEBHOOK_SECRET }}" \
+            -d "{\"request_id\": \"${{ github.event.inputs.request_id }}\", \"outcome\": \"success\", \"branch_name\": \"design-request/${{ github.event.inputs.request_id }}\", \"pr_number\": ${{ steps.open_pr.outputs.pr_number }}, \"pr_url\": \"${{ steps.open_pr.outputs.pr_url }}\", \"workflow_run_id\": \"${{ github.run_id }}\"}"
+
+      - name: Report no-op to backend
+        if: success() && steps.check_changes.outputs.changed == 'false'
+        run: |
+          curl -sf -X POST "${{ vars.BACKEND_API_URL }}/ops/v1/design-requests/webhook/agent-callback" \
+            -H "Content-Type: application/json" \
+            -H "X-Design-Agent-Secret: ${{ secrets.DESIGN_AGENT_WEBHOOK_SECRET }}" \
+            -d "{\"request_id\": \"${{ github.event.inputs.request_id }}\", \"outcome\": \"failure\", \"error_message\": \"Agent made no changes to apps/website — the request may be unclear or not actionable as a design change.\"}"
+
+      - name: Report failure to backend
+        if: failure()
+        run: |
+          curl -sf -X POST "${{ vars.BACKEND_API_URL }}/ops/v1/design-requests/webhook/agent-callback" \
+            -H "Content-Type: application/json" \
+            -H "X-Design-Agent-Secret: ${{ secrets.DESIGN_AGENT_WEBHOOK_SECRET }}" \
+            -d "{\"request_id\": \"${{ github.event.inputs.request_id }}\", \"outcome\": \"failure\", \"error_message\": \"Agent workflow run ${{ github.run_id }} failed — see Actions logs.\"}" \
+            || true
