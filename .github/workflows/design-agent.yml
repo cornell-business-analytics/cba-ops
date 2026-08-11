@@ -175,10 +175,17 @@ jobs:
       - name: Report no-op to backend
         if: success() && steps.check_changes.outputs.changed == 'false'
         run: |
+          AGENT_NOTE=$(jq -r '.result // ""' agent-output.json 2>/dev/null | head -c 800 || echo "")
+          MSG="Agent made no changes."
+          if [ -n "$AGENT_NOTE" ]; then
+            MSG="Agent made no changes. Agent explanation: $AGENT_NOTE"
+          fi
+          PAYLOAD=$(jq -nc --arg rid "${{ github.event.inputs.request_id }}" --arg msg "$MSG" \
+            '{request_id: $rid, outcome: "failure", error_message: $msg}')
           curl -sf -X POST "${{ vars.BACKEND_API_URL }}/ops/v1/design-requests/webhook/agent-callback" \
             -H "Content-Type: application/json" \
             -H "X-Design-Agent-Secret: ${{ secrets.DESIGN_AGENT_WEBHOOK_SECRET }}" \
-            -d "{\"request_id\": \"${{ github.event.inputs.request_id }}\", \"outcome\": \"failure\", \"error_message\": \"Agent made no changes to apps/website — the request may be unclear or not actionable as a design change.\"}"
+            -d "$PAYLOAD"
 
       - name: Report failure to backend
         if: failure()
