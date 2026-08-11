@@ -119,11 +119,7 @@ jobs:
         run: |
           PROMPT="$(cat .github/design-agent/base-prompt.txt)$DESCRIPTION"
           if [ "$IS_REVISION" = "true" ] && [ -n "$REVISION_NOTE" ]; then
-            PROMPT="$PROMPT
-
-Revision requested by reviewer: $REVISION_NOTE
-
-The branch already contains your previous changes. Read the current state of the changed files first, then apply only what the revision asks for."
+            PROMPT=$(printf '%s\n\nRevision requested by reviewer: %s\n\nThe branch already contains your previous changes. Read the current state of the changed files first, then apply only what the revision asks for.' "$PROMPT" "$REVISION_NOTE")
           fi
           claude -p "$PROMPT" --output-format json --permission-mode acceptEdits \
             --model claude-sonnet-4-5 \
