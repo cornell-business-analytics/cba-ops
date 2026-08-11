@@ -85,6 +85,8 @@ jobs:
         run: |
           mkdir -p .claude
           cp .github/design-agent/claude-settings.json .claude/settings.json
+          echo '{"projects":{"/home/runner/work/cba-ops/cba-ops":{"hasTrustDialogAccepted":true}}}' \
+            > /home/runner/.claude.json
 
       - name: Run agent
         id: run_agent
@@ -94,6 +96,7 @@ jobs:
         run: |
           PROMPT="$(cat .github/design-agent/base-prompt.txt)$DESCRIPTION"
           claude -p "$PROMPT" --output-format json --permission-mode acceptEdits \
+            --model claude-sonnet-4-5 \
             | tee agent-output.json
 
       - name: Enforce path guardrail
