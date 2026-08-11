@@ -240,7 +240,8 @@ async def confirm_design_request(
     req = await _get_request_or_404(db, request_id)
     if req.status not in (DesignRequestStatus.pr_open.value, DesignRequestStatus.merge_failed.value):
         raise HTTPException(status_code=400, detail=f"Cannot confirm from status '{req.status}'")
-    if req.requested_by_id is not None and req.requested_by_id == current_user.id:
+    is_eboard = current_user.role == UserRole.eboard
+    if not is_eboard and req.requested_by_id is not None and req.requested_by_id == current_user.id:
         raise HTTPException(
             status_code=403,
             detail="You submitted this request — someone else needs to confirm and merge it.",
