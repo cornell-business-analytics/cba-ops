@@ -92,6 +92,23 @@ export function ReviewPanel({
     );
   }
 
+  if (request.status === "agent_running") {
+    return (
+      <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/10">
+        <p className="text-xs text-muted-foreground">Agent is running — check GitHub Actions for progress.</p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-destructive hover:text-destructive border-destructive/30"
+          disabled={discard.isPending}
+          onClick={() => discard.mutate()}
+        >
+          Discard
+        </Button>
+      </div>
+    );
+  }
+
   if (request.status === "dispatch_failed" || request.status === "agent_failed") {
     return (
       <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/10">

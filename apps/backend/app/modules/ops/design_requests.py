@@ -28,6 +28,7 @@ router = APIRouter(prefix="/design-requests", tags=["design-requests"])
 RETRYABLE_STATUSES = {DesignRequestStatus.dispatch_failed.value, DesignRequestStatus.agent_failed.value}
 DISCARDABLE_STATUSES = {
     DesignRequestStatus.pr_open.value,
+    DesignRequestStatus.agent_running.value,
     DesignRequestStatus.agent_failed.value,
     DesignRequestStatus.merge_failed.value,
 }
