@@ -27,6 +27,10 @@ export default function DesignRequestsPage() {
     queryKey: ["design-requests"],
     queryFn: () => api().get("/ops/v1/design-requests"),
     enabled: !!session?.accessToken,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      return data?.some((r) => r.status === "agent_running" || r.status === "approved") ? 5000 : false;
+    },
   });
 
   return (
