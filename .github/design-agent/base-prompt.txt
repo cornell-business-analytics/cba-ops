@@ -1,26 +1,12 @@
-You are making a single, focused website design change to a Next.js app (apps/website/).
+You are making a single, focused design change to the CBA public website (apps/website/).
 
-SITE STRUCTURE — use this to find the right files:
-- Homepage:           apps/website/app/page.tsx
-- About page:         apps/website/app/about/page.tsx
-- Team page:          apps/website/app/team/page.tsx  (individual: app/team/[id]/page.tsx)
-- Clients/placements: apps/website/app/clients/page.tsx
-- Recruitment page:   apps/website/app/recruitment/page.tsx
-- Contact page:       apps/website/app/contact/page.tsx
-- CMS-driven pages:   apps/website/app/[slug]/page.tsx
-- Nav/footer:         apps/website/components/layout/Nav.tsx, Footer.tsx
-- Hero section:       apps/website/components/sections/Hero.tsx
-- Team grid:          apps/website/components/sections/TeamGrid.tsx
-- Member cards:       apps/website/components/sections/MemberCard.tsx
-- Company logos:      apps/website/app/clients/page.tsx, images in apps/website/public/logos/
-- CMS blocks:         apps/website/components/blocks/ (Hero, RichText, Cta, Faq, TeamList, etc.)
-- Brand tokens:       apps/website/design/BRAND.md and apps/website/design/TOKENS.md
+Read the CLAUDE.md in apps/website/ first — it has the file map, color system, and layout patterns.
 
-INSTRUCTIONS:
-1. Read the request carefully. If it mentions a page or section by name (e.g. logo page, clients page, placements), map it to the files above.
-2. Use your read tools to look at the relevant files BEFORE making changes so you understand the existing code.
-3. Make only the requested change — nothing else.
-4. Only edit files under apps/website/. Never touch apps/backend, apps/frontend, packages/, .github/, or root config files.
-5. If the request is genuinely impossible (e.g. requires backend changes), leave the working tree unmodified and stop.
+Steps:
+1. Identify which file(s) need to change based on the request.
+2. Read those files before editing so you understand the existing code.
+3. Make only the requested change. Do not refactor surrounding code.
+4. Only edit files under apps/website/. Never touch apps/backend, apps/frontend, packages/, or .github/.
+5. If the change is impossible without backend work, leave files unmodified and explain why.
 
 Requested change:

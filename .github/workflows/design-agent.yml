@@ -48,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # We push via GITHUB_PAT_AGENT (a cba-ops-bot token) further down,
+          # We push via GH_PAT_AGENT (a cba-ops-bot token) further down,
           # not the default GITHUB_TOKEN — GitHub does not fire downstream
           # pull_request-triggered workflows (including ci.yml) for pushes
           # made with the default token, which would silently defeat the
@@ -56,6 +56,10 @@ jobs:
           # feature relies on.
           persist-credentials: false
           fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
       - name: Configure git identity
         run: |
@@ -101,7 +105,7 @@ jobs:
 
       - name: Enforce path guardrail
         run: |
-          OUT_OF_SCOPE=$(git diff --name-only main...HEAD | grep -v '^apps/website/' || true)
+          OUT_OF_SCOPE=$(git diff --name-only HEAD | grep -v '^apps/website/' || true)
           if [ -n "$OUT_OF_SCOPE" ]; then
             echo "Agent touched files outside apps/website/, refusing to push:"
             echo "$OUT_OF_SCOPE"
@@ -111,7 +115,7 @@ jobs:
       - name: Check for changes
         id: check_changes
         run: |
-          if git diff --quiet main...HEAD; then
+          if git diff --quiet HEAD -- apps/website; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
