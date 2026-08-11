@@ -32,6 +32,16 @@ on:
         required: false
         default: ""
         type: string
+      is_revision:
+        description: "Re-run the agent on the existing branch with revision feedback"
+        required: false
+        default: "false"
+        type: string
+      revision_note:
+        description: "Revision feedback from the reviewer"
+        required: false
+        default: ""
+        type: string
 
 concurrency:
   group: design-agent-${{ github.event.inputs.request_id }}
@@ -66,8 +76,15 @@ jobs:
           git config user.name "cba-ops-bot"
           git config user.email "cba-ops-bot@users.noreply.github.com"
 
-      - name: Create branch
-        run: git checkout -b "design-request/${{ github.event.inputs.request_id }}"
+      - name: Prepare branch
+        run: |
+          BRANCH="design-request/${{ github.event.inputs.request_id }}"
+          if [ "${{ github.event.inputs.is_revision }}" = "true" ]; then
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+          else
+            git checkout -b "$BRANCH"
+          fi
 
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code
@@ -97,8 +114,17 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           DESCRIPTION: ${{ github.event.inputs.description }}
+          IS_REVISION: ${{ github.event.inputs.is_revision }}
+          REVISION_NOTE: ${{ github.event.inputs.revision_note }}
         run: |
           PROMPT="$(cat .github/design-agent/base-prompt.txt)$DESCRIPTION"
+          if [ "$IS_REVISION" = "true" ] && [ -n "$REVISION_NOTE" ]; then
+            PROMPT="$PROMPT
+
+Revision requested by reviewer: $REVISION_NOTE
+
+The branch already contains your previous changes. Read the current state of the changed files first, then apply only what the revision asks for."
+          fi
           claude -p "$PROMPT" --output-format json --permission-mode acceptEdits \
             --model claude-sonnet-4-5 \
             | tee agent-output.json
@@ -131,19 +157,26 @@ jobs:
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           git push origin "design-request/${{ github.event.inputs.request_id }}"
 
-      - name: Open PR
+      - name: Open or update PR
         if: steps.check_changes.outputs.changed == 'true'
-        id: open_pr
+        id: pr_info
         env:
           GH_TOKEN: ${{ secrets.GH_PAT_AGENT }}
         run: |
-          PR_URL=$(gh pr create \
-            --title "Design request: ${{ github.event.inputs.description }}" \
-            --body "Automated change from ops-tool design request \`${{ github.event.inputs.request_id }}\`." \
-            --head "design-request/${{ github.event.inputs.request_id }}" \
-            --base main)
+          BRANCH="design-request/${{ github.event.inputs.request_id }}"
+          if [ "${{ github.event.inputs.is_revision }}" = "true" ]; then
+            PR_URL=$(gh pr view "$BRANCH" --json url -q .url)
+            PR_NUMBER=$(gh pr view "$BRANCH" --json number -q .number)
+          else
+            PR_URL=$(gh pr create \
+              --title "Design request: ${{ github.event.inputs.description }}" \
+              --body "Automated change from ops-tool design request \`${{ github.event.inputs.request_id }}\`." \
+              --head "$BRANCH" \
+              --base main)
+            PR_NUMBER=$(gh pr view "$PR_URL" --json number -q .number)
+          fi
           echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
-          echo "pr_number=$(gh pr view "$PR_URL" --json number -q .number)" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
       - name: Report success to backend
         if: success() && steps.check_changes.outputs.changed == 'true'
@@ -151,7 +184,7 @@ jobs:
           curl -sf -X POST "${{ vars.BACKEND_API_URL }}/ops/v1/design-requests/webhook/agent-callback" \
             -H "Content-Type: application/json" \
             -H "X-Design-Agent-Secret: ${{ secrets.DESIGN_AGENT_WEBHOOK_SECRET }}" \
-            -d "{\"request_id\": \"${{ github.event.inputs.request_id }}\", \"outcome\": \"success\", \"branch_name\": \"design-request/${{ github.event.inputs.request_id }}\", \"pr_number\": ${{ steps.open_pr.outputs.pr_number }}, \"pr_url\": \"${{ steps.open_pr.outputs.pr_url }}\", \"workflow_run_id\": \"${{ github.run_id }}\"}"
+            -d "{\"request_id\": \"${{ github.event.inputs.request_id }}\", \"outcome\": \"success\", \"branch_name\": \"design-request/${{ github.event.inputs.request_id }}\", \"pr_number\": ${{ steps.pr_info.outputs.pr_number }}, \"pr_url\": \"${{ steps.pr_info.outputs.pr_url }}\", \"workflow_run_id\": \"${{ github.run_id }}\"}"
 
       - name: Report no-op to backend
         if: success() && steps.check_changes.outputs.changed == 'false'

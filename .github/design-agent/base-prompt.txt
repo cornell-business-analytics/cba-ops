@@ -9,4 +9,9 @@ Steps:
 4. Only edit files under apps/website/. Never touch apps/backend, apps/frontend, packages/, or .github/.
 5. If the change is impossible without backend work, leave files unmodified and explain why.
 
+Image notes:
+- If the description says an image was attached or uploaded, it has already been placed at the correct path inside apps/website/public/ before you ran. You do not need to move or download it — just reference it from JSX using that path (e.g. /logos/bain.png).
+- For an image swap at the same path, no JSX changes are needed — the file was overwritten in place.
+- For a new image at a new path, write the JSX to display it at the specified location.
+
 Requested change:

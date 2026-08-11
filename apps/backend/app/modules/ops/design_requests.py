@@ -18,6 +18,7 @@ from app.schemas.design_request import (
     AgentCallback,
     DesignRequestCreate,
     DesignRequestPublic,
+    DesignRequestRevise,
     DesignRequestReview,
     DesignRequestStatusCheck,
 )
@@ -26,6 +27,7 @@ from app.services import github
 router = APIRouter(prefix="/design-requests", tags=["design-requests"])
 
 RETRYABLE_STATUSES = {DesignRequestStatus.dispatch_failed.value, DesignRequestStatus.agent_failed.value}
+REVISABLE_STATUSES = {DesignRequestStatus.pr_open.value, DesignRequestStatus.agent_failed.value}
 DISCARDABLE_STATUSES = {
     DesignRequestStatus.pr_open.value,
     DesignRequestStatus.agent_running.value,
@@ -58,18 +60,21 @@ async def _get_request_or_404(db: AsyncSession, request_id: uuid.UUID) -> Design
     return req
 
 
-async def _dispatch(db: AsyncSession, req: DesignRequest) -> None:
+async def _dispatch(db: AsyncSession, req: DesignRequest, revision_note: str | None = None) -> None:
     """Trigger the agent workflow. Unlike the ISR-revalidate pattern elsewhere
     in this codebase, a failure here is NOT swallowed — the whole point of
     approving is to kick off the agent, so the requester needs to see it
     didn't happen and be able to retry.
     """
     req.branch_name = f"design-request/{req.id}"
+    is_revision = revision_note is not None
     try:
         await github.trigger_workflow_dispatch(
             str(req.id), req.description,
             attachment_url=req.attachment_url,
             target_path=req.target_path,
+            is_revision=is_revision,
+            revision_note=revision_note,
         )
     except httpx.HTTPError as exc:
         req.status = DesignRequestStatus.dispatch_failed.value
@@ -280,6 +285,26 @@ async def confirm_design_request(
     return req
 
 
+@router.post("/{request_id}/revise", response_model=DesignRequestPublic)
+async def revise_design_request(
+    request_id: uuid.UUID,
+    body: DesignRequestRevise,
+    current_user: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    req = await _get_request_or_404(db, request_id)
+    if req.status not in REVISABLE_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Cannot request revision from status '{req.status}'")
+
+    req.agent_error = None
+    req.agent_completed_at = None
+    await _dispatch(db, req, revision_note=body.revision_note)
+    await _log(db, current_user.id, "design_request.revision_requested", req.id, {"note": body.revision_note})
+    await db.commit()
+    await db.refresh(req)
+    return req
+
+
 @router.post("/{request_id}/discard", response_model=DesignRequestPublic)
 async def discard_design_request(
     request_id: uuid.UUID,
@@ -321,8 +346,8 @@ async def agent_callback(
     if body.outcome == "success":
         req.status = DesignRequestStatus.pr_open.value
         req.branch_name = body.branch_name or req.branch_name
-        req.pr_number = body.pr_number
-        req.pr_url = body.pr_url
+        req.pr_number = body.pr_number if body.pr_number is not None else req.pr_number
+        req.pr_url = body.pr_url or req.pr_url
         req.workflow_run_id = body.workflow_run_id
         req.agent_completed_at = _now()
         await _log(db, None, "design_request.agent_completed", req.id, {"pr_url": body.pr_url})

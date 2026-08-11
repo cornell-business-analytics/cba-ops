@@ -26,12 +26,20 @@ async def trigger_workflow_dispatch(
     description: str,
     attachment_url: str | None = None,
     target_path: str | None = None,
+    is_revision: bool = False,
+    revision_note: str | None = None,
 ) -> None:
-    inputs: dict = {"request_id": request_id, "description": description}
+    inputs: dict = {
+        "request_id": request_id,
+        "description": description,
+        "is_revision": "true" if is_revision else "false",
+    }
     if attachment_url:
         inputs["attachment_url"] = attachment_url
     if target_path:
         inputs["target_path"] = target_path
+    if revision_note:
+        inputs["revision_note"] = revision_note
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(
             _repo_path(f"/actions/workflows/{settings.GITHUB_WORKFLOW_FILE}/dispatches"),

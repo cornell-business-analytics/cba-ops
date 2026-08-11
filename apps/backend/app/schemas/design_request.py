@@ -61,6 +61,10 @@ class DesignRequestReview(BaseModel):
     reviewer_note: str | None = None
 
 
+class DesignRequestRevise(BaseModel):
+    revision_note: str
+
+
 class AgentCallback(BaseModel):
     request_id: uuid.UUID
     outcome: str  # "success" | "failure"
