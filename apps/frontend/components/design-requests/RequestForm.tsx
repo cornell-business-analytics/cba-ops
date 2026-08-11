@@ -10,9 +10,31 @@ import { ImageIcon, Type } from "lucide-react";
 
 type Mode = "text" | "image";
 
-function friendlyLabel(path: string): string {
-  const name = path.split("/").pop() ?? path;
-  return name.replace(/[-_]/g, " ").replace(/\.[^.]+$/, "");
+const FOLDER_LABELS: Record<string, string> = {
+  "":            "General",
+  "front":       "Homepage pillars",
+  "logos":       "Company & school logos",
+  "recruitment": "Recruitment page",
+};
+
+function folderLabel(folder: string): string {
+  return FOLDER_LABELS[folder] ?? folder.replace(/[-_]/g, " ");
+}
+
+function fileLabel(filename: string): string {
+  return filename.replace(/[-_]/g, " ").replace(/\.[^.]+$/, "");
+}
+
+function groupImages(paths: string[]): [string, { path: string; label: string }[]][] {
+  const groups = new Map<string, { path: string; label: string }[]>();
+  for (const path of paths) {
+    const slash = path.lastIndexOf("/");
+    const folder = slash === -1 ? "" : path.slice(0, slash);
+    const filename = slash === -1 ? path : path.slice(slash + 1);
+    if (!groups.has(folder)) groups.set(folder, []);
+    groups.get(folder)!.push({ path, label: fileLabel(filename) });
+  }
+  return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
 }
 
 export function RequestForm() {
@@ -135,10 +157,12 @@ export function RequestForm() {
                   disabled={submit.isPending || imagesLoading}
                 >
                   <option value="">{imagesLoading ? "Loading images…" : "Select an image…"}</option>
-                  {websiteImages.map((path) => (
-                    <option key={path} value={path}>
-                      {friendlyLabel(path)} ({path})
-                    </option>
+                  {groupImages(websiteImages).map(([folder, items]) => (
+                    <optgroup key={folder} label={folderLabel(folder)}>
+                      {items.map(({ path, label }) => (
+                        <option key={path} value={path}>{label}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               )}
