@@ -105,7 +105,18 @@ async def list_website_images(
     current_user: User = Depends(get_current_user),
 ):
     """Returns paths (relative to apps/website/public/) of images in the repo."""
-    return await github.list_website_images()
+    if not settings.GITHUB_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GITHUB_TOKEN is not configured on the server.",
+        )
+    try:
+        return await github.list_website_images()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Could not fetch image list from GitHub: {exc}",
+        ) from exc
 
 
 @router.get("", response_model=list[DesignRequestPublic])

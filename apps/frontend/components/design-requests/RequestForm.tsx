@@ -28,11 +28,12 @@ export function RequestForm() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { data: websiteImages = [] } = useQuery<string[]>({
+  const { data: websiteImages = [], isLoading: imagesLoading, isError: imagesError } = useQuery<string[]>({
     queryKey: ["website-images"],
     queryFn: () => api().get("/ops/v1/design-requests/website-images"),
     enabled: !!session?.accessToken && mode === "image",
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   const submit = useMutation({
@@ -121,19 +122,26 @@ export function RequestForm() {
             {/* Image picker */}
             <div className="space-y-1">
               <label className="text-xs font-medium">Image to replace</label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={targetPath}
-                onChange={(e) => setTargetPath(e.target.value)}
-                disabled={submit.isPending}
-              >
-                <option value="">Select an image…</option>
-                {websiteImages.map((path) => (
-                  <option key={path} value={path}>
-                    {friendlyLabel(path)} ({path})
-                  </option>
-                ))}
-              </select>
+              {imagesError ? (
+                <p className="text-xs text-destructive">
+                  Could not load image list — ask a director to configure{" "}
+                  <code className="font-mono">GITHUB_TOKEN</code> in Railway.
+                </p>
+              ) : (
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                  value={targetPath}
+                  onChange={(e) => setTargetPath(e.target.value)}
+                  disabled={submit.isPending || imagesLoading}
+                >
+                  <option value="">{imagesLoading ? "Loading images…" : "Select an image…"}</option>
+                  {websiteImages.map((path) => (
+                    <option key={path} value={path}>
+                      {friendlyLabel(path)} ({path})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* File upload */}

@@ -129,7 +129,7 @@ jobs:
       - name: Commit and push
         if: steps.check_changes.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_PAT_AGENT }}
+          GH_TOKEN: ${{ secrets.GH_PAT_AGENT }}
         run: |
           git add apps/website
           git commit -m "Design request ${{ github.event.inputs.request_id }}"
@@ -140,7 +140,7 @@ jobs:
         if: steps.check_changes.outputs.changed == 'true'
         id: open_pr
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_PAT_AGENT }}
+          GH_TOKEN: ${{ secrets.GH_PAT_AGENT }}
         run: |
           PR_URL=$(gh pr create \
             --title "Design request: ${{ github.event.inputs.description }}" \
