@@ -77,6 +77,8 @@ export function RequestForm() {
     },
   });
 
+  const submitError = submit.error instanceof Error ? submit.error.message : null;
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -211,7 +213,10 @@ export function RequestForm() {
           </>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-3">
+          {submitError && (
+            <p className="text-xs text-destructive">{submitError}</p>
+          )}
           <Button
             size="sm"
             disabled={!canSubmit || submit.isPending || uploading}
