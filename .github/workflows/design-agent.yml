@@ -160,6 +160,7 @@ jobs:
         id: pr_info
         env:
           GH_TOKEN: ${{ secrets.GH_PAT_AGENT }}
+          DESCRIPTION: ${{ github.event.inputs.description }}
         run: |
           BRANCH="design-request/${{ github.event.inputs.request_id }}"
           if [ "${{ github.event.inputs.is_revision }}" = "true" ]; then
@@ -167,7 +168,7 @@ jobs:
             PR_NUMBER=$(gh pr view "$BRANCH" --json number -q .number)
           else
             PR_URL=$(gh pr create \
-              --title "Design request: ${{ github.event.inputs.description }}" \
+              --title "Design request: $DESCRIPTION" \
               --body "Automated change from ops-tool design request \`${{ github.event.inputs.request_id }}\`." \
               --head "$BRANCH" \
               --base main)
@@ -182,7 +183,8 @@ jobs:
           curl -sf -X POST "${{ vars.BACKEND_API_URL }}/ops/v1/design-requests/webhook/agent-callback" \
             -H "Content-Type: application/json" \
             -H "X-Design-Agent-Secret: ${{ secrets.DESIGN_AGENT_WEBHOOK_SECRET }}" \
-            -d "{\"request_id\": \"${{ github.event.inputs.request_id }}\", \"outcome\": \"success\", \"branch_name\": \"design-request/${{ github.event.inputs.request_id }}\", \"pr_number\": ${{ steps.pr_info.outputs.pr_number }}, \"pr_url\": \"${{ steps.pr_info.outputs.pr_url }}\", \"workflow_run_id\": \"${{ github.run_id }}\"}"
+            -d "{\"request_id\": \"${{ github.event.inputs.request_id }}\", \"outcome\": \"success\", \"branch_name\": \"design-request/${{ github.event.inputs.request_id }}\", \"pr_number\": ${{ steps.pr_info.outputs.pr_number }}, \"pr_url\": \"${{ steps.pr_info.outputs.pr_url }}\", \"workflow_run_id\": \"${{ github.run_id }}\"}" \
+            && echo "Callback delivered" || echo "Callback failed (check BACKEND_API_URL and DESIGN_AGENT_WEBHOOK_SECRET)"
 
       - name: Report no-op to backend
         if: success() && steps.check_changes.outputs.changed == 'false'
@@ -197,7 +199,8 @@ jobs:
           curl -sf -X POST "${{ vars.BACKEND_API_URL }}/ops/v1/design-requests/webhook/agent-callback" \
             -H "Content-Type: application/json" \
             -H "X-Design-Agent-Secret: ${{ secrets.DESIGN_AGENT_WEBHOOK_SECRET }}" \
-            -d "$PAYLOAD"
+            -d "$PAYLOAD" \
+            && echo "Callback delivered" || echo "Callback failed (check BACKEND_API_URL and DESIGN_AGENT_WEBHOOK_SECRET)"
 
       - name: Report failure to backend
         if: failure()
