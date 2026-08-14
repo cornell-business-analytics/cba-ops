@@ -81,7 +81,7 @@ export function RequestForm() {
         attachment = attachmentUrl;
         path = targetPath;
       } else if (mode === "new-image") {
-        desc = `New image uploaded to ${customPath}. ${description}`.trim();
+        desc = `New image placed at public/${customPath} (use src="/${customPath}" in JSX). ${description}`.trim();
         attachment = attachmentUrl;
         path = customPath;
       }

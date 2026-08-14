@@ -25,7 +25,6 @@ const baseNav = [
 
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/design-requests", label: "Design Requests", icon: Wand2 },
 ];
 
 const recruitmentNav = [
@@ -81,6 +80,20 @@ export function Sidebar() {
           >
             <ClipboardList className="h-4 w-4 shrink-0" />
             Edit Requests
+          </Link>
+        )}
+        {isEboard && (
+          <Link
+            href="/design-requests"
+            className={cn(
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+              pathname.startsWith("/design-requests")
+                ? "border-l-2 border-[#1a7a3c] bg-sidebar-accent pl-[10px] font-medium text-sidebar-accent-foreground"
+                : "border-l-2 border-transparent text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            )}
+          >
+            <Wand2 className="h-4 w-4 shrink-0" />
+            Design Requests
           </Link>
         )}
         {isEboard && (

@@ -90,17 +90,19 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code
 
       - name: Download and place image attachment
-        if: ${{ github.event.inputs.attachment_url != '' && github.event.inputs.target_path != '' }}
+        if: github.event.inputs.attachment_url != '' && github.event.inputs.target_path != ''
+        env:
+          ATTACHMENT_URL: ${{ github.event.inputs.attachment_url }}
+          TARGET: ${{ github.event.inputs.target_path }}
         run: |
-          TARGET="${{ github.event.inputs.target_path }}"
           if [[ "$TARGET" == *..* || "$TARGET" == /* ]]; then
             echo "Rejected: target_path contains '..' or starts with '/': $TARGET"
             exit 1
           fi
           DEST="apps/website/public/$TARGET"
           mkdir -p "$(dirname "$DEST")"
-          curl -fsSL "${{ github.event.inputs.attachment_url }}" -o "$DEST"
-          echo "Image written to $DEST"
+          curl -fsSL "$ATTACHMENT_URL" -o "$DEST"
+          echo "Image written to $DEST ($(wc -c < "$DEST") bytes)"
 
       - name: Apply agent permission guardrail
         run: |

@@ -8,6 +8,7 @@ import { createApi } from "@/lib/api";
 import { RequestForm } from "@/components/design-requests/RequestForm";
 import { StatusBadge } from "@/components/design-requests/StatusBadge";
 import { ReviewPanel } from "@/components/design-requests/ReviewPanel";
+import { redirect } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import type { DesignRequest } from "@cba/types";
 
@@ -23,6 +24,10 @@ export default function DesignRequestsPage() {
   const api = () => createApi(session?.accessToken);
   const { data: currentUser } = useCurrentUser();
   const [hideCompleted, setHideCompleted] = useState(false);
+
+  if (session && session.role !== "eboard") {
+    redirect("/dashboard");
+  }
 
   const isDirectorOrAbove =
     session?.role === "director" || session?.role === "recruitment" || session?.role === "eboard";
