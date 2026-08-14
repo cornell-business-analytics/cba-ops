@@ -102,8 +102,11 @@ async def close_pr(pr_number: int) -> None:
         resp.raise_for_status()
 
 
-async def get_combined_check_status(ref: str) -> str | None:
-    """Returns 'success' | 'failure' | 'pending' | None (no checks reported yet)."""
+async def get_combined_check_status(ref: str) -> tuple[str | None, str | None]:
+    """Returns (ci_status, preview_url).
+    ci_status: 'success' | 'failure' | 'pending' | None
+    preview_url: Vercel preview URL extracted from commit statuses, or None.
+    """
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(
             _repo_path(f"/commits/{ref}/status"),
@@ -111,28 +114,16 @@ async def get_combined_check_status(ref: str) -> str | None:
         )
         resp.raise_for_status()
         data = resp.json()
-        return data.get("state") if data.get("total_count", 0) > 0 else None
 
+    ci_status = data.get("state") if data.get("total_count", 0) > 0 else None
 
-async def get_latest_deployment_url(ref: str) -> str | None:
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        deployments_resp = await client.get(
-            _repo_path("/deployments"),
-            headers=_headers(),
-            params={"ref": ref, "per_page": 1},
-        )
-        deployments_resp.raise_for_status()
-        deployments = deployments_resp.json()
-        if not deployments:
-            return None
+    # Vercel posts a commit status with the preview URL as target_url
+    preview_url = None
+    for s in data.get("statuses", []):
+        ctx: str = s.get("context", "").lower()
+        url: str = s.get("target_url", "") or ""
+        if ("vercel" in ctx or "preview" in ctx) and url.startswith("https://"):
+            preview_url = url
+            break
 
-        statuses_resp = await client.get(
-            _repo_path(f"/deployments/{deployments[0]['id']}/statuses"),
-            headers=_headers(),
-            params={"per_page": 1},
-        )
-        statuses_resp.raise_for_status()
-        statuses = statuses_resp.json()
-        if not statuses:
-            return None
-        return statuses[0].get("environment_url")
+    return ci_status, preview_url

@@ -48,10 +48,6 @@ export default function DesignRequestsPage() {
   const { data: currentUser } = useCurrentUser();
   const [hideCompleted, setHideCompleted] = useState(false);
 
-  if (session && session.role !== "eboard") {
-    redirect("/dashboard");
-  }
-
   const isDirectorOrAbove =
     session?.role === "director" || session?.role === "recruitment" || session?.role === "eboard";
 

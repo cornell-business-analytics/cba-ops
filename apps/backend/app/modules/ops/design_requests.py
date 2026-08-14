@@ -228,17 +228,15 @@ async def check_design_request_status(
     if req.status not in pollable_statuses or not req.branch_name:
         return DesignRequestStatusCheck(ci_status=None, preview_url=req.preview_url, mergeable=None, pr_url=req.pr_url)
 
-    ci_status = await github.get_combined_check_status(req.branch_name)
+    ci_status, preview_url = await github.get_combined_check_status(req.branch_name)
 
-    if not req.preview_url:
-        preview_url = await github.get_latest_deployment_url(req.branch_name)
-        if preview_url:
-            req.preview_url = preview_url
-            await db.commit()
+    if preview_url and not req.preview_url:
+        req.preview_url = preview_url
+        await db.commit()
 
     return DesignRequestStatusCheck(
         ci_status=ci_status,
-        preview_url=req.preview_url,
+        preview_url=req.preview_url or preview_url,
         mergeable=(ci_status == "success"),
         pr_url=req.pr_url,
     )
