@@ -153,7 +153,7 @@ jobs:
           git add apps/website
           git commit -m "Design request ${{ github.event.inputs.request_id }}"
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
-          git push origin "design-request/${{ github.event.inputs.request_id }}"
+          git push --force origin "design-request/${{ github.event.inputs.request_id }}"
 
       - name: Open or update PR
         if: steps.check_changes.outputs.changed == 'true'
@@ -171,8 +171,9 @@ jobs:
               --title "Design request: $DESCRIPTION" \
               --body "Automated change from ops-tool design request \`${{ github.event.inputs.request_id }}\`." \
               --head "$BRANCH" \
-              --base main)
-            PR_NUMBER=$(gh pr view "$PR_URL" --json number -q .number)
+              --base main 2>/dev/null) \
+            || PR_URL=$(gh pr view "$BRANCH" --json url -q .url)
+            PR_NUMBER=$(gh pr view "$BRANCH" --json number -q .number)
           fi
           echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
