@@ -8,9 +8,10 @@ interface HeroProps {
   ctaHref?: string;
   image?: string;
   compact?: boolean;
+  establishedYear?: string;
 }
 
-export function Hero({ heading, subheading, ctaLabel, ctaHref, image, compact }: HeroProps) {
+export function Hero({ heading, subheading, ctaLabel, ctaHref, image, compact, establishedYear }: HeroProps) {
   return (
     <section className={`relative text-white${compact ? " h-[92vh]" : image ? " min-h-[85vh]" : ""}`} aria-label="Hero">
       {image ? (
@@ -30,6 +31,11 @@ export function Hero({ heading, subheading, ctaLabel, ctaHref, image, compact }:
                 <h1 className="font-display text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl xl:text-7xl">
                   {heading}
                 </h1>
+                {establishedYear && (
+                  <p className="mt-2 text-sm text-gray-400">
+                    {establishedYear}
+                  </p>
+                )}
                 {subheading && (
                   <p className="mt-6 text-lg leading-relaxed text-gray-200 sm:text-xl">
                     {subheading}
@@ -63,6 +69,11 @@ export function Hero({ heading, subheading, ctaLabel, ctaHref, image, compact }:
               <h1 className="font-display text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl xl:text-7xl">
                 {heading}
               </h1>
+              {establishedYear && (
+                <p className="mt-2 text-sm text-gray-400">
+                  {establishedYear}
+                </p>
+              )}
               {subheading && (
                 <p className="mt-6 text-lg leading-relaxed text-gray-200 sm:text-xl">
                   {subheading}

@@ -31,8 +31,9 @@ export default async function HomePage() {
   return (
     <>
       <Hero
-        heading="Data-driven solutions for data-driven clients."
-        subheading="Cornell Business Analytics is the first student-run analytics consulting organization delivering data-backed insights to real clients."
+        heading="Cornell Business Analytics"
+        establishedYear="(Est. 2014)"
+        subheading="The first student-run analytics consulting organization delivering data-backed insights to real clients."
         ctaLabel="Apply now"
         ctaHref="/recruitment"
         image="/group.jpg"
