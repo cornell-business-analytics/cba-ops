@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSession } from "@/hooks/session-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { createApi } from "@/lib/api";
@@ -9,14 +9,37 @@ import { RequestForm } from "@/components/design-requests/RequestForm";
 import { StatusBadge } from "@/components/design-requests/StatusBadge";
 import { ReviewPanel } from "@/components/design-requests/ReviewPanel";
 import { redirect } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Trash2 } from "lucide-react";
 import type { DesignRequest } from "@cba/types";
 
 const TERMINAL_STATUSES = new Set(["merged", "rejected", "discarded"]);
+const DELETABLE_STATUSES = new Set(["merged", "rejected", "discarded", "agent_failed", "dispatch_failed"]);
 
 function formatDate(iso: string | null) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function DeleteButton({ requestId }: { requestId: string }) {
+  const session = useAppSession();
+  const qc = useQueryClient();
+  const api = () => createApi(session?.accessToken);
+
+  const del = useMutation({
+    mutationFn: () => api().delete(`/ops/v1/design-requests/${requestId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["design-requests"] }),
+  });
+
+  return (
+    <button
+      onClick={() => del.mutate()}
+      disabled={del.isPending}
+      title="Delete permanently"
+      className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+    </button>
+  );
 }
 
 export default function DesignRequestsPage() {
@@ -49,11 +72,7 @@ export default function DesignRequestsPage() {
     <div className="p-6 max-w-4xl space-y-5">
       <div>
         <h1 className="text-xl font-semibold">Design Requests</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          {isDirectorOrAbove
-            ? "Requests from members, plus your own."
-            : "Requests you've submitted."}
-        </p>
+        <p className="text-sm text-muted-foreground mt-0.5">Requests you&apos;ve submitted or approved.</p>
       </div>
 
       <RequestForm />
@@ -89,10 +108,15 @@ export default function DesignRequestsPage() {
               <div key={req.id} className="rounded-lg border bg-white overflow-hidden">
                 <div className="flex items-start justify-between gap-3 px-4 py-3 border-b bg-muted/20">
                   <p className="text-sm leading-relaxed">{req.description}</p>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <StatusBadge status={req.status} />
-                    {req.created_at && (
-                      <span className="text-xs text-muted-foreground">{formatDate(req.created_at)}</span>
+                  <div className="flex shrink-0 items-start gap-2">
+                    <div className="flex flex-col items-end gap-1">
+                      <StatusBadge status={req.status} />
+                      {req.created_at && (
+                        <span className="text-xs text-muted-foreground">{formatDate(req.created_at)}</span>
+                      )}
+                    </div>
+                    {DELETABLE_STATUSES.has(req.status) && (
+                      <DeleteButton requestId={req.id} />
                     )}
                   </div>
                 </div>

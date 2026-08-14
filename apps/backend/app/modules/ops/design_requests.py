@@ -27,6 +27,13 @@ from app.services import github
 router = APIRouter(prefix="/design-requests", tags=["design-requests"])
 
 RETRYABLE_STATUSES = {DesignRequestStatus.dispatch_failed.value, DesignRequestStatus.agent_failed.value}
+DELETABLE_STATUSES = {
+    DesignRequestStatus.merged.value,
+    DesignRequestStatus.rejected.value,
+    DesignRequestStatus.discarded.value,
+    DesignRequestStatus.agent_failed.value,
+    DesignRequestStatus.dispatch_failed.value,
+}
 REVISABLE_STATUSES = {DesignRequestStatus.pr_open.value, DesignRequestStatus.agent_failed.value}
 DISCARDABLE_STATUSES = {
     DesignRequestStatus.pr_open.value,
@@ -328,6 +335,19 @@ async def discard_design_request(
     return req
 
 
+@router.delete("/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_design_request(
+    request_id: uuid.UUID,
+    current_user: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    req = await _get_request_or_404(db, request_id)
+    if req.status not in DELETABLE_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Cannot delete a request with status '{req.status}'")
+    await db.delete(req)
+    await db.commit()
+
+
 @router.post("/webhook/agent-callback", status_code=status.HTTP_200_OK)
 async def agent_callback(
     body: AgentCallback,
@@ -350,12 +370,21 @@ async def agent_callback(
         req.pr_url = body.pr_url or req.pr_url
         req.workflow_run_id = body.workflow_run_id
         req.agent_completed_at = _now()
-        await _log(db, None, "design_request.agent_completed", req.id, {"pr_url": body.pr_url})
+        log_action = "design_request.agent_completed"
+        log_payload: dict | None = {"pr_url": body.pr_url}
     else:
         req.status = DesignRequestStatus.agent_failed.value
         req.agent_error = body.error_message
         req.agent_completed_at = _now()
-        await _log(db, None, "design_request.agent_failed", req.id, {"error": body.error_message})
+        log_action = "design_request.agent_failed"
+        log_payload = {"error": body.error_message}
 
+    # Commit status update first — this must always succeed regardless of audit_logs table state
     await db.commit()
+
+    # Audit log is best-effort; don't let a missing table block the status update
+    with contextlib.suppress(Exception):
+        await _log(db, None, log_action, req.id, log_payload)
+        await db.commit()
+
     return {"ok": True}
