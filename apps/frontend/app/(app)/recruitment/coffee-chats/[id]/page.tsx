@@ -81,7 +81,7 @@ export default function CycleDetailPage() {
   const qc = useQueryClient();
   const api = createApi(session?.accessToken);
 
-  const canManageRecruitment = session?.role === "recruitment" || session?.role === "eboard";
+  const canManageRecruitment = session?.role === "recruitment" || session?.role === "eboard" || session?.role === "director";
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);

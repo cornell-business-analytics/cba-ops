@@ -171,7 +171,7 @@ DEFAULT_REJECTION_BODY = """<p>Hello {{applicant_first}},</p>
 # ---------------------------------------------------------------------------
 
 @router.get("/gmail-auth-url")
-async def gmail_auth_url(_: User = Depends(require_role(UserRole.recruitment))):
+async def gmail_auth_url(_: User = Depends(require_role(UserRole.director))):
     if not settings.GMAIL_CLIENT_ID:
         raise HTTPException(status_code=503, detail="GMAIL_CLIENT_ID not configured")
     url = (

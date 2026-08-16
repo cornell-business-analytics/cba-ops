@@ -48,7 +48,7 @@ export default function CoffeeChatsPage() {
     enabled: !!session?.accessToken,
   });
 
-  const canConnectGmail = session?.role === "recruitment" || session?.role === "eboard";
+  const canConnectGmail = session?.role === "recruitment" || session?.role === "eboard" || session?.role === "director";
 
   const { data: authUrlData } = useQuery<{ url: string }>({
     queryKey: ["gmail-auth-url"],
