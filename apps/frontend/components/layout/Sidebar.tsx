@@ -37,7 +37,7 @@ export function Sidebar() {
   const session = useAppSession();
   const role = session?.role;
   const isEboard = role === "eboard";
-  const hasRecruitmentAccess = role === "recruitment" || role === "eboard";
+  const hasRecruitmentAccess = role === "recruitment" || role === "eboard" || role === "director";
 
   const nav = hasRecruitmentAccess
     ? [baseNav[0], ...recruitmentNav, ...baseNav.slice(1)]
