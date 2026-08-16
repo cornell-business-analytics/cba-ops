@@ -169,6 +169,7 @@ export default async function AboutPage() {
                     width={160}
                     height={64}
                     className="w-4/5 h-auto object-contain"
+                    unoptimized
                   />
                 </div>
               ))}

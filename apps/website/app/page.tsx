@@ -66,7 +66,7 @@ export default async function HomePage() {
       ].map(({ title, image, alt }, i) => (
         <section key={title} className="flex flex-col md:flex-row min-h-[50vh]">
           <div className={`relative w-full md:w-1/2 aspect-[4/3] md:aspect-auto md:min-h-0 bg-cba-gray ${i % 2 === 1 ? "md:order-2" : ""}`}>
-            <Image src={image} alt={alt} fill className="object-cover" />
+            <Image src={image} alt={alt} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
           </div>
           <div className={`w-full md:w-1/2 flex items-center bg-white ${i % 2 === 1 ? "md:order-1" : ""}`}>
             <div className="px-8 py-10 sm:py-14 md:px-16 lg:px-20">

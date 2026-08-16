@@ -190,7 +190,6 @@ async def gmail_auth_url(current_user: User = Depends(require_role(UserRole.dire
 
 @router.get("/gmail-callback")
 async def gmail_callback(code: str = Query(...), state: str = Query(default=""), db: AsyncSession = Depends(get_db)):
-    # Decode user_id from state parameter set in gmail_auth_url
     user_id: uuid.UUID | None = None
     try:
         user_id = uuid.UUID(base64.urlsafe_b64decode(state.encode()).decode())
@@ -212,7 +211,6 @@ async def gmail_callback(code: str = Query(...), state: str = Query(default=""),
     from datetime import timedelta
     expiry = datetime.now(timezone.utc) + timedelta(seconds=data.get("expires_in", 3600) - 60)
 
-    # Get email address
     account_email = None
     async with httpx.AsyncClient() as client:
         info = await client.get(

@@ -21,6 +21,7 @@ export function Hero({ heading, subheading, ctaLabel, ctaHref, image, compact }:
             aria-hidden="true"
             fill
             priority
+            sizes="100vw"
             className={`object-cover ${compact ? "object-bottom" : "object-center"}`}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-cba-dark/85 via-cba-dark/60 to-cba-dark/30" />

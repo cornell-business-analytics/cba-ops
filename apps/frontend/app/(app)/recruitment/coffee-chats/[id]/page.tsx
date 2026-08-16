@@ -145,15 +145,23 @@ export default function CycleDetailPage() {
     },
   });
 
-  // Auto-import once when cycle loads and has a sheet_id
+  // Auto-import once when cycle loads and has a sheet_id — only if Gmail is connected
+  const { data: gmailStatus } = useQuery<{ connected: boolean; account_email: string | null }>({
+    queryKey: ["gmail-status"],
+    queryFn: () => api.get("/ops/v1/recruitment/gmail-status"),
+    enabled: !!session?.accessToken,
+  });
+
   useEffect(() => {
     if (!cycle || !cycle.sheet_id || autoImportedRef.current || !session?.accessToken) return;
+    if (!gmailStatus) return; // wait for status to load
+    if (!gmailStatus.connected) return; // skip silently if no Gmail connected
     autoImportedRef.current = true;
     setSyncStatus("syncing");
     setSyncMsg(null);
     importMutation.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cycle?.id, cycle?.sheet_id, session?.accessToken]);
+  }, [cycle?.id, cycle?.sheet_id, session?.accessToken, gmailStatus?.connected]);
 
   const pairMutation = useMutation({
     mutationFn: ({ applicantId, membershipId }: { applicantId: string; membershipId: string | null }) =>
