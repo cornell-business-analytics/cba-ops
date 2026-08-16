@@ -4,6 +4,7 @@ the agent workflow and, later, merge/close the PR it opens.
 import os
 import httpx
 
+from app.core import cache
 from app.core.config import settings
 
 GITHUB_API = "https://api.github.com"
@@ -50,8 +51,16 @@ _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg"}
 _WEBSITE_PUBLIC_PREFIX = "apps/website/public/"
 
 
+_IMAGES_CACHE_KEY = "github:website_images"
+_IMAGES_CACHE_TTL = 600  # 10 minutes — refreshes naturally after deploys
+
+
 async def list_website_images() -> list[str]:
     """Returns paths relative to apps/website/public/ for all image files in the repo."""
+    cached = await cache.get_json(_IMAGES_CACHE_KEY)
+    if cached is not None:
+        return cached
+
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.get(
             _repo_path("/git/trees/main"),
@@ -71,7 +80,10 @@ async def list_website_images() -> list[str]:
         ext = os.path.splitext(path)[1].lower()
         if ext in _IMAGE_EXTS:
             results.append(path[len(_WEBSITE_PUBLIC_PREFIX):])
-    return sorted(results)
+    results = sorted(results)
+
+    await cache.set_json(_IMAGES_CACHE_KEY, results, ttl=_IMAGES_CACHE_TTL)
+    return results
 
 
 async def get_pr(pr_number: int) -> dict:
@@ -107,6 +119,11 @@ async def get_combined_check_status(ref: str) -> tuple[str | None, str | None]:
     ci_status: 'success' | 'failure' | 'pending' | None
     preview_url: Vercel preview URL extracted from commit statuses, or None.
     """
+    cache_key = f"github:check_status:{ref}"
+    cached = await cache.get_json(cache_key)
+    if cached is not None:
+        return cached[0], cached[1]
+
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(
             _repo_path(f"/commits/{ref}/status"),
@@ -125,5 +142,9 @@ async def get_combined_check_status(ref: str) -> tuple[str | None, str | None]:
         if ("vercel" in ctx or "preview" in ctx) and url.startswith("https://"):
             preview_url = url
             break
+
+    # Cache longer once checks are done — pending state can change quickly
+    ttl = 120 if ci_status in ("success", "failure") else 20
+    await cache.set_json(cache_key, [ci_status, preview_url], ttl=ttl)
 
     return ci_status, preview_url

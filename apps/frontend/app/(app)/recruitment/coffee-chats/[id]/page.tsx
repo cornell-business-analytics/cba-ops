@@ -104,6 +104,7 @@ export default function CycleDetailPage() {
     queryKey: ["cycle", id],
     queryFn: () => api.get<Cycle[]>(`/ops/v1/recruitment/cycles`).then((cs) => cs.find(c => c.id === id)!),
     enabled: !!session?.accessToken,
+    staleTime: 60_000,
   });
 
   const { data: applicants = [], isLoading } = useQuery<Applicant[]>({
@@ -116,6 +117,7 @@ export default function CycleDetailPage() {
     queryKey: ["members"],
     queryFn: () => api.get<MembershipDetail[]>("/ops/v1/members"),
     enabled: !!session?.accessToken,
+    staleTime: 5 * 60_000,
   });
 
   const { data: sheetCols } = useQuery<{ columns: string[] }>({
@@ -168,7 +170,25 @@ export default function CycleDetailPage() {
       membershipId
         ? api.patch<unknown>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/pairing`, { membership_id: membershipId })
         : api.delete<unknown>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/pairing`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["applicants", id] }),
+    onMutate: async ({ applicantId, membershipId }) => {
+      await qc.cancelQueries({ queryKey: ["applicants", id] });
+      const prev = qc.getQueryData<Applicant[]>(["applicants", id]);
+      qc.setQueryData<Applicant[]>(["applicants", id], (old = []) =>
+        old.map(a => a.id !== applicantId ? a : {
+          ...a,
+          paired_membership_id: membershipId,
+          paired_member_name: membershipId
+            ? (members.find(m => m.id === membershipId)?.user_name ?? null)
+            : null,
+          pairing_status: membershipId ? "paired" : "unpaired",
+        })
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["applicants", id], ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["applicants", id] }),
   });
 
   const sendPairing = useMutation({
@@ -181,7 +201,18 @@ export default function CycleDetailPage() {
   const markSent = useMutation({
     mutationFn: (applicantId: string) =>
       api.post<void>(`/ops/v1/recruitment/cycles/${id}/applicants/${applicantId}/mark-sent`, {}),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["applicants", id] }); },
+    onMutate: async (applicantId) => {
+      await qc.cancelQueries({ queryKey: ["applicants", id] });
+      const prev = qc.getQueryData<Applicant[]>(["applicants", id]);
+      qc.setQueryData<Applicant[]>(["applicants", id], (old = []) =>
+        old.map(a => a.id !== applicantId ? a : { ...a, pairing_status: "sent" })
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["applicants", id], ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["applicants", id] }),
   });
 
   const sendRejection = useMutation({

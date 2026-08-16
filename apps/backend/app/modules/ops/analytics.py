@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import cache
 from app.db.session import get_db
 from app.models.candidate import ApplicationCycle, Candidate, CandidateStatus
 from app.models.membership import Cohort, Membership
@@ -12,6 +13,8 @@ from app.models.org import Event
 from app.models.page import Page, PageStatus
 from app.models.user import User, UserRole
 from app.modules.ops.deps import get_current_user, require_role
+
+_ANALYTICS_TTL = 120  # 2 minutes
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -21,6 +24,10 @@ async def overview(
     _: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    cached = await cache.get_json("analytics:overview")
+    if cached is not None:
+        return cached
+
     total_members = await db.scalar(
         select(func.count(Membership.id)).where(Membership.is_active == True)
     )
@@ -50,12 +57,14 @@ async def overview(
         select(func.count(Event.id)).where(Event.event_date >= semester_start)
     )
 
-    return {
+    result = {
         "total_members": total_members or 0,
         "active_candidates": active_candidates or 0,
         "published_pages": published_pages or 0,
         "events_this_semester": events_this_semester or 0,
     }
+    await cache.set_json("analytics:overview", result, ttl=_ANALYTICS_TTL)
+    return result
 
 
 @router.get("/recruitment")
@@ -64,6 +73,11 @@ async def recruitment_funnel(
     _: User = Depends(require_role(UserRole.pm)),
     db: AsyncSession = Depends(get_db),
 ):
+    cache_key = f"analytics:recruitment:{cycle_id or 'active'}"
+    cached = await cache.get_json(cache_key)
+    if cached is not None:
+        return cached
+
     if not cycle_id:
         result = await db.execute(
             select(ApplicationCycle).where(ApplicationCycle.is_active == True)
@@ -143,14 +157,16 @@ async def recruitment_funnel(
             }
         )
 
-    return {
-        "cycle_id": cycle_id,
+    result = {
+        "cycle_id": str(cycle_id) if cycle_id else None,
         "funnel": funnel,
         "total_applicants": total_applicants,
         "offers": offers,
         "acceptance_rate": acceptance_rate,
         "cycles": cycles,
     }
+    await cache.set_json(cache_key, result, ttl=_ANALYTICS_TTL)
+    return result
 
 
 @router.get("/members")
@@ -158,6 +174,10 @@ async def members_analytics(
     _: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    cached = await cache.get_json("analytics:members")
+    if cached is not None:
+        return cached
+
     grad_result = await db.execute(
         select(Membership.grad_year, func.count(Membership.id).label("count"))
         .where(Membership.is_active == True, Membership.grad_year.is_not(None))
@@ -178,4 +198,6 @@ async def members_analytics(
                 major_counts[major] = major_counts.get(major, 0) + 1
     major_distribution = dict(sorted(major_counts.items(), key=lambda x: x[1], reverse=True))
 
-    return {"grad_year_distribution": grad_year_distribution, "major_distribution": major_distribution}
+    result = {"grad_year_distribution": grad_year_distribution, "major_distribution": major_distribution}
+    await cache.set_json("analytics:members", result, ttl=_ANALYTICS_TTL)
+    return result
