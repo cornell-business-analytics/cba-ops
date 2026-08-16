@@ -228,7 +228,7 @@ async def check_design_request_status(
     if req.status not in pollable_statuses or not req.branch_name:
         return DesignRequestStatusCheck(ci_status=None, preview_url=req.preview_url, mergeable=None, pr_url=req.pr_url)
 
-    ci_status, preview_url = await github.get_combined_check_status(req.branch_name)
+    ci_status, preview_url = await github.get_combined_check_status(req.branch_name, req.pr_number)
 
     if preview_url and not req.preview_url:
         req.preview_url = preview_url
@@ -251,12 +251,6 @@ async def confirm_design_request(
     req = await _get_request_or_404(db, request_id)
     if req.status not in (DesignRequestStatus.pr_open.value, DesignRequestStatus.merge_failed.value):
         raise HTTPException(status_code=400, detail=f"Cannot confirm from status '{req.status}'")
-    is_eboard = current_user.role == UserRole.eboard
-    if not is_eboard and req.requested_by_id is not None and req.requested_by_id == current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="You submitted this request — someone else needs to confirm and merge it.",
-        )
     if not req.pr_number:
         raise HTTPException(status_code=400, detail="No PR associated with this request")
 
@@ -264,7 +258,7 @@ async def confirm_design_request(
     if pr.get("head", {}).get("ref") != req.branch_name:
         raise HTTPException(status_code=409, detail="PR branch does not match this request — refusing to merge")
 
-    ci_status = await github.get_combined_check_status(req.branch_name)
+    ci_status, _ = await github.get_combined_check_status(req.branch_name, req.pr_number)
     if ci_status != "success":
         raise HTTPException(status_code=409, detail=f"Checks are not passing (status: {ci_status or 'pending'})")
 

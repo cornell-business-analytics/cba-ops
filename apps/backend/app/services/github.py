@@ -1,7 +1,11 @@
 """Thin GitHub REST API client used by the design-request feature to dispatch
 the agent workflow and, later, merge/close the PR it opens.
 """
+import base64
+import json
 import os
+import re
+
 import httpx
 
 from app.core import cache
@@ -114,10 +118,46 @@ async def close_pr(pr_number: int) -> None:
         resp.raise_for_status()
 
 
-async def get_combined_check_status(ref: str) -> tuple[str | None, str | None]:
+_VERCEL_COMMENT_RE = re.compile(r"\[vc\]: #[^:\s]+:(\S+)")
+
+
+async def _get_website_preview_url(pr_number: int) -> str | None:
+    """The commit status Vercel posts (context 'Vercel – cba-website') has its
+    target_url pointing at Vercel's internal inspector/dashboard page, not the
+    live deployed site — and this repo also deploys a second, unrelated
+    'cba-ops-frontend' preview on every PR. The actual live preview URL, keyed
+    by project, only exists in the vercel[bot] PR comment's embedded metadata
+    (a base64 JSON blob after a `[vc]: #<hash>:` marker), so that's what we
+    parse here, matching on rootDirectory == "apps/website" specifically.
+    """
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(_repo_path(f"/issues/{pr_number}/comments"), headers=_headers())
+        resp.raise_for_status()
+        comments = resp.json()
+
+    for comment in reversed(comments):
+        if comment.get("user", {}).get("login") != "vercel[bot]":
+            continue
+        match = _VERCEL_COMMENT_RE.search(comment.get("body", ""))
+        if not match:
+            continue
+        try:
+            payload = json.loads(base64.b64decode(match.group(1)))
+        except (ValueError, UnicodeDecodeError):
+            continue
+        for project in payload.get("projects", []):
+            if project.get("rootDirectory") == "apps/website" and project.get("previewUrl"):
+                return f"https://{project['previewUrl']}"
+
+    return None
+
+
+async def get_combined_check_status(ref: str, pr_number: int | None = None) -> tuple[str | None, str | None]:
     """Returns (ci_status, preview_url).
-    ci_status: 'success' | 'failure' | 'pending' | None
-    preview_url: Vercel preview URL extracted from commit statuses, or None.
+    ci_status: 'success' | 'failure' | 'pending' | None — GitHub's combined status
+    across all commit statuses posted on `ref` (CI jobs and both Vercel projects).
+    preview_url: the live apps/website Vercel preview URL (see _get_website_preview_url),
+    or None if pr_number wasn't supplied or no matching vercel[bot] comment exists yet.
     """
     cache_key = f"github:check_status:{ref}"
     cached = await cache.get_json(cache_key)
@@ -133,15 +173,7 @@ async def get_combined_check_status(ref: str) -> tuple[str | None, str | None]:
         data = resp.json()
 
     ci_status = data.get("state") if data.get("total_count", 0) > 0 else None
-
-    # Vercel posts a commit status with the preview URL as target_url
-    preview_url = None
-    for s in data.get("statuses", []):
-        ctx: str = s.get("context", "").lower()
-        url: str = s.get("target_url", "") or ""
-        if ("vercel" in ctx or "preview" in ctx) and url.startswith("https://"):
-            preview_url = url
-            break
+    preview_url = await _get_website_preview_url(pr_number) if pr_number else None
 
     # Cache longer once checks are done — pending state can change quickly
     ttl = 120 if ci_status in ("success", "failure") else 20

@@ -15,13 +15,7 @@ const CI_LABEL: Record<string, string> = {
   pending: "Checks running…",
 };
 
-export function ReviewPanel({
-  request,
-  currentUserId,
-}: {
-  request: DesignRequest;
-  currentUserId: string | undefined;
-}) {
+export function ReviewPanel({ request }: { request: DesignRequest }) {
   const session = useAppSession();
   const qc = useQueryClient();
   const api = () => createApi(session?.accessToken);
@@ -77,7 +71,6 @@ export function ReviewPanel({
     refetchInterval: isPollable ? 5000 : false,
   });
 
-  const isOwnRequest = !!currentUserId && currentUserId === request.requested_by_id;
   const ciGreen = check?.ci_status === "success";
 
   if (request.status === "pending") {
@@ -220,12 +213,6 @@ export function ReviewPanel({
           <p className="text-xs text-destructive">{request.agent_error ?? "Merge failed."}</p>
         )}
 
-        {isOwnRequest && (
-          <p className="text-xs text-muted-foreground italic">
-            You submitted this request — someone else needs to confirm it.
-          </p>
-        )}
-
         {showRevise ? (
           <div className="space-y-2">
             <textarea
@@ -268,7 +255,7 @@ export function ReviewPanel({
             </Button>
             <Button
               size="sm"
-              disabled={confirm.isPending || !ciGreen || isOwnRequest}
+              disabled={confirm.isPending || !ciGreen}
               onClick={() => confirm.mutate()}
             >
               {confirm.isPending ? "Merging…" : "Confirm & merge"}

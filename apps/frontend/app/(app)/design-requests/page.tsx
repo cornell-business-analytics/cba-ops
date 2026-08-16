@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSession } from "@/hooks/session-context";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { createApi } from "@/lib/api";
 import { RequestForm } from "@/components/design-requests/RequestForm";
 import { StatusBadge } from "@/components/design-requests/StatusBadge";
@@ -45,7 +44,6 @@ function DeleteButton({ requestId }: { requestId: string }) {
 export default function DesignRequestsPage() {
   const session = useAppSession();
   const api = () => createApi(session?.accessToken);
-  const { data: currentUser } = useCurrentUser();
   const [hideCompleted, setHideCompleted] = useState(false);
 
   const isDirectorOrAbove =
@@ -123,9 +121,7 @@ export default function DesignRequestsPage() {
                   </div>
                 )}
 
-                {isDirectorOrAbove && (
-                  <ReviewPanel request={req} currentUserId={currentUser?.id} />
-                )}
+                {isDirectorOrAbove && <ReviewPanel request={req} />}
               </div>
             ))
           )}

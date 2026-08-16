@@ -80,9 +80,10 @@ Publishing a page from the ops tool triggers on-demand ISR: the backend POSTs to
 
 ## AI design-agent (member-requested website changes)
 
-Members can request a website design change from the ops tool; a director approves it;
-an AI coding agent (Claude Code) makes the change and opens a PR; a *different* director
-confirms after reviewing the Vercel preview, which merges the PR and ships it.
+Members can request a website design change from the ops tool; a director-and-up user
+(director/recruitment/eboard) approves it; an AI coding agent (Claude Code) makes the
+change and opens a PR; a director-and-up user — who may be the same person who approved
+it — confirms after reviewing the Vercel preview, which merges the PR and ships it.
 
 - **Model**: `DesignRequest` (`app/models/design_request.py`), status machine `pending →
   approved → agent_running → pr_open → merged` with `rejected`/`dispatch_failed`/
@@ -100,9 +101,13 @@ confirms after reviewing the Vercel preview, which merges the PR and ships it.
   a `git diff --name-only` check in the workflow that fails the job if anything outside
   `apps/website/` changed, before any push happens.
 - **Preview**: no custom render pipeline — the agent's PR gets Vercel's existing
-  automatic PR-preview deployment for free, same as any other PR. The backend polls
-  GitHub's Deployments API (`GET /ops/v1/design-requests/{id}/status`) to surface the
-  preview URL and CI status in the ops tool.
+  automatic PR-preview deployment for free, same as any other PR. This repo has *two*
+  Vercel projects (`cba-website` and `cba-ops-frontend`), both of which deploy a preview
+  on every PR — the backend has to specifically pick out the `apps/website` one. The
+  backend polls the commit's combined status for CI state, then parses the `vercel[bot]`
+  PR comment's embedded per-project metadata (`app/services/github.py::_get_website_preview_url`)
+  for the actual live preview URL, since the commit status's own `target_url` only points
+  at Vercel's internal inspector page. Surfaced via `GET /ops/v1/design-requests/{id}/status`.
 - **Push identity matters**: the workflow explicitly does *not* use the default
   `secrets.GITHUB_TOKEN` for its push/PR — GitHub doesn't fire downstream
   `pull_request`-triggered workflows (including `ci.yml`) for pushes made with that

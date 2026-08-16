@@ -141,29 +141,44 @@ async def test_agent_callback_success_opens_pr(
 
 
 @pytest.mark.asyncio
-async def test_confirm_blocks_requester_confirming_own_request(eboard_client: AsyncClient, monkeypatch):
-    """The eboard user both submits and approves here — confirm must still refuse
-    since the confirmer is the same person as the requester."""
+async def test_confirm_allows_requester_confirming_own_request(eboard_client: AsyncClient, monkeypatch):
+    """Director-and-up can approve and merge their own request — no second-approver
+    requirement (see docs/architecture.md revision removing that restriction)."""
     monkeypatch.setattr(settings, "DESIGN_AGENT_WEBHOOK_SECRET", "test-secret")
     monkeypatch.setattr(github, "trigger_workflow_dispatch", lambda *a, **k: _noop())
 
     submit = await eboard_client.post("/ops/v1/design-requests", json={"description": "x"})
     request_id = submit.json()["id"]
     await eboard_client.patch(f"/ops/v1/design-requests/{request_id}/review", json={"status": "approved"})
+    branch_name = f"design-request/{request_id}"
     await eboard_client.post(
         "/ops/v1/design-requests/webhook/agent-callback",
         json={
             "request_id": request_id,
             "outcome": "success",
-            "branch_name": f"design-request/{request_id}",
+            "branch_name": branch_name,
             "pr_number": 7,
             "pr_url": "https://github.com/cornell-business-analytics/cba-ops/pull/7",
         },
         headers={"X-Design-Agent-Secret": "test-secret"},
     )
 
+    async def fake_get_pr(pr_number):
+        return {"head": {"ref": branch_name}}
+
+    async def fake_check_status(ref, pr_number=None):
+        return "success", None
+
+    async def fake_merge_pr(pr_number, commit_message):
+        return {"sha": "abc123"}
+
+    monkeypatch.setattr(github, "get_pr", fake_get_pr)
+    monkeypatch.setattr(github, "get_combined_check_status", fake_check_status)
+    monkeypatch.setattr(github, "merge_pr", fake_merge_pr)
+
     resp = await eboard_client.post(f"/ops/v1/design-requests/{request_id}/confirm")
-    assert resp.status_code == 403
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "merged"
 
 
 @pytest.mark.asyncio
@@ -192,8 +207,8 @@ async def test_confirm_merges_when_different_user_and_ci_green(
     async def fake_get_pr(pr_number):
         return {"head": {"ref": branch_name}}
 
-    async def fake_check_status(ref):
-        return "success"
+    async def fake_check_status(ref, pr_number=None):
+        return "success", None
 
     async def fake_merge_pr(pr_number, commit_message):
         return {"sha": "abc123"}
