@@ -73,7 +73,7 @@ export default function MembersPage() {
   });
 
   const api = createApi(session?.accessToken);
-  const canAdd = session?.role === "director" || session?.role === "eboard";
+  const canAdd = session?.role === "director" || session?.role === "eboard" || session?.role === "recruitment";
 
   const { data: members = [], isLoading } = useQuery<MembershipDetail[]>({
     queryKey: ["members"],

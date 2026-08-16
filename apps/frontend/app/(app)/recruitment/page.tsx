@@ -42,7 +42,7 @@ export default function RecruitmentPage() {
   const api = () => createApi(session?.accessToken);
   const qc = useQueryClient();
 
-  const canManage = session?.role === "recruitment" || session?.role === "eboard";
+  const canManage = session?.role === "recruitment" || session?.role === "eboard" || session?.role === "director";
 
   const [selectedCycleId, setSelectedCycleId] = useState<string>("");
   const [search, setSearch] = useState("");
