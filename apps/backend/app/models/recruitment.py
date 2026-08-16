@@ -71,9 +71,12 @@ class CoffeeChatApplicant(UUIDMixin, TimestampMixin, Base):
 
 
 class GmailToken(UUIDMixin, TimestampMixin, Base):
-    """Singleton table — one row storing the Gmail OAuth token for the CBA account."""
+    """One row per user — each user connects their own Gmail account."""
     __tablename__ = "gmail_tokens"
 
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True, unique=True
+    )
     access_token: Mapped[str] = mapped_column(Text, nullable=False)
     refresh_token: Mapped[str] = mapped_column(Text, nullable=False)
     token_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -65,11 +65,11 @@ def _grad_date_to_year(grad_date: str) -> str:
     return s
 
 
-async def _get_valid_token(db: AsyncSession) -> GmailToken:
-    result = await db.execute(select(GmailToken).limit(1))
+async def _get_valid_token(db: AsyncSession, user_id: uuid.UUID) -> GmailToken:
+    result = await db.execute(select(GmailToken).where(GmailToken.user_id == user_id))
     token = result.scalar_one_or_none()
     if not token:
-        raise HTTPException(status_code=503, detail="Gmail not connected. Connect Gmail in Recruitment settings.")
+        raise HTTPException(status_code=503, detail="Gmail not connected. Connect your Gmail account in Recruitment settings.")
 
     # Refresh if expired
     if token.token_expiry and datetime.now(timezone.utc) >= token.token_expiry:
@@ -171,9 +171,10 @@ DEFAULT_REJECTION_BODY = """<p>Hello {{applicant_first}},</p>
 # ---------------------------------------------------------------------------
 
 @router.get("/gmail-auth-url")
-async def gmail_auth_url(_: User = Depends(require_role(UserRole.director))):
+async def gmail_auth_url(current_user: User = Depends(require_role(UserRole.director))):
     if not settings.GMAIL_CLIENT_ID:
         raise HTTPException(status_code=503, detail="GMAIL_CLIENT_ID not configured")
+    state = base64.urlsafe_b64encode(str(current_user.id).encode()).decode()
     url = (
         f"{GOOGLE_AUTH_URL}"
         f"?client_id={settings.GMAIL_CLIENT_ID}"
@@ -182,12 +183,20 @@ async def gmail_auth_url(_: User = Depends(require_role(UserRole.director))):
         f"&scope={GMAIL_SCOPES.replace(' ', '%20')}"
         f"&access_type=offline"
         f"&prompt=consent"
+        f"&state={state}"
     )
     return {"url": url}
 
 
 @router.get("/gmail-callback")
-async def gmail_callback(code: str = Query(...), db: AsyncSession = Depends(get_db)):
+async def gmail_callback(code: str = Query(...), state: str = Query(default=""), db: AsyncSession = Depends(get_db)):
+    # Decode user_id from state parameter set in gmail_auth_url
+    user_id: uuid.UUID | None = None
+    try:
+        user_id = uuid.UUID(base64.urlsafe_b64decode(state.encode()).decode())
+    except Exception:
+        pass
+
     async with httpx.AsyncClient() as client:
         resp = await client.post(GOOGLE_TOKEN_URL, data={
             "code": code,
@@ -213,7 +222,7 @@ async def gmail_callback(code: str = Query(...), db: AsyncSession = Depends(get_
         if info.status_code == 200:
             account_email = info.json().get("email")
 
-    result = await db.execute(select(GmailToken).limit(1))
+    result = await db.execute(select(GmailToken).where(GmailToken.user_id == user_id))
     token = result.scalar_one_or_none()
     if token:
         token.access_token = data["access_token"]
@@ -222,6 +231,7 @@ async def gmail_callback(code: str = Query(...), db: AsyncSession = Depends(get_
         token.account_email = account_email
     else:
         token = GmailToken(
+            user_id=user_id,
             access_token=data["access_token"],
             refresh_token=data.get("refresh_token", ""),
             token_expiry=expiry,
@@ -236,10 +246,10 @@ async def gmail_callback(code: str = Query(...), db: AsyncSession = Depends(get_
 
 @router.get("/gmail-status")
 async def gmail_status(
-    _: User = Depends(require_role(UserRole.director)),
+    current_user: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(GmailToken).limit(1))
+    result = await db.execute(select(GmailToken).where(GmailToken.user_id == current_user.id))
     token = result.scalar_one_or_none()
     if not token:
         return {"connected": False, "account_email": None}
@@ -393,7 +403,7 @@ def _extract_sheet_id(raw: str) -> str:
 @router.post("/cycles/{cycle_id}/import")
 async def import_from_sheet(
     cycle_id: uuid.UUID,
-    _: User = Depends(require_role(UserRole.director)),
+    current_user: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(RecruitmentCycle).where(RecruitmentCycle.id == cycle_id))
@@ -416,7 +426,7 @@ async def import_from_sheet(
     )
 
     sheet_id = _extract_sheet_id(cycle.sheet_id)
-    token = await _get_valid_token(db)
+    token = await _get_valid_token(db, current_user.id)
 
     async with httpx.AsyncClient() as client:
         # Use A:ZZ to capture all rows regardless of which columns have data
@@ -501,7 +511,7 @@ async def import_from_sheet(
 @router.get("/cycles/{cycle_id}/sheet-columns")
 async def get_sheet_columns(
     cycle_id: uuid.UUID,
-    _: User = Depends(require_role(UserRole.director)),
+    current_user: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
     """Returns the header row from the sheet so the user can map columns."""
@@ -511,7 +521,7 @@ async def get_sheet_columns(
         raise HTTPException(status_code=400, detail="Cycle has no sheet ID")
 
     sheet_id = _extract_sheet_id(cycle.sheet_id)
-    token = await _get_valid_token(db)
+    token = await _get_valid_token(db, current_user.id)
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/1:1",
@@ -718,7 +728,7 @@ async def send_pairing_email(
         current_user.name, cycle.sender_title,
     )
 
-    token = await _get_valid_token(db)
+    token = await _get_valid_token(db, current_user.id)
     member_email = f"{member_user.email}"
     msg_id = await _send_gmail(
         token,
@@ -758,7 +768,7 @@ async def send_rejection_email(
 
     body_html = _render_rejection_body(cycle.rejection_body, applicant, current_user.name, cycle.sender_title)
 
-    token = await _get_valid_token(db)
+    token = await _get_valid_token(db, current_user.id)
     msg_id = await _send_gmail(
         token,
         to=applicant.email,
