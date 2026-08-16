@@ -528,6 +528,7 @@ export default function CycleDetailPage() {
                             alt=""
                             width={40}
                             height={40}
+                            unoptimized
                             className="rounded-full object-cover shrink-0"
                           />
                         ) : (
