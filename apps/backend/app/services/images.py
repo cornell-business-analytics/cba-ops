@@ -30,10 +30,22 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 logger = logging.getLogger(__name__)
 
-# Longest edge, in pixels. The largest slot any of these images fills is a
-# full-bleed hero at 50vw, so 2560 still covers a 2x retina 1280px column with
-# room to spare. Anything above this is pure waste.
-MAX_DIMENSION = 2560
+# Longest edge, in pixels, per upload purpose. Next.js image optimization is
+# switched off (see apps/website/next.config.mjs), so whatever is stored here is
+# exactly what a visitor downloads — there is no resizing step downstream to
+# rescue an oversized file.
+#
+#   website  — full-bleed heroes and homepage pillars at 50vw. 2560 covers a 2x
+#              retina 1280px column with room to spare.
+#   headshot — a 25vw cell in the team grid, and roughly a 400px column on an
+#              individual profile. 1024 covers both at 2x; at 2560 a 40-person
+#              team page would pull tens of megabytes.
+MAX_DIMENSIONS = {
+    "website": 2560,
+    "headshot": 1024,
+}
+DEFAULT_PURPOSE = "website"
+MAX_DIMENSION = MAX_DIMENSIONS[DEFAULT_PURPOSE]
 
 JPEG_QUALITY = 82
 WEBP_QUALITY = 82
@@ -48,7 +60,9 @@ def _has_alpha(img: Image.Image) -> bool:
     return img.mode in ("RGBA", "LA", "PA") or "transparency" in img.info
 
 
-def normalize_image(content: bytes, content_type: str) -> bytes:
+def normalize_image(
+    content: bytes, content_type: str, max_dimension: int = MAX_DIMENSION
+) -> bytes:
     """Decode, orient, downscale and re-encode an uploaded image.
 
     Returns canonical bytes in the same format family as the input, so the file
@@ -75,8 +89,8 @@ def normalize_image(content: bytes, content_type: str) -> bytes:
     # that would otherwise tell the browser how to rotate the image.
     img = ImageOps.exif_transpose(img)
 
-    if max(img.size) > MAX_DIMENSION:
-        img.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.LANCZOS)
+    if max(img.size) > max_dimension:
+        img.thumbnail((max_dimension, max_dimension), Image.LANCZOS)
 
     out = io.BytesIO()
     if content_type == "image/jpeg":

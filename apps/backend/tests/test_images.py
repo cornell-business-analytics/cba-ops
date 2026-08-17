@@ -3,7 +3,7 @@ import io
 import pytest
 from PIL import Image
 
-from app.services.images import MAX_DIMENSION, normalize_image
+from app.services.images import MAX_DIMENSION, MAX_DIMENSIONS, normalize_image
 
 
 def _jpeg(width: int, height: int, exif: Image.Exif | None = None) -> bytes:
@@ -108,3 +108,22 @@ def test_passes_through_non_normalizable_types():
 def test_output_is_smaller_for_camera_original():
     original = _jpeg(6000, 4000)
     assert len(normalize_image(original, "image/jpeg")) < len(original)
+
+
+def test_headshot_cap_is_smaller_than_website_cap():
+    """Next.js image optimization is off, so the stored size is what a visitor
+    downloads. A team page of 2560px headshots would be tens of megabytes."""
+    assert MAX_DIMENSIONS["headshot"] < MAX_DIMENSIONS["website"]
+
+
+@pytest.mark.parametrize("purpose", sorted(MAX_DIMENSIONS))
+def test_respects_per_purpose_cap(purpose):
+    result = normalize_image(_jpeg(6000, 4000), "image/jpeg", MAX_DIMENSIONS[purpose])
+
+    assert max(Image.open(io.BytesIO(result)).size) == MAX_DIMENSIONS[purpose]
+
+
+def test_defaults_to_website_cap():
+    result = normalize_image(_jpeg(6000, 4000), "image/jpeg")
+
+    assert max(Image.open(io.BytesIO(result)).size) == MAX_DIMENSIONS["website"]

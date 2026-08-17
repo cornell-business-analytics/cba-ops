@@ -251,6 +251,10 @@ export default function MemberProfilePage() {
       const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
       const formData = new FormData();
       formData.append("file", blob, "headshot.jpg");
+      // Headshots render as a 25vw grid cell, never full-bleed. Website images
+      // are stored much larger, and with Next.js image optimization off that
+      // difference is what a visitor actually downloads.
+      formData.append("purpose", "headshot");
       const res = await fetch(`${BACKEND}/ops/v1/assets/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session?.accessToken}` },

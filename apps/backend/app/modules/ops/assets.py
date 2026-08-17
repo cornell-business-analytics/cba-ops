@@ -3,14 +3,14 @@ from typing import Any
 
 import boto3
 from botocore.config import Config
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from app.core.config import settings
 from app.core.middleware import limiter
 from app.models.user import User
 from app.modules.ops.deps import get_current_user
-from app.services.images import normalize_image
+from app.services.images import DEFAULT_PURPOSE, MAX_DIMENSIONS, normalize_image
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -46,8 +46,15 @@ def _get_r2_client() -> Any:
 async def upload_asset(
     request: Request,
     file: UploadFile = File(...),
+    purpose: str = Form(DEFAULT_PURPOSE),
     current_user: User = Depends(get_current_user),
 ):
+    if purpose not in MAX_DIMENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown purpose '{purpose}' (expected one of: {', '.join(sorted(MAX_DIMENSIONS))})",
+        )
+
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=400, detail=f"Content type not allowed: {file.content_type}")
 
@@ -67,7 +74,7 @@ async def upload_asset(
     # the design-agent, so this is the only place we can guarantee they are
     # canonical and web-sized. See app/services/images.py for the full rationale.
     try:
-        content = normalize_image(content, file.content_type)
+        content = normalize_image(content, file.content_type, MAX_DIMENSIONS[purpose])
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
