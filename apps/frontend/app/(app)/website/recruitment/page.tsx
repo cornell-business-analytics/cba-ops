@@ -102,9 +102,6 @@ export default function RecruitmentStepsPage() {
           <ol className="space-y-3">
             {fields.map((field, i) => (
               <li key={field.id} className="flex gap-3 items-start rounded-lg border bg-white p-4">
-                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-cba-green text-xs font-bold text-white mt-1">
-                  {i + 1}
-                </span>
                 <div className="flex-1 space-y-2">
                   <div className="space-y-1">
                     <Label className="text-xs">Title</Label>
@@ -112,7 +109,7 @@ export default function RecruitmentStepsPage() {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Description</Label>
-                    <Textarea {...register(`steps.${i}.desc`)} placeholder="Brief description (optional)" rows={4} />
+                    <Textarea {...register(`steps.${i}.desc`)} placeholder="Brief description (optional)" rows={4} className="resize-y" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 flex-shrink-0">
