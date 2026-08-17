@@ -36,7 +36,7 @@ export type { DesignRequestStatus, DesignRequest, DesignRequestStatusCheck } fro
 
 export interface RecruitmentStep {
   title: string;
-  desc: string;
+  desc?: string;
 }
 
 export interface ApiError {

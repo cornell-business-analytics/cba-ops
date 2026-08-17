@@ -70,7 +70,7 @@ export default async function RecruitmentPage() {
                     </span>
                     <div>
                       <p className="font-semibold text-cba-dark">{title}</p>
-                      <p className="mt-0.5 text-sm text-gray-600">{desc}</p>
+                      {desc && <p className="mt-0.5 text-sm text-gray-600">{desc}</p>}
                     </div>
                   </li>
                 ))}
