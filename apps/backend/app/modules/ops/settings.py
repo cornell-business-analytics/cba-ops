@@ -16,6 +16,7 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 class RecruitmentStep(BaseModel):
     title: str
     desc: str = ""
+    step_number: str | None = None
 
 
 @router.get("/recruitment-steps", response_model=list[RecruitmentStep])

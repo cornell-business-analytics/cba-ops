@@ -63,11 +63,13 @@ export default async function RecruitmentPage() {
             <div className={!hasEvents ? "max-w-xl" : ""}>
               <h2 className="text-2xl font-bold text-cba-dark">The process</h2>
               <ol className="mt-6 space-y-6">
-                {steps.map(({ title, desc }, i) => (
+                {steps.map(({ title, desc, step_number }, i) => (
                   <li key={i} className="flex gap-4">
-                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-cba-green text-sm font-bold text-white">
-                      {i + 1}
-                    </span>
+                    {step_number && (
+                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-cba-green text-sm font-bold text-white">
+                        {step_number}
+                      </span>
+                    )}
                     <div>
                       <p className="font-semibold text-cba-dark">{title}</p>
                       {desc && <p className="mt-0.5 text-sm text-gray-600">{desc}</p>}

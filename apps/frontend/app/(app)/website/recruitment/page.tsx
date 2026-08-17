@@ -103,9 +103,15 @@ export default function RecruitmentStepsPage() {
             {fields.map((field, i) => (
               <li key={field.id} className="flex gap-3 items-start rounded-lg border bg-white p-4">
                 <div className="flex-1 space-y-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Title</Label>
-                    <Input {...register(`steps.${i}.title`, { required: true })} placeholder="Step title" />
+                  <div className="flex gap-2">
+                    <div className="space-y-1 w-20 flex-shrink-0">
+                      <Label className="text-xs">Number</Label>
+                      <Input {...register(`steps.${i}.step_number`)} placeholder="e.g. 0" className="text-center" />
+                    </div>
+                    <div className="space-y-1 flex-1">
+                      <Label className="text-xs">Title</Label>
+                      <Input {...register(`steps.${i}.title`, { required: true })} placeholder="Step title" />
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Description</Label>
