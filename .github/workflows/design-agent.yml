@@ -104,6 +104,12 @@ jobs:
           curl -fsSL "$ATTACHMENT_URL" -o "$DEST"
           echo "Image written to $DEST ($(wc -c < "$DEST") bytes)"
 
+      - name: Validate downloaded image
+        if: github.event.inputs.attachment_url != '' && github.event.inputs.target_path != ''
+        env:
+          TARGET: ${{ github.event.inputs.target_path }}
+        run: python3 .github/design-agent/validate-image.py "apps/website/public/$TARGET"
+
       - name: Apply agent permission guardrail
         run: |
           mkdir -p .claude
