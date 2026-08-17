@@ -226,7 +226,7 @@ export default async function ClientsPage() {
         <h2 className="text-3xl font-bold text-cba-dark">Past Projects</h2>
         <p className="mt-4 max-w-2xl text-gray-600 leading-relaxed">
           Since its inception, Cornell Business Analytics has delivered high quality work
-          to all its diverse clients. Below are some of the clients we've worked with.
+          to all its diverse clients. Below are some of the clients we&apos;ve worked with.
         </p>
 
         <div className="mt-10 grid grid-cols-2 gap-8 sm:grid-cols-4">

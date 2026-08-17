@@ -94,10 +94,10 @@ export default async function AboutPage() {
           <div>
             <h2 className="text-2xl font-bold text-cba-dark">Who we are</h2>
             <p className="mt-4 leading-relaxed text-gray-600">
-              Founded in 2016, Cornell Business Analytics is Cornell's first technical
+              Founded in 2016, Cornell Business Analytics is Cornell&apos;s first technical
               consulting club. We partner with on-campus and off-campus clients to deliver
               data-driven insights that drive real decisions while giving our members the
-              hands-on experience that classrooms can't. 
+              hands-on experience that classrooms can&apos;t. 
             </p>
           </div>
 

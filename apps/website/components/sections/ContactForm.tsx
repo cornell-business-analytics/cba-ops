@@ -35,7 +35,7 @@ export function ContactForm() {
     return (
       <div className="rounded-lg bg-green-50 p-6 text-center text-green-800">
         <p className="font-semibold">Message sent!</p>
-        <p className="mt-1 text-sm">We'll get back to you within a few days.</p>
+        <p className="mt-1 text-sm">We&apos;ll get back to you within a few days.</p>
       </div>
     );
   }
