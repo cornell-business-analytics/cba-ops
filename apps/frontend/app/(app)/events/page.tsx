@@ -406,12 +406,14 @@ export default function EventsPage() {
             <ol className="space-y-2">
               {fields.map((field, i) => (
                 <li key={field.id} className="flex gap-3 items-start rounded-lg border bg-white p-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-700 text-xs font-bold text-white mt-0.5">
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 grid grid-cols-2 gap-2">
-                    <Input {...stepsForm.register(`steps.${i}.title`, { required: true })} placeholder="Step title" />
-                    <Input {...stepsForm.register(`steps.${i}.desc`, { required: true })} placeholder="Brief description" />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex gap-2">
+                      <div className="w-16 shrink-0">
+                        <Input {...stepsForm.register(`steps.${i}.step_number`)} placeholder="#" className="text-center" />
+                      </div>
+                      <Input {...stepsForm.register(`steps.${i}.title`, { required: true })} placeholder="Step title" />
+                    </div>
+                    <Textarea {...stepsForm.register(`steps.${i}.desc`)} placeholder="Brief description (optional)" rows={3} className="resize-y" />
                   </div>
                   <div className="flex gap-0.5 shrink-0">
                     <Button type="button" variant="ghost" size="sm" onClick={() => move(i, i - 1)} disabled={i === 0} className="h-7 w-7 p-0">
@@ -427,7 +429,7 @@ export default function EventsPage() {
                 </li>
               ))}
             </ol>
-            <Button type="button" variant="outline" size="sm" onClick={() => append({ title: "", desc: "" })}>
+            <Button type="button" variant="outline" size="sm" onClick={() => append({ title: "", desc: "", step_number: "" })}>
               <Plus className="h-4 w-4 mr-1" /> Add step
             </Button>
             <div className="flex items-center gap-3">
