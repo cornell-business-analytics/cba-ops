@@ -41,7 +41,11 @@ export interface DesignRequest {
 }
 
 export interface DesignRequestStatusCheck {
-  ci_status: "success" | "failure" | "pending" | null;
+  /**
+   * "missing_checks" means a required CI check never reported at all — the
+   * change is unverified rather than still running, and must not be merged.
+   */
+  ci_status: "success" | "failure" | "pending" | "missing_checks" | null;
   preview_url: string | null;
   mergeable: boolean | null;
   pr_url: string | null;

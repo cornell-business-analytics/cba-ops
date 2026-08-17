@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.core.middleware import limiter
 from app.models.user import User
 from app.modules.ops.deps import get_current_user
+from app.services.images import normalize_image
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -61,6 +62,15 @@ async def upload_asset(
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+
+    # Re-encode before storing. Uploads reach the public site byte-for-byte via
+    # the design-agent, so this is the only place we can guarantee they are
+    # canonical and web-sized. See app/services/images.py for the full rationale.
+    try:
+        content = normalize_image(content, file.content_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
     _get_r2_client().put_object(
         Bucket=settings.R2_BUCKET_NAME,
         Key=key,

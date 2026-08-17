@@ -60,5 +60,31 @@ class Settings(BaseSettings):
     GITHUB_WORKFLOW_FILE: str = "design-agent.yml"
     DESIGN_AGENT_WEBHOOK_SECRET: str = ""
 
+    # Vercel's "Protection Bypass for Automation" secret. Preview deployments sit
+    # behind Vercel Authentication, so the preview link the ops tool hands a
+    # reviewer shows a Vercel login wall unless they happen to have an account
+    # with access to the project — which club members do not. Setting this makes
+    # the surfaced link carry its own bypass so any reviewer can open it, while
+    # previews stay closed to anyone without the link. See docs/handover.md.
+    VERCEL_PROTECTION_BYPASS_SECRET: str = ""
+
+    # Check names that must be present AND green before a design request can be
+    # merged — job `name:` values from .github/workflows/ci.yml, e.g.
+    # "Lint,Typecheck,Test Backend".
+    #
+    # Empty by default, which means "gate on whatever checks actually report".
+    # Today that is the Vercel deployments, so a design request stays mergeable
+    # as soon as its preview builds — the long-standing behaviour.
+    #
+    # Setting this makes the gate fail closed: a named check that never reports
+    # blocks the merge instead of being treated as no objection. Worth turning
+    # on if the CI workflow is running and you want merges to depend on it,
+    # since a disabled or renamed workflow otherwise goes unnoticed.
+    REQUIRED_CI_CHECKS: str = ""
+
+    @property
+    def required_ci_checks(self) -> list[str]:
+        return [name.strip() for name in self.REQUIRED_CI_CHECKS.split(",") if name.strip()]
+
 
 settings = Settings()

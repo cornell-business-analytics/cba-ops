@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, MapPin, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Pencil, Trash2, MapPin, ArrowUp, ArrowDown, Link as LinkIcon } from "lucide-react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,8 @@ type EventForm = {
   event_date: string;
   type: string;
   is_published: boolean;
+  link_url: string;
+  link_label: string;
 };
 
 const EVENT_TYPES = ["recruitment", "workshop", "speaker", "social", "other"];
@@ -70,6 +72,18 @@ function EventRow({
               <MapPin className="h-3 w-3" />
               {event.location}
             </span>
+          )}
+          {event.link_url && (
+            <a
+              href={event.link_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 hover:text-foreground hover:underline"
+            >
+              <LinkIcon className="h-3 w-3" />
+              {event.link_label ?? "Link"}
+            </a>
           )}
         </div>
       </div>
@@ -162,7 +176,7 @@ export default function EventsPage() {
 
   function openNew() {
     setEditing(null);
-    reset({ title: "", slug: "", description: "", location: "", event_date: "", type: "recruitment", is_published: false });
+    reset({ title: "", slug: "", description: "", location: "", event_date: "", type: "recruitment", is_published: false, link_url: "", link_label: "" });
     setOpen(true);
   }
 
@@ -176,6 +190,8 @@ export default function EventsPage() {
       event_date: event.event_date.slice(0, 16),
       type: event.type,
       is_published: event.is_published,
+      link_url: event.link_url ?? "",
+      link_label: event.link_label ?? "",
     });
     setOpen(true);
   }
@@ -297,12 +313,38 @@ export default function EventsPage() {
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   placeholder="Event description…"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Links pasted here become clickable on the website automatically.
+                </p>
               </div>
+              <div className="grid grid-cols-[1fr_auto] gap-3">
+                <div className="space-y-1">
+                  <Label>
+                    Link <span className="text-xs text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    {...register("link_url")}
+                    placeholder="forms.gle/abc123 or https://cornell.zoom.us/j/…"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>
+                    Button text <span className="text-xs text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input {...register("link_label")} placeholder="RSVP" className="w-36" />
+                </div>
+              </div>
+              <p className="-mt-1 text-xs text-muted-foreground">
+                Shown as a button on the public event listing. https:// is added for you if you leave it off.
+              </p>
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="published" {...register("is_published")} />
                 <Label htmlFor="published">Published on website</Label>
               </div>
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-3 pt-2">
+                {save.error instanceof Error && (
+                  <p className="flex-1 text-xs text-destructive">{save.error.message}</p>
+                )}
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   Cancel
                 </Button>

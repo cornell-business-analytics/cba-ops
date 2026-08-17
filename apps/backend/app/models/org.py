@@ -25,3 +25,7 @@ class Event(UUIDMixin, TimestampMixin, Base):
     event_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     type: Mapped[EventType] = mapped_column(Enum(EventType), nullable=False, index=True)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Optional call-to-action link (RSVP form, Zoom room, signup sheet). Always
+    # http(s) — enforced in app/schemas/event.py, never rendered raw.
+    link_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    link_label: Mapped[str | None] = mapped_column(String(80), nullable=True)

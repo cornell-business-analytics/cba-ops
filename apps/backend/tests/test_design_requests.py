@@ -44,7 +44,7 @@ async def test_reject_request(member_client: AsyncClient, eboard_client: AsyncCl
 async def test_approve_dispatches_agent(member_client: AsyncClient, eboard_client: AsyncClient, monkeypatch):
     calls = {}
 
-    async def fake_dispatch(request_id, description):
+    async def fake_dispatch(request_id, description, **kwargs):
         calls["request_id"] = request_id
         calls["description"] = description
 
@@ -69,7 +69,7 @@ async def test_approve_dispatch_failure_is_retryable(
 ):
     import httpx as httpx_module
 
-    async def failing_dispatch(request_id, description):
+    async def failing_dispatch(request_id, description, **kwargs):
         raise httpx_module.ConnectError("boom")
 
     monkeypatch.setattr(github, "trigger_workflow_dispatch", failing_dispatch)
@@ -85,7 +85,7 @@ async def test_approve_dispatch_failure_is_retryable(
     check = await eboard_client.get(f"/ops/v1/design-requests/{request_id}")
     assert check.json()["status"] == "dispatch_failed"
 
-    async def working_dispatch(request_id, description):
+    async def working_dispatch(request_id, description, **kwargs):
         return None
 
     monkeypatch.setattr(github, "trigger_workflow_dispatch", working_dispatch)
