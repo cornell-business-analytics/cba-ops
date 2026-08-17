@@ -76,7 +76,10 @@ class AgentCallback(BaseModel):
 
 
 class DesignRequestStatusCheck(BaseModel):
-    ci_status: str | None  # "success" | "failure" | "pending" | None (no checks yet)
+    # "success" | "failure" | "pending" | "missing_checks" | None (no checks yet).
+    # "missing_checks" = a check in REQUIRED_CI_CHECKS never reported, so the
+    # change is unverified rather than merely still running.
+    ci_status: str | None
     preview_url: str | None
     mergeable: bool | None
     pr_url: str | None

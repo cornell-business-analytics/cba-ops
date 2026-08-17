@@ -13,6 +13,7 @@ const CI_LABEL: Record<string, string> = {
   success: "Checks passing",
   failure: "Checks failing",
   pending: "Checks running…",
+  missing_checks: "CI did not run",
 };
 
 export function ReviewPanel({ request }: { request: DesignRequest }) {
@@ -182,7 +183,7 @@ export function ReviewPanel({ request }: { request: DesignRequest }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {check?.ci_status && (
-              <Badge variant={check.ci_status === "success" ? "success" : check.ci_status === "failure" ? "destructive" : "warning"}>
+              <Badge variant={check.ci_status === "success" ? "success" : check.ci_status === "failure" || check.ci_status === "missing_checks" ? "destructive" : "warning"}>
                 {CI_LABEL[check.ci_status] ?? check.ci_status}
               </Badge>
             )}
@@ -211,6 +212,13 @@ export function ReviewPanel({ request }: { request: DesignRequest }) {
 
         {request.status === "merge_failed" && (
           <p className="text-xs text-destructive">{request.agent_error ?? "Merge failed."}</p>
+        )}
+
+        {check?.ci_status === "missing_checks" && (
+          <p className="text-xs text-destructive">
+            The required CI checks never ran, so this change is unverified and can&apos;t be merged.
+            Ask an admin to confirm the CI workflow is enabled in the repo&apos;s Actions tab.
+          </p>
         )}
 
         {showRevise ? (

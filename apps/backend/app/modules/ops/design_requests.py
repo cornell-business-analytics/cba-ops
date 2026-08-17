@@ -259,6 +259,14 @@ async def confirm_design_request(
         raise HTTPException(status_code=409, detail="PR branch does not match this request — refusing to merge")
 
     ci_status, _ = await github.get_combined_check_status(req.branch_name, req.pr_number)
+    if ci_status == "missing_checks":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Required CI checks never ran on this PR, so the change is unverified. "
+                "Check that the CI workflow is enabled in the repo's Actions tab."
+            ),
+        )
     if ci_status != "success":
         raise HTTPException(status_code=409, detail=f"Checks are not passing (status: {ci_status or 'pending'})")
 

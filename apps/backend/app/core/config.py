@@ -68,5 +68,21 @@ class Settings(BaseSettings):
     # previews stay closed to anyone without the link. See docs/handover.md.
     VERCEL_PROTECTION_BYPASS_SECRET: str = ""
 
+    # Check names that must be present AND green before a design request can be
+    # merged. These are job `name:` values from .github/workflows/ci.yml.
+    #
+    # Presence is the point. Merging was previously gated on GitHub's combined
+    # commit status, which GitHub Actions does not post to — only Vercel does —
+    # so "Checks passing" meant "Vercel deployed" and design requests merged
+    # with no lint, typecheck or tests run at all. Requiring these by name means
+    # CI being switched off fails the gate closed instead of silently green.
+    #
+    # Set to an empty string to fall back to "whatever checks happen to exist".
+    REQUIRED_CI_CHECKS: str = "Lint,Typecheck,Test Backend"
+
+    @property
+    def required_ci_checks(self) -> list[str]:
+        return [name.strip() for name in self.REQUIRED_CI_CHECKS.split(",") if name.strip()]
+
 
 settings = Settings()
