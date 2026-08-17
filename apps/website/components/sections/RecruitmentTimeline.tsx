@@ -1,4 +1,5 @@
 import type { EventPublic } from "@cba/types";
+import { linkify } from "@/lib/linkify";
 
 interface RecruitmentTimelineProps {
   events: EventPublic[];
@@ -42,7 +43,31 @@ export function RecruitmentTimeline({ events }: RecruitmentTimelineProps) {
             <p className="text-sm text-gray-500">{event.location}</p>
           )}
           {event.description && (
-            <p className="mt-1 text-sm text-gray-600">{event.description}</p>
+            <p className="mt-1 whitespace-pre-line text-sm text-gray-600">
+              {linkify(event.description)}
+            </p>
+          )}
+          {event.link_url && (
+            <a
+              href={event.link_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-cba-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-cba-dark"
+            >
+              {event.link_label ?? "Sign up"}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3.5 w-3.5"
+              >
+                <path d="M7 17 17 7M9 7h8v8" />
+              </svg>
+            </a>
           )}
         </li>
       ))}

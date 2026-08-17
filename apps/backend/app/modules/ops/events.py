@@ -85,7 +85,10 @@ async def update_event(
     event = result.scalar_one_or_none()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    for field, value in body.model_dump(exclude_none=True).items():
+    # exclude_unset, not exclude_none: an explicit null has to reach the model so
+    # a director can remove an event's link (or location) again. Fields the
+    # client didn't send are still left alone.
+    for field, value in body.model_dump(exclude_unset=True).items():
         setattr(event, field, value)
     await db.commit()
     await db.refresh(event)
