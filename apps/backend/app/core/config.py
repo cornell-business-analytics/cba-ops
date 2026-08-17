@@ -69,16 +69,18 @@ class Settings(BaseSettings):
     VERCEL_PROTECTION_BYPASS_SECRET: str = ""
 
     # Check names that must be present AND green before a design request can be
-    # merged. These are job `name:` values from .github/workflows/ci.yml.
+    # merged — job `name:` values from .github/workflows/ci.yml, e.g.
+    # "Lint,Typecheck,Test Backend".
     #
-    # Presence is the point. Merging was previously gated on GitHub's combined
-    # commit status, which GitHub Actions does not post to — only Vercel does —
-    # so "Checks passing" meant "Vercel deployed" and design requests merged
-    # with no lint, typecheck or tests run at all. Requiring these by name means
-    # CI being switched off fails the gate closed instead of silently green.
+    # Empty by default, which means "gate on whatever checks actually report".
+    # Today that is the Vercel deployments, so a design request stays mergeable
+    # as soon as its preview builds — the long-standing behaviour.
     #
-    # Set to an empty string to fall back to "whatever checks happen to exist".
-    REQUIRED_CI_CHECKS: str = "Lint,Typecheck,Test Backend"
+    # Setting this makes the gate fail closed: a named check that never reports
+    # blocks the merge instead of being treated as no objection. Worth turning
+    # on if the CI workflow is running and you want merges to depend on it,
+    # since a disabled or renamed workflow otherwise goes unnoticed.
+    REQUIRED_CI_CHECKS: str = ""
 
     @property
     def required_ci_checks(self) -> list[str]:

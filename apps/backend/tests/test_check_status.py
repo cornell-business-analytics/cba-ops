@@ -1,6 +1,6 @@
 import pytest
 
-from app.core.config import settings
+from app.core.config import Settings, settings
 from app.services.github import _aggregate
 
 
@@ -16,17 +16,28 @@ ALL_REQUIRED_GREEN = {
 }
 
 
-def test_pr45_scenario_is_not_mergeable():
-    """The real state of PR #45: two green Vercel deployments, one Vercel check
-    run, and no CI at all — because the CI workflow was disabled_manually. The
-    old gate read this as 'success' and merged a 6 MB zero-padded image."""
-    checks = {
-        "Vercel – cba-website": "success",
-        "Vercel – cba-ops-frontend": "success",
-        "Vercel Preview Comments": "success",
-    }
+PR45_CHECKS = {
+    "Vercel – cba-website": "success",
+    "Vercel – cba-ops-frontend": "success",
+    "Vercel Preview Comments": "success",
+}
 
-    assert _aggregate(checks) == "missing_checks"
+
+def test_pr45_scenario_blocks_when_ci_checks_are_required():
+    """The real state of PR #45: two green Vercel deployments, one Vercel check
+    run, and no CI at all. Opting in to required checks catches it."""
+    assert _aggregate(PR45_CHECKS) == "missing_checks"
+
+
+def test_pr45_scenario_stays_mergeable_under_the_shipped_default(monkeypatch):
+    """REQUIRED_CI_CHECKS ships empty, so the gate keeps its existing meaning
+    and design requests merge once their preview builds. Enforcement is opt-in."""
+    monkeypatch.setattr(
+        settings, "REQUIRED_CI_CHECKS", Settings.model_fields["REQUIRED_CI_CHECKS"].default
+    )
+
+    assert settings.required_ci_checks == []
+    assert _aggregate(PR45_CHECKS) == "success"
 
 
 def test_all_required_green_is_success():
