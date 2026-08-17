@@ -112,7 +112,7 @@ export default function RecruitmentStepsPage() {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Description</Label>
-                    <Input {...register(`steps.${i}.desc`, { required: true })} placeholder="Brief description" />
+                    <Textarea {...register(`steps.${i}.desc`, { required: true })} placeholder="Brief description" rows={2} />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 flex-shrink-0">
