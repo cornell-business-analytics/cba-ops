@@ -3,7 +3,7 @@ import io
 import pytest
 from PIL import Image
 
-from app.services.images import MAX_DIMENSION, MAX_DIMENSIONS, normalize_image
+from app.services.images import MAX_DIMENSION, MAX_DIMENSIONS, PURPOSES, normalize_image
 
 
 def _jpeg(width: int, height: int, exif: Image.Exif | None = None) -> bytes:
@@ -12,6 +12,19 @@ def _jpeg(width: int, height: int, exif: Image.Exif | None = None) -> bytes:
     # Pillow rejects an explicit exif=None, so only pass it when set.
     extra = {"exif": exif} if exif is not None else {}
     img.save(buf, format="JPEG", quality=95, **extra)
+    return buf.getvalue()
+
+
+def _photo(width: int, height: int) -> bytes:
+    """Flat colour compresses unrealistically well; use noise for size checks."""
+    import random
+
+    random.seed(0)
+    img = Image.new("RGB", (width, height))
+    img.putdata([(random.randrange(256), random.randrange(256), random.randrange(256))
+                 for _ in range(width * height)])
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=95)
     return buf.getvalue()
 
 
@@ -28,14 +41,14 @@ def test_strips_trailing_padding():
     padded = original + b"\x00" * (4096 - len(original) % 4096)
     assert padded.rfind(b"\xff\xd9") != len(padded) - 2
 
-    result = normalize_image(padded, "image/jpeg")
+    result = normalize_image(padded, "image/jpeg")[0]
 
     assert result.endswith(b"\xff\xd9")
     assert result.rfind(b"\xff\xd9") == len(result) - 2
 
 
 def test_downscales_oversized_image():
-    result = normalize_image(_jpeg(6000, 4000), "image/jpeg")
+    result = normalize_image(_jpeg(6000, 4000), "image/jpeg")[0]
 
     img = Image.open(io.BytesIO(result))
     assert max(img.size) == MAX_DIMENSION
@@ -43,7 +56,7 @@ def test_downscales_oversized_image():
 
 
 def test_leaves_small_image_dimensions_alone():
-    result = normalize_image(_jpeg(400, 300), "image/jpeg")
+    result = normalize_image(_jpeg(400, 300), "image/jpeg")[0]
 
     assert Image.open(io.BytesIO(result)).size == (400, 300)
 
@@ -54,7 +67,7 @@ def test_applies_exif_orientation():
     image ships sideways."""
     exif = Image.Exif()
     exif[274] = 6  # rotate 90 CW
-    result = normalize_image(_jpeg(600, 400, exif=exif), "image/jpeg")
+    result = normalize_image(_jpeg(600, 400, exif=exif), "image/jpeg")[0]
 
     img = Image.open(io.BytesIO(result))
     assert img.size == (400, 600)
@@ -64,13 +77,13 @@ def test_applies_exif_orientation():
 def test_strips_exif_metadata():
     exif = Image.Exif()
     exif[271] = "SONY"  # Make
-    result = normalize_image(_jpeg(800, 600, exif=exif), "image/jpeg")
+    result = normalize_image(_jpeg(800, 600, exif=exif), "image/jpeg")[0]
 
     assert 271 not in Image.open(io.BytesIO(result)).getexif()
 
 
 def test_preserves_png_alpha():
-    result = normalize_image(_png(300, 300), "image/png")
+    result = normalize_image(_png(300, 300), "image/png")[0]
 
     img = Image.open(io.BytesIO(result))
     assert img.format == "PNG"
@@ -79,7 +92,7 @@ def test_preserves_png_alpha():
 
 def test_flattens_alpha_when_target_is_jpeg():
     """A PNG mislabelled as image/jpeg must not blow up on save."""
-    result = normalize_image(_png(300, 300), "image/jpeg")
+    result = normalize_image(_png(300, 300), "image/jpeg")[0]
 
     img = Image.open(io.BytesIO(result))
     assert img.format == "JPEG"
@@ -101,13 +114,13 @@ def test_passes_through_non_normalizable_types():
     """PDFs and formats Pillow may not decode (AVIF) go to R2 untouched rather
     than being rejected."""
     pdf = b"%PDF-1.4 fake pdf body"
-    assert normalize_image(pdf, "application/pdf") == pdf
-    assert normalize_image(pdf, "image/avif") == pdf
+    assert normalize_image(pdf, "application/pdf")[0] == pdf
+    assert normalize_image(pdf, "image/avif")[0] == pdf
 
 
 def test_output_is_smaller_for_camera_original():
     original = _jpeg(6000, 4000)
-    assert len(normalize_image(original, "image/jpeg")) < len(original)
+    assert len(normalize_image(original, "image/jpeg")[0]) < len(original)
 
 
 def test_headshot_cap_is_smaller_than_website_cap():
@@ -116,14 +129,41 @@ def test_headshot_cap_is_smaller_than_website_cap():
     assert MAX_DIMENSIONS["headshot"] < MAX_DIMENSIONS["website"]
 
 
-@pytest.mark.parametrize("purpose", sorted(MAX_DIMENSIONS))
+@pytest.mark.parametrize("purpose", sorted(PURPOSES))
 def test_respects_per_purpose_cap(purpose):
-    result = normalize_image(_jpeg(6000, 4000), "image/jpeg", MAX_DIMENSIONS[purpose])
+    result, _ = normalize_image(_jpeg(6000, 4000), "image/jpeg", purpose)
 
     assert max(Image.open(io.BytesIO(result)).size) == MAX_DIMENSIONS[purpose]
 
 
+def test_headshots_are_stored_as_webp():
+    """Headshots are served straight from R2 with the URL stored whole, so the
+    format is ours to pick — and a team page loads dozens at once."""
+    result, stored_type = normalize_image(_jpeg(2000, 2000), "image/jpeg", "headshot")
+
+    assert stored_type == "image/webp"
+    assert Image.open(io.BytesIO(result)).format == "WEBP"
+
+
+def test_website_images_keep_their_input_format():
+    """The design-agent commits these into the repo at a fixed path, so the
+    bytes have to keep matching the extension already in the JSX."""
+    jpeg, jpeg_type = normalize_image(_jpeg(3000, 2000), "image/jpeg", "website")
+    png, png_type = normalize_image(_png(300, 300), "image/png", "website")
+
+    assert (jpeg_type, Image.open(io.BytesIO(jpeg)).format) == ("image/jpeg", "JPEG")
+    assert (png_type, Image.open(io.BytesIO(png)).format) == ("image/png", "PNG")
+
+
+def test_webp_headshot_beats_jpeg_at_the_same_size():
+    source = _photo(2000, 2000)
+    webp, _ = normalize_image(source, "image/jpeg", "headshot")
+    jpeg, _ = normalize_image(source, "image/jpeg", "website")
+
+    assert len(webp) < len(jpeg)
+
+
 def test_defaults_to_website_cap():
-    result = normalize_image(_jpeg(6000, 4000), "image/jpeg")
+    result = normalize_image(_jpeg(6000, 4000), "image/jpeg")[0]
 
     assert max(Image.open(io.BytesIO(result)).size) == MAX_DIMENSIONS["website"]

@@ -50,9 +50,9 @@ function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const image = document.createElement("img");
     image.onload = () => {
-      // Matches MAX_DIMENSIONS["headshot"] on the backend, which re-encodes
-      // whatever arrives. Sending more than the cap just makes the upload
-      // slower and adds a needless second resample.
+      // Slightly above the backend's 800px headshot cap on purpose: it does the
+      // final resize with Lanczos, which is better than what a canvas downscale
+      // produces. Overshooting further just slows the upload down.
       const MIN_OUTPUT = 1024;
       const scale = Math.max(1, MIN_OUTPUT / Math.min(pixelCrop.width, pixelCrop.height));
       const outW = Math.round(pixelCrop.width * scale);

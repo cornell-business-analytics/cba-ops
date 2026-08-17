@@ -31,7 +31,7 @@ from botocore.exceptions import ClientError
 sys.path.insert(0, ".")
 
 from app.core.config import settings  # noqa: E402
-from app.services.images import DEFAULT_PURPOSE, MAX_DIMENSIONS, normalize_image  # noqa: E402
+from app.services.images import DEFAULT_PURPOSE, PURPOSES, normalize_image  # noqa: E402
 
 CONTENT_TYPES = {
     ".jpg": "image/jpeg",
@@ -63,7 +63,7 @@ def _content_type(key: str) -> str | None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--purpose", choices=sorted(MAX_DIMENSIONS), default=DEFAULT_PURPOSE,
+        "--purpose", choices=sorted(PURPOSES), default=DEFAULT_PURPOSE,
         help="Which size cap to apply (default: %(default)s)",
     )
     parser.add_argument("--prefix", default="uploads/", help="Key prefix to scan (default: %(default)s)")
@@ -85,7 +85,7 @@ def main() -> int:
         print("R2 credentials are not configured — set the R2_* env vars first.", file=sys.stderr)
         return 2
 
-    max_dimension = MAX_DIMENSIONS[args.purpose]
+    max_dimension = PURPOSES[args.purpose]["max_dimension"]
     client = _client()
 
     scanned = rewritten = skipped = failed = 0
@@ -105,7 +105,7 @@ def main() -> int:
             original = client.get_object(Bucket=settings.R2_BUCKET_NAME, Key=key)["Body"].read()
 
             try:
-                normalized = normalize_image(original, content_type, max_dimension)
+                normalized, stored_type = normalize_image(original, content_type, args.purpose)
             except ValueError as exc:
                 # Corrupt or mislabelled object — report it, leave it alone.
                 print(f"  FAILED  {key}: {exc}")
@@ -138,11 +138,16 @@ def main() -> int:
                     rewritten -= 1
                     continue
 
+            # Deliberately reuses the existing key even when the format
+            # changed. The object's URL is stored whole in the database, so
+            # renaming it would orphan every reference; browsers go by the
+            # Content-Type header, not the extension, so a .jpg key serving
+            # image/webp renders correctly.
             client.put_object(
                 Bucket=settings.R2_BUCKET_NAME,
                 Key=key,
                 Body=normalized,
-                ContentType=content_type,
+                ContentType=stored_type,
             )
 
     saved = bytes_before - bytes_after

@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.middleware import limiter
 from app.models.user import User
 from app.modules.ops.deps import get_current_user
-from app.services.images import DEFAULT_PURPOSE, MAX_DIMENSIONS, normalize_image
+from app.services.images import DEFAULT_PURPOSE, EXTENSIONS, PURPOSES, normalize_image
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -49,10 +49,10 @@ async def upload_asset(
     purpose: str = Form(DEFAULT_PURPOSE),
     current_user: User = Depends(get_current_user),
 ):
-    if purpose not in MAX_DIMENSIONS:
+    if purpose not in PURPOSES:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown purpose '{purpose}' (expected one of: {', '.join(sorted(MAX_DIMENSIONS))})",
+            detail=f"Unknown purpose '{purpose}' (expected one of: {', '.join(sorted(PURPOSES))})",
         )
 
     if file.content_type not in ALLOWED_CONTENT_TYPES:
@@ -60,11 +60,6 @@ async def upload_asset(
 
     if not settings.R2_ACCESS_KEY_ID:
         raise HTTPException(status_code=503, detail="Asset storage not configured")
-
-    filename = file.filename or ""
-    ext = filename.rsplit(".", 1)[-1] if "." in filename else ""
-    user_id = str(current_user.id)
-    key = f"uploads/{user_id}/{uuid_lib.uuid4()}.{ext}" if ext else f"uploads/{user_id}/{uuid_lib.uuid4()}"
 
     content = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
@@ -74,15 +69,26 @@ async def upload_asset(
     # the design-agent, so this is the only place we can guarantee they are
     # canonical and web-sized. See app/services/images.py for the full rationale.
     try:
-        content = normalize_image(content, file.content_type, MAX_DIMENSIONS[purpose])
+        content, stored_type = normalize_image(content, file.content_type, purpose)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+    # Derive the extension from what we actually encoded, not from the uploaded
+    # filename — some purposes re-encode to a different format, and a key whose
+    # extension disagrees with its bytes is a problem waiting to happen.
+    filename = file.filename or ""
+    fallback_ext = filename.rsplit(".", 1)[-1] if "." in filename else ""
+    ext = EXTENSIONS.get(stored_type, fallback_ext)
+    user_id = str(current_user.id)
+    key = f"uploads/{user_id}/{uuid_lib.uuid4()}"
+    if ext:
+        key = f"{key}.{ext}"
 
     _get_r2_client().put_object(
         Bucket=settings.R2_BUCKET_NAME,
         Key=key,
         Body=content,
-        ContentType=file.content_type or "application/octet-stream",
+        ContentType=stored_type or "application/octet-stream",
     )
 
     return UploadResponse(public_url=f"{settings.R2_PUBLIC_URL}/{key}", key=key)

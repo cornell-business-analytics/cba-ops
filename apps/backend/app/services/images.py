@@ -30,25 +30,42 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 logger = logging.getLogger(__name__)
 
-# Longest edge, in pixels, per upload purpose. Next.js image optimization is
-# switched off (see apps/website/next.config.mjs), so whatever is stored here is
-# exactly what a visitor downloads — there is no resizing step downstream to
-# rescue an oversized file.
+# Per-purpose output settings. Next.js image optimization is switched off (see
+# apps/website/next.config.mjs), so whatever is stored here is exactly what a
+# visitor downloads — there is no resizing or format negotiation downstream to
+# rescue an oversized file. That cuts both ways: it means we must size these
+# correctly ourselves, and it means we are free to pick the format.
 #
-#   website  — full-bleed heroes and homepage pillars at 50vw. 2560 covers a 2x
-#              retina 1280px column with room to spare.
-#   headshot — a 25vw cell in the team grid, and roughly a 400px column on an
-#              individual profile. 1024 covers both at 2x; at 2560 a 40-person
-#              team page would pull tens of megabytes.
-MAX_DIMENSIONS = {
-    "website": 2560,
-    "headshot": 1024,
+#   website  — full-bleed heroes at 100vw and homepage pillars at 50vw. Kept at
+#              2560 because the hero is the one image that renders edge-to-edge
+#              on a large display, and kept in its original format because the
+#              design-agent commits these into the repo at a fixed path whose
+#              extension must keep matching the bytes.
+#
+#   headshot — a 280px column on a profile page and a 25vw cell in the team
+#              grid (~480px on a 1920 viewport). 800 covers both comfortably.
+#              These are served straight from R2 with the URL stored whole in
+#              the database, so the format is ours to choose: WebP is roughly a
+#              third smaller than JPEG at matching quality, and a team page
+#              loads dozens of them at once.
+PURPOSES = {
+    "website": {"max_dimension": 2560, "output_type": None},  # None = keep input format
+    "headshot": {"max_dimension": 800, "output_type": "image/webp"},
 }
 DEFAULT_PURPOSE = "website"
-MAX_DIMENSION = MAX_DIMENSIONS[DEFAULT_PURPOSE]
+MAX_DIMENSION = PURPOSES[DEFAULT_PURPOSE]["max_dimension"]
+
+# Kept as a name because callers and tests reason in terms of size caps.
+MAX_DIMENSIONS = {name: spec["max_dimension"] for name, spec in PURPOSES.items()}
+
+EXTENSIONS = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+}
 
 JPEG_QUALITY = 82
-WEBP_QUALITY = 82
+WEBP_QUALITY = 80
 
 # Formats we can decode and re-encode safely. AVIF is deliberately absent —
 # Pillow only decodes it with a plugin that may not be present, and passing an
@@ -61,20 +78,25 @@ def _has_alpha(img: Image.Image) -> bool:
 
 
 def normalize_image(
-    content: bytes, content_type: str, max_dimension: int = MAX_DIMENSION
-) -> bytes:
+    content: bytes, content_type: str, purpose: str = DEFAULT_PURPOSE
+) -> tuple[bytes, str]:
     """Decode, orient, downscale and re-encode an uploaded image.
 
-    Returns canonical bytes in the same format family as the input, so the file
-    extension chosen by the caller stays correct.
+    Returns (bytes, content_type). The returned content type is what the caller
+    must store the object as — it is not always the input type, since some
+    purposes re-encode to a more efficient format. Use EXTENSIONS to derive the
+    matching file extension rather than trusting the uploaded filename.
 
     Non-image content types (PDF) and formats we cannot decode are returned
     unchanged. A payload that claims to be an image but does not decode raises
     ValueError — that is a corrupt or mislabelled upload and should not be
     silently published to the website.
     """
+    spec = PURPOSES[purpose]
+    max_dimension = spec["max_dimension"]
+
     if content_type not in _NORMALIZABLE:
-        return content
+        return content, content_type
 
     try:
         img = Image.open(io.BytesIO(content))
@@ -92,8 +114,10 @@ def normalize_image(
     if max(img.size) > max_dimension:
         img.thumbnail((max_dimension, max_dimension), Image.LANCZOS)
 
+    out_type = spec["output_type"] or content_type
+
     out = io.BytesIO()
-    if content_type == "image/jpeg":
+    if out_type == "image/jpeg":
         # JPEG has no alpha channel; flatten onto white rather than letting
         # Pillow raise on an RGBA -> JPEG save.
         if _has_alpha(img):
@@ -103,14 +127,16 @@ def normalize_image(
         elif img.mode != "RGB":
             img = img.convert("RGB")
         img.save(out, format="JPEG", quality=JPEG_QUALITY, optimize=True, progressive=True)
-    elif content_type == "image/png":
+    elif out_type == "image/png":
         img.save(out, format="PNG", optimize=True)
     else:  # image/webp
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGBA" if _has_alpha(img) else "RGB")
         img.save(out, format="WEBP", quality=WEBP_QUALITY, method=6)
 
     normalized = out.getvalue()
     logger.info(
-        "normalized %s: %d bytes -> %d bytes (%dx%d)",
-        content_type, len(content), len(normalized), img.width, img.height,
+        "normalized %s -> %s for %s: %d bytes -> %d bytes (%dx%d)",
+        content_type, out_type, purpose, len(content), len(normalized), img.width, img.height,
     )
-    return normalized
+    return normalized, out_type
