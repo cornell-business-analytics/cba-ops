@@ -60,5 +60,13 @@ class Settings(BaseSettings):
     GITHUB_WORKFLOW_FILE: str = "design-agent.yml"
     DESIGN_AGENT_WEBHOOK_SECRET: str = ""
 
+    # Vercel's "Protection Bypass for Automation" secret. Preview deployments sit
+    # behind Vercel Authentication, so the preview link the ops tool hands a
+    # reviewer shows a Vercel login wall unless they happen to have an account
+    # with access to the project — which club members do not. Setting this makes
+    # the surfaced link carry its own bypass so any reviewer can open it, while
+    # previews stay closed to anyone without the link. See docs/handover.md.
+    VERCEL_PROTECTION_BYPASS_SECRET: str = ""
+
 
 settings = Settings()

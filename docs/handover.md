@@ -23,6 +23,35 @@ why an approved request never produces a PR.
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Cloudflare dashboard; Railway env var | File uploads (headshots, CMS images) to Cloudflare R2 | Leaked: write access to the `cba-assets` bucket |
 | `NEXTAUTH_SECRET` | Vercel env var (`apps/frontend`) | Signs ops-tool session cookies | Leaked: session forgery. Rotated: invalidates every active ops-tool session immediately |
 | `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | Railway env vars | Signs/verifies the backend's own access + refresh tokens (RS256) | Leaked private key: forge backend tokens. Rotated: invalidates all refresh tokens |
+| `VERCEL_PROTECTION_BYPASS_SECRET` | Vercel dashboard (`cba-website` project); Railway env var | Lets design-request reviewers open preview deployments without a Vercel account | Leaked: someone could view preview deployments of the website. No write access, no production impact — lowest-risk secret here |
+
+## Letting reviewers see design-request previews
+
+Vercel puts every preview deployment behind **Vercel Authentication**, which is on by
+default. Anyone opening the "Preview" link in the ops tool without a Vercel account that
+has access to the `cba-website` project hits a login wall — which is every director, so
+the link was useless to exactly the people meant to click it.
+
+The fix keeps previews closed to the public but makes the ops tool's link self-authenticating:
+
+1. Vercel dashboard → `cba-website` project → **Settings → Deployment Protection**.
+2. Under **Protection Bypass for Automation**, click **Add Secret**. Vercel generates a
+   random 32-character value — copy it.
+3. Add it to Railway (backend) as `VERCEL_PROTECTION_BYPASS_SECRET` and redeploy.
+
+`app/services/github.py` then appends `x-vercel-protection-bypass` and
+`x-vercel-set-bypass-cookie` to the preview URL it hands the ops tool, so the link works
+for anyone who has it. Leave the env var blank and nothing changes — the link keeps
+behaving as it did before.
+
+Two things worth knowing:
+
+- The secret ends up in a URL visible to every authenticated ops user. That is the
+  intended audience, but it means the secret is only as private as ops-tool access.
+  Rotate it (same screen, **Regenerate**) when someone leaves.
+- The alternative — turning Vercel Authentication **off** entirely on that screen — also
+  works and needs no env var, but it makes every preview deployment publicly reachable by
+  anyone who guesses or finds the URL, including search crawlers. Prefer the bypass secret.
 
 ## Rotating the Claude subscription token
 

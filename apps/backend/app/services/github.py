@@ -5,6 +5,7 @@ import base64
 import json
 import os
 import re
+from urllib.parse import urlencode
 
 import httpx
 
@@ -121,6 +122,38 @@ async def close_pr(pr_number: int) -> None:
 _VERCEL_COMMENT_RE = re.compile(r"\[vc\]: #[^:\s]+:(\S+)")
 
 
+def _with_protection_bypass(preview_url: str) -> str:
+    """Append Vercel's automation-bypass params to a preview URL.
+
+    Preview deployments are gated by Vercel Authentication, which redirects
+    anyone without a Vercel account that has access to the project to a login
+    wall. Reviewers here are club directors, not Vercel users, so the "Preview"
+    link in the ops tool was unusable for exactly the people meant to click it.
+
+    `x-vercel-protection-bypass` authenticates the request and
+    `x-vercel-set-bypass-cookie=true` makes Vercel set a cookie on the response,
+    so clicking around inside the preview keeps working instead of only the
+    first request going through.
+
+    Note this puts the bypass secret in a URL handed to every authenticated ops
+    user, which is the intended audience but does mean the secret is only as
+    private as ops-tool access. Rotate it in the Vercel dashboard if someone
+    leaves; it grants nothing beyond viewing preview deployments.
+
+    Returns the URL unchanged when no secret is configured — the link then
+    behaves as it did before rather than breaking.
+    """
+    if not settings.VERCEL_PROTECTION_BYPASS_SECRET:
+        return preview_url
+
+    query = urlencode({
+        "x-vercel-protection-bypass": settings.VERCEL_PROTECTION_BYPASS_SECRET,
+        "x-vercel-set-bypass-cookie": "true",
+    })
+    separator = "&" if "?" in preview_url else "?"
+    return f"{preview_url}{separator}{query}"
+
+
 async def _get_website_preview_url(pr_number: int) -> str | None:
     """The commit status Vercel posts (context 'Vercel – cba-website') has its
     target_url pointing at Vercel's internal inspector/dashboard page, not the
@@ -147,7 +180,7 @@ async def _get_website_preview_url(pr_number: int) -> str | None:
             continue
         for project in payload.get("projects", []):
             if project.get("rootDirectory") == "apps/website" and project.get("previewUrl"):
-                return f"https://{project['previewUrl']}"
+                return _with_protection_bypass(f"https://{project['previewUrl']}")
 
     return None
 
