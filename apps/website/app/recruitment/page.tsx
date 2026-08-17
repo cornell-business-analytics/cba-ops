@@ -64,15 +64,15 @@ export default async function RecruitmentPage() {
               <h2 className="text-2xl font-bold text-cba-dark">The process</h2>
               <ol className="mt-6 space-y-6">
                 {steps.map(({ title, desc, step_number }, i) => (
-                  <li key={i} className="flex gap-4">
+                  <li key={i} className={`flex gap-4 items-start ${!step_number ? "pl-2 border-l-2 border-gray-200" : ""}`}>
                     {step_number && (
-                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-cba-green text-sm font-bold text-white">
-                        {step_number}
+                      <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-cba-green px-3 py-1 text-xs font-bold text-white whitespace-nowrap">
+                        Round {step_number}
                       </span>
                     )}
-                    <div>
-                      <p className="font-semibold text-cba-dark">{title}</p>
-                      {desc && <p className="mt-0.5 text-sm text-gray-600">{desc}</p>}
+                    <div className={step_number ? "" : "text-gray-500"}>
+                      <p className={`font-semibold ${step_number ? "text-cba-dark" : "text-gray-600"}`}>{title}</p>
+                      {desc && <p className="mt-0.5 text-sm text-gray-500">{desc}</p>}
                     </div>
                   </li>
                 ))}
