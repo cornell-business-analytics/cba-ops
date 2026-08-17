@@ -50,7 +50,10 @@ function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const image = document.createElement("img");
     image.onload = () => {
-      const MIN_OUTPUT = 1200;
+      // Slightly above the backend's 800px headshot cap on purpose: it does the
+      // final resize with Lanczos, which is better than what a canvas downscale
+      // produces. Overshooting further just slows the upload down.
+      const MIN_OUTPUT = 1024;
       const scale = Math.max(1, MIN_OUTPUT / Math.min(pixelCrop.width, pixelCrop.height));
       const outW = Math.round(pixelCrop.width * scale);
       const outH = Math.round(pixelCrop.height * scale);
@@ -60,7 +63,9 @@ function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("No canvas context"));
       ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, outW, outH);
-      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Canvas is empty")), "image/jpeg", 0.95);
+      // 0.95 out of a canvas encoder is very heavy for no visible gain; the
+      // backend re-encodes to its own quality target regardless.
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Canvas is empty")), "image/jpeg", 0.9);
     };
     image.onerror = reject;
     image.src = imageSrc;
@@ -251,6 +256,10 @@ export default function MemberProfilePage() {
       const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
       const formData = new FormData();
       formData.append("file", blob, "headshot.jpg");
+      // Headshots render as a 25vw grid cell, never full-bleed. Website images
+      // are stored much larger, and with Next.js image optimization off that
+      // difference is what a visitor actually downloads.
+      formData.append("purpose", "headshot");
       const res = await fetch(`${BACKEND}/ops/v1/assets/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session?.accessToken}` },
