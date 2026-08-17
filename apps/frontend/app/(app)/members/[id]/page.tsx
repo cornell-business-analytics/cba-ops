@@ -50,7 +50,10 @@ function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const image = document.createElement("img");
     image.onload = () => {
-      const MIN_OUTPUT = 1200;
+      // Matches MAX_DIMENSIONS["headshot"] on the backend, which re-encodes
+      // whatever arrives. Sending more than the cap just makes the upload
+      // slower and adds a needless second resample.
+      const MIN_OUTPUT = 1024;
       const scale = Math.max(1, MIN_OUTPUT / Math.min(pixelCrop.width, pixelCrop.height));
       const outW = Math.round(pixelCrop.width * scale);
       const outH = Math.round(pixelCrop.height * scale);
@@ -60,7 +63,9 @@ function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("No canvas context"));
       ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, outW, outH);
-      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Canvas is empty")), "image/jpeg", 0.95);
+      // 0.95 out of a canvas encoder is very heavy for no visible gain; the
+      // backend re-encodes to its own quality target regardless.
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Canvas is empty")), "image/jpeg", 0.9);
     };
     image.onerror = reject;
     image.src = imageSrc;
