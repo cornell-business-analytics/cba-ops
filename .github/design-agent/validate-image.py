@@ -32,6 +32,17 @@ SIGNATURES = {
     b"GIF89a": "gif",
 }
 
+# Maps file extensions to the format name detect_format returns.
+# Extensions not listed here are not checked — SVG and AVIF have quirks that
+# make the extension check unreliable without a real parser.
+EXTENSION_FORMAT: dict[str, str] = {
+    ".jpg": "jpeg",
+    ".jpeg": "jpeg",
+    ".png": "png",
+    ".gif": "gif",
+    ".webp": "webp",
+}
+
 
 def detect_format(data: bytes) -> str | None:
     for signature, kind in SIGNATURES.items():
@@ -87,7 +98,23 @@ def main(argv: list[str]) -> int:
         print(f"::error::{path} does not exist")
         return 1
 
-    kind, errors = validate(path.read_bytes())
+    data = path.read_bytes()
+    kind, errors = validate(data)
+
+    # Catch format/extension mismatches before they ship as broken images.
+    # With Next.js image optimization disabled, the CDN serves the raw file
+    # bytes with a Content-Type derived from the extension (e.g. image/jpeg
+    # for .jpg). A PNG stored as .jpg will display as a broken image in most
+    # browsers. Failing here is better than merging a silently broken asset.
+    ext = path.suffix.lower()
+    expected = EXTENSION_FORMAT.get(ext)
+    if expected and kind and kind != expected:
+        errors.append(
+            f"file bytes are {kind} but the target path has a .{ext.lstrip('.')} "
+            f"extension — upload a {expected.upper()} image, or pick a target "
+            f"path whose extension matches the format you're uploading"
+        )
+
     if errors:
         print(f"::error::{path} failed image validation:")
         for error in errors:

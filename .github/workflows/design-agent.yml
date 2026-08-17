@@ -104,6 +104,47 @@ jobs:
           curl -fsSL "$ATTACHMENT_URL" -o "$DEST"
           echo "Image written to $DEST ($(wc -c < "$DEST") bytes)"
 
+      - name: Normalize image format to match target extension
+        if: github.event.inputs.attachment_url != '' && github.event.inputs.target_path != ''
+        env:
+          TARGET: ${{ github.event.inputs.target_path }}
+        run: |
+          DEST="apps/website/public/$TARGET"
+          EXT=$(echo "${TARGET##*.}" | tr '[:upper:]' '[:lower:]')
+
+          # Detect the actual format from magic bytes — stdlib only, no Pillow needed.
+          ACTUAL=$(python3 - "$DEST" <<'PYEOF'
+import sys, pathlib
+data = pathlib.Path(sys.argv[1]).read_bytes()
+if data.startswith(b'\xff\xd8\xff'):           print('jpeg')
+elif data.startswith(b'\x89PNG\r\n\x1a\n'):   print('png')
+elif data[:4]==b'RIFF' and data[8:12]==b'WEBP': print('webp')
+elif data.startswith(b'GIF8'):                 print('gif')
+else:                                          print('other')
+PYEOF
+          )
+
+          # Map extension to format name.
+          case "$EXT" in
+            jpg|jpeg) EXPECTED="jpeg" ;;
+            png)      EXPECTED="png" ;;
+            webp)     EXPECTED="webp" ;;
+            gif)      EXPECTED="gif" ;;
+            *)        EXPECTED="other" ;;  # avif, svg — leave unchanged
+          esac
+
+          if [ "$ACTUAL" = "other" ] || [ "$EXPECTED" = "other" ]; then
+            echo "Skipping conversion for .$EXT (format not re-encodable here — validator will check)"
+          elif [ "$ACTUAL" = "$EXPECTED" ]; then
+            echo "Format OK: $ACTUAL matches .$EXT"
+          else
+            echo "Re-encoding $ACTUAL → $EXT using ImageMagick"
+            TMP=$(mktemp --suffix=".$EXT")
+            convert "$DEST" "$TMP"
+            mv "$TMP" "$DEST"
+            echo "Done: $(wc -c < "$DEST") bytes"
+          fi
+
       - name: Validate downloaded image
         if: github.event.inputs.attachment_url != '' && github.event.inputs.target_path != ''
         env:
