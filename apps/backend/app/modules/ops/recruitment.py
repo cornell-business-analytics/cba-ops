@@ -488,7 +488,9 @@ async def import_from_sheet(
                 CoffeeChatApplicant.row_key == row_key,
             )
         )
-        if existing.scalar_one_or_none():
+        existing_row = existing.scalar_one_or_none()
+        if existing_row:
+            existing_row.fields_of_interest = col(row, mapping.interest_col) or None
             skipped += 1
             continue
 
