@@ -580,7 +580,7 @@ async def list_applicants(
         select(CoffeeChatApplicant)
         .options(selectinload(CoffeeChatApplicant.paired_membership).selectinload(Membership.user))
         .where(CoffeeChatApplicant.cycle_id == cycle_id)
-        .order_by(CoffeeChatApplicant.created_at)
+        .order_by(CoffeeChatApplicant.created_at.desc())
     )
     applicants = result.scalars().all()
     out = []
