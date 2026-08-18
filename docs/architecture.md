@@ -15,8 +15,8 @@ Three deployable apps share one Postgres database through a single FastAPI backe
                     │  apps/backend    │←──────→│  Postgres 16  │
    Club leadership →│  (Railway)       │        └──────────────┘
                     │  FastAPI         │        ┌──────────────┐
-                    └────────┬─────────┘←──────→│  Redis        │ (provisioned, not
-                             │ /ops/v1 (auth'd)  └──────────────┘  actively used — see below)
+                    └────────┬─────────┘←──────→│  Redis        │ (CI-status + image-list cache;
+                             │ /ops/v1 (auth'd)  └──────────────┘  RQ job queue not yet wired)
                              ▼                   ┌──────────────┐
                     ┌─────────────────┐          │  Cloudflare   │
    Club leadership →│  apps/frontend   │─────────│  R2 (assets)  │
@@ -95,19 +95,39 @@ it — confirms after reviewing the Vercel preview, which merges the PR and ship
   the live API container. The agent authenticates with a personal Claude Pro/Max
   subscription (`CLAUDE_CODE_OAUTH_TOKEN`, from `claude setup-token`), not a metered
   `ANTHROPIC_API_KEY` — see `docs/handover.md` for what that means for continuity.
+- **Image normalization and validation**: before the agent touches the repo, any downloaded
+  image is (1) re-encoded by ImageMagick if its magic bytes don't match the target
+  extension (`.github/workflows/design-agent.yml` "Normalize" step — prevents PNG-stored-
+  as-.jpg from serving as a broken image when Next.js is in `unoptimized: true` mode), then
+  (2) validated by `.github/design-agent/validate-image.py`, which checks format
+  recognition, JPEG EOI integrity, a 3 MB hard cap (camera originals previously exhausted
+  the Vercel image-optimization quota), and extension/format agreement. The workflow fails
+  the run rather than committing a bad asset.
 - **Scope guardrail**: the agent may only touch `apps/website/`. Enforced two ways — a
   checked-in `.claude/settings.json` (copied at runtime from
   `.github/design-agent/claude-settings.json`) restricting its tools, and, authoritatively,
-  a `git diff --name-only` check in the workflow that fails the job if anything outside
-  `apps/website/` changed, before any push happens.
+  a `git diff --name-only` check in the workflow that fails the job if any *tracked* file
+  outside `apps/website/` changed. The change-detection step additionally checks
+  `git ls-files --others --exclude-standard` to catch *untracked* new files the agent may
+  have created, so a request whose only output is a brand-new file (e.g. a never-before-
+  seen image path) is committed rather than silently reported as a no-op.
 - **Preview**: no custom render pipeline — the agent's PR gets Vercel's existing
   automatic PR-preview deployment for free, same as any other PR. This repo has *two*
   Vercel projects (`cba-website` and `cba-ops-frontend`), both of which deploy a preview
-  on every PR — the backend has to specifically pick out the `apps/website` one. The
-  backend polls the commit's combined status for CI state, then parses the `vercel[bot]`
-  PR comment's embedded per-project metadata (`app/services/github.py::_get_website_preview_url`)
-  for the actual live preview URL, since the commit status's own `target_url` only points
-  at Vercel's internal inspector page. Surfaced via `GET /ops/v1/design-requests/{id}/status`.
+  on every PR — the backend has to specifically pick out the `apps/website` one.
+  CI state is polled by reading **both** of GitHub's check APIs in parallel
+  (`app/services/github.py::_collect_checks`): `/commits/{ref}/status` for Vercel (which
+  posts commit statuses) and `/commits/{ref}/check-runs` for GitHub Actions (which posts
+  check runs — a disjoint API). Reading only the status API — the prior behavior — made
+  Actions results structurally invisible to the merge gate. The aggregator
+  (`_aggregate`) treats any required check that hasn't reported at all as `missing_checks`,
+  which blocks the merge button the same as a failing check, because absence-equals-pass
+  is how the gate silently broke before. The live preview URL is parsed from the
+  `vercel[bot]` PR comment's embedded per-project metadata
+  (`_get_website_preview_url`), since the commit status's own `target_url` only points at
+  Vercel's internal inspector page; the URL is served with a protection-bypass query
+  parameter (`_with_protection_bypass`) so directors can open it without a Vercel account.
+  Surfaced via `GET /ops/v1/design-requests/{id}/status`.
 - **Push identity matters**: the workflow explicitly does *not* use the default
   `secrets.GITHUB_TOKEN` for its push/PR — GitHub doesn't fire downstream
   `pull_request`-triggered workflows (including `ci.yml`) for pushes made with that
@@ -132,7 +152,7 @@ These look like one feature but are backed by different models and different bac
 
 ## Background jobs — provisioned but not wired up
 
-`RQ` and `Redis` are in the dependency list and Redis is provisioned in both Railway and `infra/docker-compose.yml`, but `app/jobs/email.py` and `app/workers/worker.py` are placeholder files — nothing enqueues anything today. Coffee-chat pairing emails are sent **synchronously**, inline in the `POST` request handler in `recruitment.py`, directly against the Gmail API. If email volume or latency ever becomes a problem, that's the code to move onto the (currently unused) RQ worker rather than assuming a queue is already in the loop.
+`RQ` and `Redis` are in the dependency list and Redis is provisioned in both Railway and `infra/docker-compose.yml`. Redis is **actively used** for application-level caching (`app/core/cache.py`): the design-request CI-check status is cached per commit ref (20 s for pending, 120 s once settled), and the website image list from the GitHub tree API is cached for 10 minutes. These use `cache.get_json` / `cache.set_json`. The RQ job-queue side is a different story — `app/jobs/email.py` and `app/workers/worker.py` are placeholder files; nothing enqueues anything today. Coffee-chat pairing emails are sent **synchronously**, inline in the `POST` request handler in `recruitment.py`, directly against the Gmail API. If email volume or latency ever becomes a problem, that's the code to move onto the (currently unused) RQ worker rather than assuming a queue is already in the loop.
 
 ## Deployment
 
