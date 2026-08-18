@@ -1,13 +1,13 @@
 """Add fields_of_interest to coffee_chat_applicants
 
-Revision ID: 0020_applicant_fields_of_interest
+Revision ID: 0020_applicant_interests
 Revises: 0019_event_link
 Create Date: 2026-08-18
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0020_applicant_fields_of_interest"
+revision = "0020_applicant_interests"
 down_revision = "0019_event_link"
 branch_labels = None
 depends_on = None
