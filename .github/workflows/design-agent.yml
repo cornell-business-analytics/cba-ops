@@ -113,16 +113,7 @@ jobs:
           EXT=$(echo "${TARGET##*.}" | tr '[:upper:]' '[:lower:]')
 
           # Detect the actual format from magic bytes — stdlib only, no Pillow needed.
-          ACTUAL=$(python3 - "$DEST" <<'PYEOF'
-import sys, pathlib
-data = pathlib.Path(sys.argv[1]).read_bytes()
-if data.startswith(b'\xff\xd8\xff'):           print('jpeg')
-elif data.startswith(b'\x89PNG\r\n\x1a\n'):   print('png')
-elif data[:4]==b'RIFF' and data[8:12]==b'WEBP': print('webp')
-elif data.startswith(b'GIF8'):                 print('gif')
-else:                                          print('other')
-PYEOF
-          )
+          ACTUAL=$(python3 .github/design-agent/detect-format.py "$DEST")
 
           # Map extension to format name.
           case "$EXT" in
