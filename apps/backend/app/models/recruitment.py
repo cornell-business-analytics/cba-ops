@@ -52,6 +52,7 @@ class CoffeeChatApplicant(UUIDMixin, TimestampMixin, Base):
     netid: Mapped[str] = mapped_column(String(50), nullable=False)
     grad_date: Mapped[str | None] = mapped_column(String(50), nullable=True)
     major: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    fields_of_interest: Mapped[str | None] = mapped_column(Text, nullable=True)
     requested_member_raw: Mapped[str | None] = mapped_column(String(200), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     row_key: Mapped[str | None] = mapped_column(String(200), nullable=True)  # timestamp or row index — dedup key

@@ -385,6 +385,7 @@ class ColumnMapping(BaseModel):
     email_col: str = "Cornell Email Address"
     grad_col: str = "Graduation Date"
     major_col: str = "Intended Major(s)"
+    interest_col: str = "Fields of Interest"
     request_col: str = "Paired Member"
     timestamp_col: str = "Timestamp"  # Google Forms always prepends this column
 
@@ -419,6 +420,7 @@ async def import_from_sheet(
         email_col=stored.get("email_col", defaults.email_col),
         grad_col=stored.get("grad_col", defaults.grad_col),
         major_col=stored.get("major_col", defaults.major_col),
+        interest_col=stored.get("interest_col", defaults.interest_col),
         request_col=stored.get("request_col", defaults.request_col),
         timestamp_col=stored.get("timestamp_col", defaults.timestamp_col),
     )
@@ -460,6 +462,7 @@ async def import_from_sheet(
         "Email": mapping.email_col,
         "Grad Date": mapping.grad_col,
         "Major": mapping.major_col,
+        "Fields of Interest": mapping.interest_col,
         "Requested Member": mapping.request_col,
         "Timestamp": mapping.timestamp_col,
     }
@@ -496,6 +499,7 @@ async def import_from_sheet(
             netid=netid,
             grad_date=col(row, mapping.grad_col) or None,
             major=col(row, mapping.major_col) or None,
+            fields_of_interest=col(row, mapping.interest_col) or None,
             requested_member_raw=col(row, mapping.request_col) or None,
             row_key=row_key,
         )
@@ -548,6 +552,7 @@ class ApplicantPublic(BaseModel):
     netid: str
     grad_date: str | None
     major: str | None
+    fields_of_interest: str | None
     requested_member_raw: str | None
     notes: str | None
     paired_membership_id: uuid.UUID | None
@@ -584,6 +589,7 @@ async def list_applicants(
         out.append(ApplicantPublic(
             id=a.id, name=a.name, email=a.email, netid=a.netid,
             grad_date=a.grad_date, major=a.major,
+            fields_of_interest=a.fields_of_interest,
             requested_member_raw=a.requested_member_raw, notes=a.notes,
             paired_membership_id=a.paired_membership_id,
             paired_member_name=member_name,

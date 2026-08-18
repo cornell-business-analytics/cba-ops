@@ -19,6 +19,7 @@ interface ColMap {
   email_col: string;
   grad_col: string;
   major_col: string;
+  interest_col: string;
   request_col: string;
   timestamp_col: string;
 }
@@ -44,6 +45,7 @@ interface Applicant {
   netid: string;
   grad_date: string | null;
   major: string | null;
+  fields_of_interest: string | null;
   requested_member_raw: string | null;
   notes: string | null;
   paired_membership_id: string | null;
@@ -70,6 +72,7 @@ const DEFAULT_COL_MAP: ColMap = {
   email_col: "Cornell Email Address",
   grad_col: "Graduation Date",
   major_col: "Intended Major(s)",
+  interest_col: "Fields of Interest",
   request_col: "Paired Member",
   timestamp_col: "Timestamp",
 };
@@ -372,7 +375,7 @@ export default function CycleDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 sticky top-0">
               <tr>
-                {["Applicant", "Major / Grad", "Requested", "Paired Member", "Status", "Actions"].map(h => (
+                {["Applicant", "Major / Grad", "Interests", "Requested", "Paired Member", "Status", "Actions"].map(h => (
                   <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -394,6 +397,9 @@ export default function CycleDetailPage() {
                   <td className="px-4 py-3 text-muted-foreground text-xs">
                     <p>{a.major ?? "—"}</p>
                     <p>{a.grad_date ?? ""}</p>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground max-w-[180px]">
+                    {a.fields_of_interest || "—"}
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">
                     {a.requested_member_raw || "—"}
@@ -659,6 +665,7 @@ export default function CycleDetailPage() {
                     ["email_col", "Cornell Email column"],
                     ["grad_col", "Graduation Date column"],
                     ["major_col", "Major column"],
+                    ["interest_col", "Fields of Interest column"],
                     ["request_col", "Requested Member column"],
                     ["timestamp_col", "Timestamp column (for dedup)"],
                   ] as [keyof ColMap, string][]
