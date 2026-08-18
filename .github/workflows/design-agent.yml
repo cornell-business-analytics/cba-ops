@@ -171,7 +171,7 @@ PYEOF
             PROMPT=$(printf '%s\n\nRevision requested by reviewer: %s\n\nThe branch already contains your previous changes. Read the current state of the changed files first, then apply only what the revision asks for.' "$PROMPT" "$REVISION_NOTE")
           fi
           claude -p "$PROMPT" --output-format json --permission-mode acceptEdits \
-            --model claude-sonnet-4-5 \
+            --model claude-sonnet-5 \
             | tee agent-output.json
 
       - name: Enforce path guardrail
@@ -186,7 +186,11 @@ PYEOF
       - name: Check for changes
         id: check_changes
         run: |
-          if git diff --quiet HEAD -- apps/website; then
+          # git diff --quiet only sees modifications to tracked files; untracked new
+          # files (e.g. a freshly placed image with no prior copy in the repo) must
+          # be detected separately via git ls-files --others.
+          if git diff --quiet HEAD -- apps/website && \
+             [ -z "$(git ls-files --others --exclude-standard -- apps/website)" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
