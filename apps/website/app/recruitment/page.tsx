@@ -78,8 +78,8 @@ export default async function RecruitmentPage() {
                             <span className="text-base font-bold">{step_number}</span>
                           </div>
                         ) : (
-                          <div className="h-10 w-10 rounded-full border-2 border-cba-green bg-white flex items-center justify-center">
-                            <div className="h-2.5 w-2.5 rounded-full bg-cba-green" />
+                          <div className="h-10 w-10 flex items-center justify-center">
+                            <div className="h-2 w-2 rounded-full bg-gray-300" />
                           </div>
                         )}
                       </div>
