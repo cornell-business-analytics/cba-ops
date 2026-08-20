@@ -26,7 +26,7 @@ router = APIRouter(prefix="/recruitment", tags=["recruitment"])
 
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-GMAIL_SCOPES = "https://mail.google.com/ https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/userinfo.email"
+GMAIL_SCOPES = "https://mail.google.com/ https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email"
 
 
 # ---------------------------------------------------------------------------

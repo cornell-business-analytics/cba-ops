@@ -40,6 +40,7 @@ class ApplicationCycle(UUIDMixin, TimestampMixin, Base):
     close_date: Mapped[str | None] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sheet_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    column_mapping: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     candidates: Mapped[list["Candidate"]] = relationship(back_populates="cycle")
     interview_rounds: Mapped[list["InterviewRound"]] = relationship(back_populates="cycle")
@@ -120,6 +121,8 @@ class Candidate(UUIDMixin, TimestampMixin, Base):
     is_transfer: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     college: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)   # multi-select
     major: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    gender_identity: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    ethnicity: Mapped[list] = mapped_column(JSONB, default=list, nullable=True)  # multi-select
     resume_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     headshot_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 

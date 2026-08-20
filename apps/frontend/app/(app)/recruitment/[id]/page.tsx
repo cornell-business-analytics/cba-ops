@@ -1,16 +1,37 @@
 "use client";
 
+import Image from "next/image";
 import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { ArrowLeft, MessageSquare, UserRound } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/recruitment/StatusBadge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createApi } from "@/lib/api";
-import type { Candidate, CandidateStatus, CoffeeChat } from "@cba/types";
+import type { CandidateStatus, CoffeeChat } from "@cba/types";
+
+interface Candidate {
+  id: string;
+  cycle_id: string;
+  name: string;
+  email: string;
+  cornell_email: string;
+  net_id: string | null;
+  pronouns: string | null;
+  grad_year: string | null;
+  is_transfer: boolean;
+  college: string[];
+  major: string | null;
+  gender_identity: string | null;
+  ethnicity: string[];
+  resume_url: string | null;
+  headshot_url: string | null;
+  status: CandidateStatus;
+  notes: string | null;
+}
 
 const ALL_STATUSES: CandidateStatus[] = [
   "applied", "coffee_chat", "interviewing", "offer", "accepted", "rejected", "withdrawn",
@@ -76,9 +97,25 @@ export default function CandidatePage() {
       </button>
 
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">{candidate.name}</h1>
-          <p className="text-sm text-muted-foreground">{candidate.cornell_email} · {candidate.net_id}</p>
+        <div className="flex items-center gap-4">
+          {candidate.headshot_url ? (
+            <Image
+              src={candidate.headshot_url}
+              alt=""
+              width={64}
+              height={64}
+              unoptimized
+              className="rounded-full object-cover shrink-0"
+            />
+          ) : (
+            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center shrink-0">
+              <UserRound className="h-8 w-8 text-muted-foreground" />
+            </div>
+          )}
+          <div>
+            <h1 className="text-xl font-semibold">{candidate.name}</h1>
+            <p className="text-sm text-muted-foreground">{candidate.cornell_email} · {candidate.net_id}</p>
+          </div>
         </div>
         <StatusBadge status={candidate.status} />
       </div>
@@ -91,6 +128,8 @@ export default function CandidatePage() {
           ["Transfer", candidate.is_transfer ? "Yes" : "No"],
           ["College(s)", (candidate.college ?? []).join(", ")],
           ["Pronouns", candidate.pronouns],
+          ["Gender identity", candidate.gender_identity],
+          ["Ethnicity", (candidate.ethnicity ?? []).join(", ")],
           ["Personal Email", candidate.email],
         ].map(([label, value]) => (
           <div key={label as string}>

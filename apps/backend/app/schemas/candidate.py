@@ -16,6 +16,8 @@ class CandidateCreate(BaseModel):
     is_transfer: bool = False
     college: list[str] = []
     major: str | None = None
+    gender_identity: str | None = None
+    ethnicity: list[str] = []
     resume_url: str | None = None
     headshot_url: str | None = None
 
@@ -32,6 +34,8 @@ class CandidatePublic(BaseModel):
     is_transfer: bool
     college: list
     major: str | None
+    gender_identity: str | None
+    ethnicity: list
     resume_url: str | None
     headshot_url: str | None
     status: CandidateStatus

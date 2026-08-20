@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { Search, Plus, FileSpreadsheet, ChevronRight, Users, Check, ExternalLink, FileDown } from "lucide-react";
+import { Search, Plus, FileSpreadsheet, ChevronRight, Users, Check, ExternalLink, FileDown, RefreshCw, Settings, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,29 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/recruitment/StatusBadge";
 import { createApi } from "@/lib/api";
-import type { ApplicationCycle, Candidate, CandidateStatus } from "@cba/types";
+import type { CandidateStatus } from "@cba/types";
+
+interface ApplicationCycle {
+  id: string;
+  name: string;
+  open_date: string | null;
+  close_date: string | null;
+  is_active: boolean;
+  sheet_url: string | null;
+  column_mapping: Record<string, string> | null;
+}
+
+interface Candidate {
+  id: string;
+  cycle_id: string;
+  name: string;
+  email: string;
+  cornell_email: string;
+  net_id: string | null;
+  major: string | null;
+  grad_year: string | null;
+  status: CandidateStatus;
+}
 
 const PIPELINE_STAGES: { status: CandidateStatus; label: string; color: string; bg: string }[] = [
   { status: "applied",      label: "Applied",      color: "text-slate-600",   bg: "bg-slate-100" },
@@ -52,10 +74,21 @@ export default function RecruitmentPage() {
   const [newCycleOpen, setNewCycleOpen] = useState(false);
   const [newCycleForm, setNewCycleForm] = useState({ name: "", sheet_url: "" });
 
-  // Sheet dialog (placeholder)
+  // Sheet dialog
   const [sheetDialogOpen, setSheetDialogOpen] = useState(false);
   const [sheetUrl, setSheetUrl] = useState("");
   const [sheetSaved, setSheetSaved] = useState(false);
+
+  // Column mapping dialog
+  const [colMapOpen, setColMapOpen] = useState(false);
+  const [colMapForm, setColMapForm] = useState<Record<string, string>>({});
+
+  // Import state
+  const [importStatus, setImportStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  // Delete headshots confirm
+  const [deleteHsOpen, setDeleteHsOpen] = useState(false);
 
   const { data: cycles = [], isLoading: cyclesLoading } = useQuery<ApplicationCycle[]>({
     queryKey: ["app-cycles"],
@@ -128,6 +161,35 @@ export default function RecruitmentPage() {
     mutationFn: (cycle: ApplicationCycle) =>
       api().patch<ApplicationCycle>(`/ops/v1/cycles/${cycle.id}`, { is_active: !cycle.is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["app-cycles"] }),
+  });
+
+  const importMutation = useMutation({
+    mutationFn: () => api().post<{ imported: number; updated: number; skipped: number; missing_cols: string[] }>(
+      `/ops/v1/cycles/${selectedCycleId}/import`, {}
+    ),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["candidates", selectedCycleId] });
+      setImportStatus("done");
+      const parts: string[] = [];
+      if (data.imported > 0) parts.push(`${data.imported} new`);
+      if (data.updated > 0) parts.push(`${data.updated} updated`);
+      if (data.skipped > 0) parts.push(`${data.skipped} skipped`);
+      setImportMsg(parts.length ? parts.join(", ") : "Up to date");
+      if (data.missing_cols.length > 0) setImportMsg(m => `${m} · missing: ${data.missing_cols.join(", ")}`);
+    },
+    onError: (err: Error) => { setImportStatus("error"); setImportMsg(err.message); },
+  });
+
+  const saveColMap = useMutation({
+    mutationFn: (mapping: Record<string, string>) =>
+      api().patch<ApplicationCycle>(`/ops/v1/cycles/${selectedCycleId}`, { column_mapping: mapping }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["app-cycles"] }); setColMapOpen(false); },
+  });
+
+  const purgeHeadshots = useMutation({
+    mutationFn: () => api().delete<{ deleted: number }>(`/ops/v1/cycles/${selectedCycleId}/headshots`),
+    onSuccess: (data) => { qc.invalidateQueries({ queryKey: ["candidates", selectedCycleId] }); setDeleteHsOpen(false); alert(`Deleted ${data.deleted} headshot(s) from storage.`); },
+    onError: (err: Error) => { alert(`Failed: ${err.message}`); },
   });
 
   const filtered = candidates.filter((c) => {
@@ -235,12 +297,30 @@ export default function RecruitmentPage() {
                   Open sheet <ExternalLink className="h-3 w-3" />
                 </a>
                 <div className="ml-auto flex items-center gap-2">
+                  {/* Import status */}
+                  {importStatus !== "idle" && (
+                    <span className={`text-xs flex items-center gap-1 ${importStatus === "error" ? "text-destructive" : "text-emerald-700"}`}>
+                      {importStatus === "syncing" && <RefreshCw className="h-3 w-3 animate-spin" />}
+                      {importStatus === "done" && <Check className="h-3 w-3" />}
+                      {importMsg}
+                    </span>
+                  )}
                   <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-300 text-emerald-800 hover:bg-emerald-100"
                     onClick={() => { setSheetUrl(selectedCycle.sheet_url ?? ""); setSheetSaved(false); setSheetDialogOpen(true); }}>
                     Update sheet
                   </Button>
-                  <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled>
-                    Import candidates <span className="ml-1 opacity-60 text-[10px]">coming soon</span>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={importMutation.isPending}
+                    onClick={() => { setImportStatus("syncing"); setImportMsg(null); importMutation.mutate(); }}
+                  >
+                    <RefreshCw className={`h-3 w-3 mr-1 ${importMutation.isPending ? "animate-spin" : ""}`} />
+                    Import candidates
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" title="Column mapping"
+                    onClick={() => { setColMapForm(selectedCycle.column_mapping ?? {}); setColMapOpen(true); }}>
+                    <Settings className="h-3 w-3" />
                   </Button>
                 </div>
               </>
@@ -340,6 +420,17 @@ export default function RecruitmentPage() {
                   {selectedCycle.is_active ? "Close cycle" : "Mark active"}
                 </Button>
               )}
+              {(session?.role === "director" || session?.role === "eboard") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  title="Delete all headshots from storage for this cycle"
+                  onClick={() => setDeleteHsOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> Delete headshots
+                </Button>
+              )}
             </div>
           </div>
 
@@ -409,6 +500,63 @@ export default function RecruitmentPage() {
         isPending={createCycle.isPending}
         error={createCycle.isError ? (createCycle.error as Error).message : null}
       />
+
+      {/* Column mapping dialog */}
+      <Dialog open={colMapOpen} onOpenChange={setColMapOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Settings className="h-4 w-4" /> Column Mapping</DialogTitle></DialogHeader>
+          <p className="text-xs text-muted-foreground">Enter the exact column header from your Google Form/Sheet. Leave blank to use the default.</p>
+          <div className="space-y-3 py-2">
+            {([
+              ["timestamp_col", "Timestamp", "Timestamp"],
+              ["personal_email_col", "Personal Email", "Email Address"],
+              ["cornell_email_col", "Cornell Email", "Cornell Email"],
+              ["name_col", "Name", "Name"],
+              ["pronouns_col", "Pronouns", "Pronouns"],
+              ["netid_col", "NetID", "NetID"],
+              ["year_col", "Year", "Year"],
+              ["transfer_col", "Transfer student?", "Are you a transfer student?"],
+              ["college_col", "College", "College"],
+              ["major_col", "Major(s)", "Major(s)"],
+              ["headshot_col", "Headshot upload", "Please upload a headshot"],
+              ["gender_col", "Gender identity", "How do you identify?"],
+              ["ethnicity_col", "Ethnicity", "How do you identify?.1"],
+            ] as [string, string, string][]).map(([key, label, placeholder]) => (
+              <div key={key} className="grid grid-cols-2 gap-2 items-center">
+                <Label className="text-xs">{label}</Label>
+                <Input
+                  className="h-7 text-xs"
+                  placeholder={placeholder}
+                  value={colMapForm[key] ?? ""}
+                  onChange={e => setColMapForm(f => ({ ...f, [key]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setColMapOpen(false)}>Cancel</Button>
+            <Button onClick={() => saveColMap.mutate(colMapForm)} disabled={saveColMap.isPending}>
+              {saveColMap.isPending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete headshots confirm */}
+      <Dialog open={deleteHsOpen} onOpenChange={setDeleteHsOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Delete headshots</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will permanently delete all candidate headshots for <strong>{selectedCycle?.name}</strong> from R2 storage and clear their headshot URLs. This cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteHsOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => purgeHeadshots.mutate()} disabled={purgeHeadshots.isPending}>
+              {purgeHeadshots.isPending ? "Deleting…" : "Delete headshots"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Sheet dialog */}
       <Dialog open={sheetDialogOpen} onOpenChange={(o) => { setSheetDialogOpen(o); if (!o) setSheetSaved(false); }}>
