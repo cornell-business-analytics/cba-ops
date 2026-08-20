@@ -64,28 +64,32 @@ export default async function RecruitmentPage() {
               <h2 className="text-3xl font-bold text-cba-dark">The process</h2>
               <ol className="mt-8 relative">
                 {steps.map(({ title, desc, step_number }, i) => {
-                  const hasNumber = step_number !== null && step_number !== undefined;
+                  const hasNumber = step_number !== null && step_number !== undefined && step_number !== "";
                   return (
                     <li key={i} className="relative flex gap-5 pb-8 last:pb-0">
                       {/* Vertical connector */}
                       {i < steps.length - 1 && (
-                        <div className="absolute left-5 top-12 bottom-0 w-0.5 bg-gray-200" aria-hidden="true" />
+                        <div className="absolute left-5 top-11 bottom-0 w-px bg-gray-200" aria-hidden="true" />
                       )}
                       {/* Badge */}
                       <div className="relative z-10 flex-shrink-0">
                         {hasNumber ? (
-                          <div className="h-10 w-10 rounded-full bg-cba-green flex flex-col items-center justify-center text-white shadow-sm">
-                            <span className="text-[8px] font-semibold leading-none opacity-75 uppercase tracking-wide">Rnd</span>
-                            <span className="text-sm font-bold leading-tight">{step_number}</span>
+                          <div className="h-10 w-10 rounded-full bg-cba-green flex items-center justify-center text-white shadow-sm">
+                            <span className="text-base font-bold">{step_number}</span>
                           </div>
                         ) : (
-                          <div className="h-10 w-10 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center text-base">
+                          <div className="h-10 w-10 rounded-full border-2 border-gray-200 bg-white flex items-center justify-center text-lg">
                             ☕
                           </div>
                         )}
                       </div>
                       {/* Content */}
                       <div className="pt-1.5 flex-1">
+                        {hasNumber && (
+                          <p className="text-xs font-semibold text-cba-green uppercase tracking-widest mb-0.5">
+                            Round {step_number}
+                          </p>
+                        )}
                         <p className={`text-lg font-semibold leading-snug ${hasNumber ? "text-cba-dark" : "text-gray-600"}`}>
                           {title}
                         </p>
