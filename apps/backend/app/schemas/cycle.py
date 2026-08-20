@@ -26,6 +26,7 @@ class InterviewRoundPublic(BaseModel):
     score_format: ScoreFormat
     interview_format: InterviewFormat
     is_default: bool
+    score_sheet_url: str | None = None
     categories: list[InterviewCategoryPublic]
 
     model_config = {"from_attributes": True}
@@ -37,7 +38,14 @@ class InterviewRoundCreate(BaseModel):
     score_format: ScoreFormat
     interview_format: InterviewFormat
     is_default: bool = False
+    score_sheet_url: str | None = None
     categories: list[InterviewCategoryCreate] = []
+
+
+class InterviewRoundUpdate(BaseModel):
+    name: str | None = None
+    score_sheet_url: str | None = None
+    is_default: bool | None = None
 
 
 class InterviewSessionPublic(BaseModel):

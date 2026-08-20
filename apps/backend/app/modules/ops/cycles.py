@@ -1,7 +1,11 @@
+import re
 import uuid
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -15,8 +19,10 @@ from app.models.candidate import (
     Candidate,
     InterviewCategory,
     InterviewRound,
+    InterviewScore,
     InterviewSession,
 )
+from app.models.user import User as UserModel
 from app.models.user import User, UserRole
 from app.modules.ops.deps import get_current_user, require_role
 from app.modules.ops.recruitment import _extract_sheet_id, _get_valid_token
@@ -26,6 +32,7 @@ from app.schemas.cycle import (
     CycleUpdate,
     InterviewRoundCreate,
     InterviewRoundPublic,
+    InterviewRoundUpdate,
     InterviewSessionCreate,
     InterviewSessionPublic,
 )
@@ -147,6 +154,33 @@ async def delete_round(
     await db.commit()
 
 
+@router.patch("/rounds/{round_id}", response_model=InterviewRoundPublic)
+async def update_round(
+    round_id: uuid.UUID,
+    body: InterviewRoundUpdate,
+    _: User = Depends(require_role(UserRole.eboard)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(InterviewRound)
+        .where(InterviewRound.id == round_id)
+        .options(selectinload(InterviewRound.categories))
+    )
+    round_ = result.scalar_one_or_none()
+    if not round_:
+        raise HTTPException(status_code=404, detail="Round not found")
+    for field, value in body.model_dump(exclude_none=True).items():
+        setattr(round_, field, value)
+    await db.commit()
+    await db.refresh(round_)
+    result2 = await db.execute(
+        select(InterviewRound)
+        .where(InterviewRound.id == round_id)
+        .options(selectinload(InterviewRound.categories))
+    )
+    return result2.scalar_one()
+
+
 # ---------------------------------------------------------------------------
 # Interview sessions
 # ---------------------------------------------------------------------------
@@ -195,6 +229,297 @@ async def delete_session(
         raise HTTPException(status_code=404, detail="Session not found")
     await db.delete(session)
     await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Interview score import from Google Sheet
+# ---------------------------------------------------------------------------
+
+
+
+@dataclass
+class ScoreRecord:
+    tab_name: str
+    group_number: int
+    member_name: str
+    candidate_name: str
+    social_fit: float | None
+    cba_interest: float | None
+    career_ambitions: float | None
+    comments: str | None
+
+
+CATEGORY_NAMES = ["Social Fit", "CBA Interest", "Career Ambitions"]
+SKIP_KEYWORDS = {"social fit", "cba interest", "career ambitions", "scores only below",
+                  "all comments", "experiences", "experience", "comments", "name"}
+
+
+def _safe_float(val: str) -> float | None:
+    try:
+        return float(val.strip()) if val.strip() else None
+    except ValueError:
+        return None
+
+
+def _parse_scoring_tab(rows: list[list[str]], tab_name: str) -> list[ScoreRecord]:
+    """State-machine parser for a freeform interview scoring tab."""
+    records: list[ScoreRecord] = []
+
+    # State
+    group_number: int | None = None
+    member_names: list[str] = []
+    # col indices per scorer: (social_fit_col, cba_interest_col, career_ambitions_col, comments_col)
+    scorer_cols: list[tuple[int, int, int, int]] = []
+    in_candidates = False
+    name_col: int = 0
+
+    GROUP_RE = re.compile(r"GROUP\s*(\d+)", re.IGNORECASE)
+    CATEGORY_RE = re.compile(r"social\s*fit", re.IGNORECASE)
+
+    for row in rows:
+        # Normalize: extend short rows
+        row = list(row) + [""] * max(0, 20 - len(row))
+
+        # Check for group label row
+        row_text = " ".join(row)
+        group_match = GROUP_RE.search(row_text)
+        if group_match:
+            group_number = int(group_match.group(1))
+            member_names = []
+            scorer_cols = []
+            in_candidates = False
+            continue
+
+        if group_number is None:
+            continue
+
+        # Check for category header row (contains "Social Fit")
+        if CATEGORY_RE.search(row_text) and not in_candidates:
+            # Find column indices for each scorer block
+            # A scorer block starts wherever we find "Social Fit"
+            scorer_cols = []
+            i = 0
+            while i < len(row):
+                if re.search(r"social\s*fit", row[i], re.IGNORECASE):
+                    sf = i
+                    cba = i + 1
+                    ca = i + 2
+                    cmts = i + 3
+                    scorer_cols.append((sf, cba, ca, cmts))
+                    i += 4
+                else:
+                    i += 1
+            continue
+
+        # Check for "scores only below" row — next rows are candidates
+        if "scores only below" in row_text.lower():
+            in_candidates = True
+            continue
+
+        # Member name row: appears between group label and category header
+        # Heuristic: row has 3+ non-empty cells, none are category keywords, and scorer_cols not yet set
+        if not scorer_cols and member_names == [] and not in_candidates:
+            non_empty = [c.strip() for c in row if c.strip()]
+            if len(non_empty) >= 2 and not any(
+                k in c.lower() for c in non_empty for k in SKIP_KEYWORDS
+            ):
+                # These are likely member names — find which columns they're in
+                member_names = [c for c in non_empty]
+            continue
+
+        # Candidate rows
+        if in_candidates and scorer_cols:
+            # Name is in first non-empty column
+            candidate_name = ""
+            for i, cell in enumerate(row[:4]):
+                if cell.strip() and cell.strip().lower() not in SKIP_KEYWORDS:
+                    candidate_name = cell.strip()
+                    name_col = i
+                    break
+
+            if not candidate_name:
+                # Blank row — end of this group block
+                if any(c.strip() for c in row):
+                    continue  # non-blank, non-candidate row — skip
+                group_number = None
+                in_candidates = False
+                continue
+
+            # Extract scores per scorer
+            for idx, (sf_col, cba_col, ca_col, cmt_col) in enumerate(scorer_cols):
+                member_name = member_names[idx] if idx < len(member_names) else f"Scorer {idx+1}"
+                records.append(ScoreRecord(
+                    tab_name=tab_name,
+                    group_number=group_number,
+                    member_name=member_name,
+                    candidate_name=candidate_name,
+                    social_fit=_safe_float(row[sf_col]) if sf_col < len(row) else None,
+                    cba_interest=_safe_float(row[cba_col]) if cba_col < len(row) else None,
+                    career_ambitions=_safe_float(row[ca_col]) if ca_col < len(row) else None,
+                    comments=row[cmt_col].strip() or None if cmt_col < len(row) else None,
+                ))
+
+    return records
+
+
+class ScoreImportResult(BaseModel):
+    imported: int
+    updated: int
+    skipped: int
+    missing_candidates: list[str]
+    missing_members: list[str]
+
+
+@router.post("/rounds/{round_id}/import-scores", response_model=ScoreImportResult)
+async def import_round_scores(
+    round_id: uuid.UUID,
+    current_user: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    # Load round with categories
+    result = await db.execute(
+        select(InterviewRound)
+        .where(InterviewRound.id == round_id)
+        .options(selectinload(InterviewRound.categories))
+    )
+    round_ = result.scalar_one_or_none()
+    if not round_:
+        raise HTTPException(status_code=404, detail="Round not found")
+    if not round_.score_sheet_url:
+        raise HTTPException(status_code=400, detail="No score sheet URL configured for this round")
+
+    token = await _get_valid_token(current_user.id, db)
+    sheet_id = _extract_sheet_id(round_.score_sheet_url)
+
+    # List all tabs
+    async with httpx.AsyncClient(timeout=30) as client:
+        meta = await client.get(
+            f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    if meta.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Sheets API error: {meta.text[:200]}")
+
+    all_tabs = [s["properties"]["title"] for s in meta.json().get("sheets", [])]
+    # Filter to scoring tabs: pattern "D1 5PM", "D2 6PM", etc.
+    TAB_RE = re.compile(r"D\d+\s+\d+(AM|PM)", re.IGNORECASE)
+    scoring_tabs = [t for t in all_tabs if TAB_RE.search(t)]
+
+    if not scoring_tabs:
+        raise HTTPException(status_code=400, detail=f"No scoring tabs found. Tabs: {all_tabs}")
+
+    # Ensure categories exist for this round
+    cat_names = {c.name: c.id for c in round_.categories}
+    for cat_name in CATEGORY_NAMES:
+        if cat_name not in cat_names:
+            cat = InterviewCategory(round_id=round_id, name=cat_name, display_order=CATEGORY_NAMES.index(cat_name))
+            db.add(cat)
+            await db.flush()
+            cat_names[cat_name] = cat.id
+
+    # Cache: sessions, candidates, members
+    session_cache: dict[str, uuid.UUID] = {}
+    candidate_cache: dict[str, uuid.UUID | None] = {}
+    member_cache: dict[str, uuid.UUID | None] = {}
+
+    # Load all candidates in this cycle
+    cycle_result = await db.execute(select(ApplicationCycle).where(ApplicationCycle.id == round_.cycle_id))
+    cycle = cycle_result.scalar_one()
+    cands_result = await db.execute(
+        select(Candidate).where(Candidate.cycle_id == cycle.id)
+    )
+    for c in cands_result.scalars().all():
+        candidate_cache[c.name.lower()] = c.id
+
+    # Load all users
+    users_result = await db.execute(select(UserModel))
+    for u in users_result.scalars().all():
+        member_cache[u.name.lower()] = u.id
+
+    imported = updated = skipped = 0
+    missing_candidates: set[str] = set()
+    missing_members: set[str] = set()
+
+    for tab_name in scoring_tabs:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{tab_name}!A:ZZ",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if resp.status_code != 200:
+            continue
+
+        rows = resp.json().get("values", [])
+        records = _parse_scoring_tab(rows, tab_name)
+
+        for rec in records:
+            candidate_id = candidate_cache.get(rec.candidate_name.lower())
+            if candidate_id is None:
+                missing_candidates.add(rec.candidate_name)
+                skipped += 1
+                continue
+
+            member_id = member_cache.get(rec.member_name.lower())
+            if member_id is None:
+                missing_members.add(rec.member_name)
+                skipped += 1
+                continue
+
+            # Find or create session
+            session_key = f"{tab_name}|GROUP {rec.group_number}"
+            if session_key not in session_cache:
+                sess_result = await db.execute(
+                    select(InterviewSession).where(
+                        InterviewSession.round_id == round_id,
+                        InterviewSession.group_label == f"GROUP {rec.group_number}",
+                        InterviewSession.time_slot == tab_name,
+                    )
+                )
+                sess = sess_result.scalar_one_or_none()
+                if not sess:
+                    sess = InterviewSession(
+                        round_id=round_id,
+                        group_label=f"GROUP {rec.group_number}",
+                        time_slot=tab_name,
+                    )
+                    db.add(sess)
+                    await db.flush()
+                session_cache[session_key] = sess.id
+            session_id = session_cache[session_key]
+
+            # Upsert one score row per category
+            now = datetime.now(timezone.utc)
+            score_data = [
+                (cat_names["Social Fit"], rec.social_fit, rec.comments),
+                (cat_names["CBA Interest"], rec.cba_interest, None),
+                (cat_names["Career Ambitions"], rec.career_ambitions, None),
+            ]
+            for cat_id, score_val, comments in score_data:
+                stmt = pg_insert(InterviewScore).values(
+                    id=uuid.uuid4(),
+                    session_id=session_id,
+                    candidate_id=candidate_id,
+                    member_id=member_id,
+                    category_id=cat_id,
+                    numeric_score=score_val,
+                    comments=comments,
+                    created_at=now,
+                    updated_at=now,
+                ).on_conflict_do_update(
+                    constraint="uq_interview_score",
+                    set_={"numeric_score": score_val, "comments": comments, "updated_at": now},
+                )
+                await db.execute(stmt)
+                imported += 1
+
+    await db.commit()
+    return ScoreImportResult(
+        imported=imported,
+        updated=updated,
+        skipped=skipped,
+        missing_candidates=sorted(missing_candidates),
+        missing_members=sorted(missing_members),
+    )
 
 
 # ---------------------------------------------------------------------------

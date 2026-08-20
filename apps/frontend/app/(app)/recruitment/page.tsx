@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { Search, Plus, FileSpreadsheet, ChevronRight, Users, Check, ExternalLink, FileDown, RefreshCw, Settings, Trash2 } from "lucide-react";
+import { Search, Plus, FileSpreadsheet, ChevronRight, Users, Check, ExternalLink, FileDown, RefreshCw, Settings, Trash2, ClipboardList, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,23 @@ interface ApplicationCycle {
   is_active: boolean;
   sheet_url: string | null;
   column_mapping: Record<string, string> | null;
+}
+
+interface InterviewCategory {
+  id: string;
+  name: string;
+  display_order: number;
+}
+
+interface InterviewRound {
+  id: string;
+  round_number: number;
+  name: string;
+  score_format: "numeric" | "ynm";
+  interview_format: "group" | "individual";
+  is_default: boolean;
+  score_sheet_url: string | null;
+  categories: InterviewCategory[];
 }
 
 interface Candidate {
@@ -90,10 +107,28 @@ export default function RecruitmentPage() {
   // Delete headshots confirm
   const [deleteHsOpen, setDeleteHsOpen] = useState(false);
 
+  // Rounds
+  const [roundUrls, setRoundUrls] = useState<Record<string, string>>({});
+  const [roundStatus, setRoundStatus] = useState<Record<string, { status: "idle" | "syncing" | "done" | "error"; msg: string | null }>>({});
+  const [newRoundOpen, setNewRoundOpen] = useState(false);
+  const [newRoundForm, setNewRoundForm] = useState({ name: "", round_number: 1, score_format: "numeric", interview_format: "group" });
+
   const { data: cycles = [], isLoading: cyclesLoading } = useQuery<ApplicationCycle[]>({
     queryKey: ["app-cycles"],
     queryFn: () => api().get("/ops/v1/cycles"),
     enabled: !!session?.accessToken,
+  });
+
+  const { data: candidates = [], isLoading: candidatesLoading } = useQuery<Candidate[]>({
+    queryKey: ["candidates", selectedCycleId],
+    queryFn: () => api().get(`/ops/v1/candidates?cycle_id=${selectedCycleId}`),
+    enabled: !!session?.accessToken && !!selectedCycleId,
+  });
+
+  const { data: rounds = [] } = useQuery<InterviewRound[]>({
+    queryKey: ["rounds", selectedCycleId],
+    queryFn: () => api().get(`/ops/v1/cycles/${selectedCycleId}/rounds`),
+    enabled: !!session?.accessToken && !!selectedCycleId,
   });
 
   // Auto-select active cycle (or first) on load
@@ -103,13 +138,20 @@ export default function RecruitmentPage() {
     setSelectedCycleId(active.id);
   }, [cycles, selectedCycleId]);
 
-  const selectedCycle = cycles.find((c) => c.id === selectedCycleId) ?? null;
+  // Sync round URL inputs when rounds data loads
+  useEffect(() => {
+    if (rounds.length === 0) return;
+    setRoundUrls(prev => {
+      const next = { ...prev };
+      for (const r of rounds) {
+        if (!(r.id in next)) next[r.id] = r.score_sheet_url ?? "";
+      }
+      return next;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rounds]);
 
-  const { data: candidates = [], isLoading: candidatesLoading } = useQuery<Candidate[]>({
-    queryKey: ["candidates", selectedCycleId],
-    queryFn: () => api().get(`/ops/v1/candidates?cycle_id=${selectedCycleId}`),
-    enabled: !!session?.accessToken && !!selectedCycleId,
-  });
+  const selectedCycle = cycles.find((c) => c.id === selectedCycleId) ?? null;
 
   const createCycle = useMutation({
     mutationFn: () => api().post<ApplicationCycle>("/ops/v1/cycles", {
@@ -191,6 +233,45 @@ export default function RecruitmentPage() {
     onSuccess: (data) => { qc.invalidateQueries({ queryKey: ["candidates", selectedCycleId] }); setDeleteHsOpen(false); alert(`Deleted ${data.deleted} headshot(s) from storage.`); },
     onError: (err: Error) => { alert(`Failed: ${err.message}`); },
   });
+
+  const createRound = useMutation({
+    mutationFn: (form: typeof newRoundForm) =>
+      api().post<InterviewRound>(`/ops/v1/cycles/${selectedCycleId}/rounds`, {
+        ...form,
+        round_number: Number(form.round_number),
+        categories: [],
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["rounds", selectedCycleId] });
+      setNewRoundOpen(false);
+      setNewRoundForm(f => ({ ...f, name: "", round_number: f.round_number + 1 }));
+    },
+  });
+
+  async function saveRoundUrl(roundId: string) {
+    const url = roundUrls[roundId] ?? "";
+    await api().patch(`/ops/v1/rounds/${roundId}`, { score_sheet_url: url || null });
+    qc.invalidateQueries({ queryKey: ["rounds", selectedCycleId] });
+  }
+
+  async function importRoundScores(roundId: string) {
+    setRoundStatus(s => ({ ...s, [roundId]: { status: "syncing", msg: null } }));
+    try {
+      const data = await api().post<{ imported: number; updated: number; skipped: number; missing_candidates: string[]; missing_members: string[] }>(
+        `/ops/v1/rounds/${roundId}/import-scores`, {}
+      );
+      const parts: string[] = [];
+      if (data.imported > 0) parts.push(`${data.imported} new`);
+      if (data.updated > 0) parts.push(`${data.updated} updated`);
+      if (data.skipped > 0) parts.push(`${data.skipped} skipped`);
+      let msg = parts.length ? parts.join(", ") : "Up to date";
+      if (data.missing_candidates.length > 0) msg += ` · unmatched candidates: ${data.missing_candidates.join(", ")}`;
+      if (data.missing_members.length > 0) msg += ` · unmatched members: ${data.missing_members.join(", ")}`;
+      setRoundStatus(s => ({ ...s, [roundId]: { status: "done", msg } }));
+    } catch (err) {
+      setRoundStatus(s => ({ ...s, [roundId]: { status: "error", msg: (err as Error).message } }));
+    }
+  }
 
   const filtered = candidates.filter((c) => {
     const q = search.toLowerCase();
@@ -388,6 +469,73 @@ export default function RecruitmentPage() {
             </div>
           )}
 
+          {/* Interview rounds */}
+          {(session?.role === "director" || session?.role === "eboard") && (
+            <div className="rounded-lg border bg-white p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <ClipboardList className="h-3.5 w-3.5" /> Interview Rounds
+                </p>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setNewRoundOpen(true)}>
+                  <Plus className="h-3 w-3 mr-1" /> Add round
+                </Button>
+              </div>
+              {rounds.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No rounds yet. Add a round to start tracking interview scores.</p>
+              ) : (
+                <div className="space-y-3">
+                  {rounds.sort((a, b) => a.round_number - b.round_number).map((round) => {
+                    const rs = roundStatus[round.id] ?? { status: "idle", msg: null };
+                    const localUrl = roundUrls[round.id] ?? round.score_sheet_url ?? "";
+                    const urlChanged = localUrl !== (round.score_sheet_url ?? "");
+                    return (
+                      <div key={round.id} className="rounded-md border p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-medium">{round.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {round.score_format === "numeric" ? "Numeric (0–5)" : "Y/M/N"} · {round.categories.map(c => c.name).join(", ") || "No categories"}
+                            </p>
+                          </div>
+                          {rs.status !== "idle" && (
+                            <span className={`text-xs flex items-center gap-1 ${rs.status === "error" ? "text-destructive" : "text-emerald-700"}`}>
+                              {rs.status === "syncing" && <RefreshCw className="h-3 w-3 animate-spin" />}
+                              {rs.status === "done" && <Check className="h-3 w-3" />}
+                              {rs.status === "error" && <AlertCircle className="h-3 w-3" />}
+                              <span className="max-w-xs truncate">{rs.msg}</span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            className="h-7 text-xs flex-1"
+                            placeholder="Paste score sheet URL…"
+                            value={localUrl}
+                            onChange={e => setRoundUrls(u => ({ ...u, [round.id]: e.target.value }))}
+                          />
+                          {urlChanged && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => saveRoundUrl(round.id)}>
+                              Save URL
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            disabled={!round.score_sheet_url || rs.status === "syncing"}
+                            onClick={() => importRoundScores(round.id)}
+                          >
+                            <RefreshCw className={`h-3 w-3 mr-1 ${rs.status === "syncing" ? "animate-spin" : ""}`} />
+                            Import scores
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Controls row */}
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-sm">
@@ -553,6 +701,54 @@ export default function RecruitmentPage() {
             <Button variant="outline" onClick={() => setDeleteHsOpen(false)}>Cancel</Button>
             <Button variant="destructive" onClick={() => purgeHeadshots.mutate()} disabled={purgeHeadshots.isPending}>
               {purgeHeadshots.isPending ? "Deleting…" : "Delete headshots"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Round dialog */}
+      <Dialog open={newRoundOpen} onOpenChange={setNewRoundOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Add Interview Round</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label>Round name</Label>
+              <Input
+                placeholder="e.g. Round 1"
+                value={newRoundForm.name}
+                onChange={e => setNewRoundForm(f => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Round #</Label>
+                <Input
+                  type="number"
+                  className="h-8 text-sm"
+                  value={newRoundForm.round_number}
+                  onChange={e => setNewRoundForm(f => ({ ...f, round_number: Number(e.target.value) }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Score format</Label>
+                <select
+                  className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  value={newRoundForm.score_format}
+                  onChange={e => setNewRoundForm(f => ({ ...f, score_format: e.target.value }))}
+                >
+                  <option value="numeric">Numeric (0–5)</option>
+                  <option value="ynm">Y/M/N</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewRoundOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => createRound.mutate(newRoundForm)}
+              disabled={!newRoundForm.name.trim() || createRound.isPending}
+            >
+              {createRound.isPending ? "Creating…" : "Create round"}
             </Button>
           </DialogFooter>
         </DialogContent>

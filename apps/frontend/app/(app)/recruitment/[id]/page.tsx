@@ -56,6 +56,30 @@ export default function CandidatePage() {
     enabled: !!session?.accessToken,
   });
 
+  interface InterviewScoreEnriched {
+    id: string;
+    session_id: string;
+    candidate_id: string;
+    member_id: string;
+    category_id: string;
+    numeric_score: number | null;
+    ynm_score: string | null;
+    comments: string | null;
+    member_name: string | null;
+    category_name: string | null;
+    round_id: string | null;
+    round_name: string | null;
+    round_number: number | null;
+    time_slot: string | null;
+    group_label: string | null;
+  }
+
+  const { data: interviewScores = [] } = useQuery<InterviewScoreEnriched[]>({
+    queryKey: ["candidate", id, "scores"],
+    queryFn: () => api().get(`/ops/v1/candidates/${id}/scores`),
+    enabled: !!session?.accessToken,
+  });
+
   interface CoffeeChatEvaluation {
     id: string;
     cycle_id: string;
@@ -231,6 +255,94 @@ export default function CandidatePage() {
           </ul>
         )}
       </div>
+
+      {/* Interview scores */}
+      {interviewScores.length > 0 && (() => {
+        // Group by round
+        const rounds = Array.from(
+          interviewScores.reduce((acc, s) => {
+            const key = s.round_id ?? "unknown";
+            if (!acc.has(key)) acc.set(key, { round_id: key, round_name: s.round_name ?? "Unknown Round", round_number: s.round_number ?? 0, scores: [] });
+            acc.get(key)!.scores.push(s);
+            return acc;
+          }, new Map<string, { round_id: string; round_name: string; round_number: number; scores: InterviewScoreEnriched[] }>())
+          .values()
+        ).sort((a, b) => a.round_number - b.round_number);
+
+        return (
+          <div className="rounded-lg border bg-white p-4 space-y-4">
+            <h2 className="text-sm font-semibold">Interview Scores</h2>
+            {rounds.map((round) => {
+              const categories = Array.from(new Set(round.scores.map(s => s.category_name ?? ""))).filter(Boolean);
+              const members = Array.from(new Set(round.scores.map(s => s.member_name ?? ""))).filter(Boolean);
+              return (
+                <div key={round.round_id} className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{round.round_name}</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border rounded-md overflow-hidden">
+                      <thead className="bg-muted/40">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-muted-foreground">Category</th>
+                          {members.map(m => (
+                            <th key={m} className="px-3 py-2 text-center font-medium text-muted-foreground">{m}</th>
+                          ))}
+                          <th className="px-3 py-2 text-center font-medium text-muted-foreground">Avg</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {categories.map(cat => {
+                          const catScores = round.scores.filter(s => s.category_name === cat);
+                          const numericValues = catScores.map(s => s.numeric_score).filter((v): v is number => v !== null);
+                          const avg = numericValues.length > 0
+                            ? (numericValues.reduce((a, b) => a + b, 0) / numericValues.length).toFixed(1)
+                            : null;
+                          return (
+                            <tr key={cat} className="hover:bg-muted/20">
+                              <td className="px-3 py-2 font-medium">{cat}</td>
+                              {members.map(m => {
+                                const score = catScores.find(s => s.member_name === m);
+                                const val = score?.numeric_score ?? score?.ynm_score ?? null;
+                                const scoreColor = typeof val === "number"
+                                  ? val >= 4 ? "text-emerald-700 font-semibold"
+                                    : val >= 3 ? "text-sky-700"
+                                    : val >= 2 ? "text-amber-700"
+                                    : "text-red-700"
+                                  : "";
+                                return (
+                                  <td key={m} className="px-3 py-2 text-center">
+                                    {val !== null
+                                      ? <span className={scoreColor}>{val}</span>
+                                      : <span className="text-muted-foreground">—</span>}
+                                  </td>
+                                );
+                              })}
+                              <td className="px-3 py-2 text-center font-semibold">
+                                {avg ?? <span className="text-muted-foreground">—</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Comments */}
+                  {round.scores.filter(s => s.comments).length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      {round.scores.filter(s => s.comments).map(s => (
+                        <div key={s.id} className="rounded bg-muted/40 px-3 py-2">
+                          <span className="font-medium text-xs">{s.member_name}</span>
+                          <span className="text-muted-foreground text-xs"> · {s.category_name}</span>
+                          <p className="text-xs text-muted-foreground mt-0.5">{s.comments}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Internal notes */}
       {candidate.notes && (

@@ -1,7 +1,7 @@
 import enum
 import uuid
 
-from sqlalchemy import Boolean, Date, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -62,6 +62,7 @@ class InterviewRound(UUIDMixin, TimestampMixin, Base):
     score_format: Mapped[ScoreFormat] = mapped_column(Enum(ScoreFormat), nullable=False)
     interview_format: Mapped[InterviewFormat] = mapped_column(Enum(InterviewFormat), nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    score_sheet_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     cycle: Mapped["ApplicationCycle"] = relationship(back_populates="interview_rounds")
     categories: Mapped[list["InterviewCategory"]] = relationship(back_populates="round")
@@ -164,6 +165,9 @@ class CoffeeChat(UUIDMixin, TimestampMixin, Base):
 class InterviewScore(UUIDMixin, TimestampMixin, Base):
     """One member's score for one candidate in one session for one category."""
     __tablename__ = "interview_scores"
+    __table_args__ = (
+        UniqueConstraint("session_id", "candidate_id", "member_id", "category_id", name="uq_interview_score"),
+    )
 
     session_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("interview_sessions.id", ondelete="CASCADE"), nullable=False, index=True

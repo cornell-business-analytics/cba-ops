@@ -11,7 +11,10 @@ from app.models.candidate import (
     Candidate,
     CandidateStatus,
     CoffeeChat,
+    InterviewCategory,
     InterviewScore,
+    InterviewSession,
+    InterviewRound,
 )
 from app.models.recruitment import CoffeeChatEvaluation
 from app.models.membership import Membership
@@ -273,16 +276,70 @@ async def submit_interview_score(
     return score
 
 
-@router.get("/candidates/{candidate_id}/scores", response_model=list[InterviewScorePublic])
+class InterviewScoreEnriched(BaseModel):
+    id: uuid.UUID
+    session_id: uuid.UUID
+    candidate_id: uuid.UUID
+    member_id: uuid.UUID
+    category_id: uuid.UUID
+    numeric_score: float | None
+    ynm_score: str | None
+    comments: str | None
+    member_name: str | None
+    category_name: str | None
+    round_id: uuid.UUID | None
+    round_name: str | None
+    round_number: int | None
+    time_slot: str | None
+    group_label: str | None
+    model_config = {"from_attributes": False}
+
+
+@router.get("/candidates/{candidate_id}/scores", response_model=list[InterviewScoreEnriched])
 async def get_candidate_scores(
     candidate_id: uuid.UUID,
     _: User = Depends(require_role(UserRole.pm)),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(InterviewScore).where(InterviewScore.candidate_id == candidate_id)
+        select(
+            InterviewScore,
+            User.name.label("member_name"),
+            InterviewCategory.name.label("category_name"),
+            InterviewSession.round_id.label("round_id"),
+            InterviewSession.time_slot.label("time_slot"),
+            InterviewSession.group_label.label("group_label"),
+            InterviewRound.name.label("round_name"),
+            InterviewRound.round_number.label("round_number"),
+        )
+        .join(User, InterviewScore.member_id == User.id)
+        .join(InterviewCategory, InterviewScore.category_id == InterviewCategory.id)
+        .join(InterviewSession, InterviewScore.session_id == InterviewSession.id)
+        .join(InterviewRound, InterviewSession.round_id == InterviewRound.id)
+        .where(InterviewScore.candidate_id == candidate_id)
+        .order_by(InterviewRound.round_number, InterviewSession.time_slot, InterviewCategory.display_order)
     )
-    return result.scalars().all()
+    rows = result.all()
+    return [
+        InterviewScoreEnriched(
+            id=score.id,
+            session_id=score.session_id,
+            candidate_id=score.candidate_id,
+            member_id=score.member_id,
+            category_id=score.category_id,
+            numeric_score=score.numeric_score,
+            ynm_score=score.ynm_score,
+            comments=score.comments,
+            member_name=member_name,
+            category_name=category_name,
+            round_id=round_id,
+            round_name=round_name,
+            round_number=round_number,
+            time_slot=time_slot,
+            group_label=group_label,
+        )
+        for score, member_name, category_name, round_id, time_slot, group_label, round_name, round_number in rows
+    ]
 
 
 # ---------------------------------------------------------------------------
