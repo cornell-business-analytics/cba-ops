@@ -1,7 +1,8 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from pydantic import BaseModel
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -12,6 +13,7 @@ from app.models.candidate import (
     CoffeeChat,
     InterviewScore,
 )
+from app.models.recruitment import CoffeeChatEvaluation
 from app.models.membership import Membership
 from app.models.user import User, UserRole
 from app.modules.ops.deps import get_current_user, require_role
@@ -279,5 +281,45 @@ async def get_candidate_scores(
 ):
     result = await db.execute(
         select(InterviewScore).where(InterviewScore.candidate_id == candidate_id)
+    )
+    return result.scalars().all()
+
+
+# ---------------------------------------------------------------------------
+# Coffee chat evaluations (member feedback from evaluation sheet)
+# ---------------------------------------------------------------------------
+
+class CoffeeChatEvaluationPublic(BaseModel):
+    id: uuid.UUID
+    cycle_id: uuid.UUID
+    applicant_name: str
+    applicant_email: str
+    member_name: str
+    chat_date: str | None
+    score: float | None
+    comments: str | None
+    model_config = {"from_attributes": True}
+
+
+@router.get("/candidates/{candidate_id}/coffee-chat-evaluations", response_model=list[CoffeeChatEvaluationPublic])
+async def get_candidate_evaluations(
+    candidate_id: uuid.UUID,
+    _: User = Depends(require_role(UserRole.pm)),
+    db: AsyncSession = Depends(get_db),
+):
+    cand_result = await db.execute(select(Candidate).where(Candidate.id == candidate_id))
+    candidate = cand_result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    result = await db.execute(
+        select(CoffeeChatEvaluation)
+        .where(
+            or_(
+                func.lower(CoffeeChatEvaluation.applicant_email) == candidate.cornell_email.lower(),
+                func.lower(CoffeeChatEvaluation.applicant_email) == candidate.email.lower(),
+            )
+        )
+        .order_by(CoffeeChatEvaluation.created_at)
     )
     return result.scalars().all()

@@ -28,6 +28,7 @@ interface Cycle {
   id: string;
   name: string;
   sheet_id: string | null;
+  evaluation_sheet_id: string | null;
   sender_name: string;
   sender_title: string;
   pairing_subject: string;
@@ -103,6 +104,10 @@ export default function CycleDetailPage() {
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const autoImportedRef = useRef(false);
 
+  // Evaluation import state
+  const [evalSyncStatus, setEvalSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
+  const [evalSyncMsg, setEvalSyncMsg] = useState<string | null>(null);
+
   const { data: cycle } = useQuery<Cycle>({
     queryKey: ["cycle", id],
     queryFn: () => api.get<Cycle[]>(`/ops/v1/recruitment/cycles`).then((cs) => cs.find(c => c.id === id)!),
@@ -130,6 +135,25 @@ export default function CycleDetailPage() {
   });
 
   const activeMembers = members.filter(m => m.is_active);
+
+  const evalImportMutation = useMutation({
+    mutationFn: () => api.post<{ imported: number; updated: number; skipped: number; missing_cols: string[] }>(`/ops/v1/recruitment/cycles/${id}/evaluations/import`, {}),
+    onSuccess: (data) => {
+      setEvalSyncStatus("done");
+      const parts: string[] = [];
+      if (data.imported > 0) parts.push(`${data.imported} new`);
+      if (data.updated > 0) parts.push(`${data.updated} updated`);
+      if (data.skipped > 0) parts.push(`${data.skipped} skipped`);
+      setEvalSyncMsg(parts.length ? parts.join(", ") : "Up to date");
+      if (data.missing_cols.length > 0) {
+        setEvalSyncMsg(prev => `${prev} · missing cols: ${data.missing_cols.join(", ")}`);
+      }
+    },
+    onError: (err: Error) => {
+      setEvalSyncStatus("error");
+      setEvalSyncMsg(err.message);
+    },
+  });
 
   const importMutation = useMutation({
     mutationFn: () => api.post<{ imported: number; skipped: number; missing_cols: string[] }>(`/ops/v1/recruitment/cycles/${id}/import`, {}),
@@ -243,6 +267,7 @@ export default function CycleDetailPage() {
     mutationFn: (data: Partial<Cycle>) => api.patch<Cycle>(`/ops/v1/recruitment/cycles/${id}`, {
       name: data.name,
       sheet_id: data.sheet_id,
+      evaluation_sheet_id: data.evaluation_sheet_id,
       sender_title: data.sender_title,
       pairing_subject: data.pairing_subject,
       pairing_body: data.pairing_body,
@@ -319,7 +344,7 @@ export default function CycleDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Sync indicator */}
+          {/* Applicant sync indicator */}
           {cycle?.sheet_id && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               {syncStatus === "syncing" && (
@@ -346,6 +371,40 @@ export default function CycleDetailPage() {
                 </>
               )}
               {syncStatus === "idle" && null}
+            </div>
+          )}
+          {/* Eval import button + status */}
+          {cycle?.evaluation_sheet_id && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {evalSyncStatus === "syncing" && (
+                <>
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  <span>Importing evals…</span>
+                </>
+              )}
+              {evalSyncStatus === "done" && (
+                <>
+                  <Check className="h-3 w-3 text-green-600" />
+                  <span className="text-green-700">{evalSyncMsg}</span>
+                </>
+              )}
+              {evalSyncStatus === "error" && (
+                <span className="text-destructive">{evalSyncMsg}</span>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                disabled={evalImportMutation.isPending}
+                onClick={() => {
+                  setEvalSyncStatus("syncing");
+                  setEvalSyncMsg(null);
+                  evalImportMutation.mutate();
+                }}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${evalImportMutation.isPending ? "animate-spin" : ""}`} />
+                Import evals
+              </Button>
             </div>
           )}
           <Button size="sm" variant="outline" onClick={handleOpenSettings}>
@@ -637,8 +696,12 @@ export default function CycleDetailPage() {
                 <Input value={settingsForm.name ?? ""} onChange={e => setSettingsForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <Label>Google Sheet ID</Label>
+                <Label>Google Sheet ID <span className="text-xs text-muted-foreground font-normal">(applicants)</span></Label>
                 <Input value={settingsForm.sheet_id ?? ""} onChange={e => setSettingsForm(f => ({ ...f, sheet_id: e.target.value }))} placeholder="URL or ID from the sheet" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Evaluation Sheet ID <span className="text-xs text-muted-foreground font-normal">(member feedback)</span></Label>
+                <Input value={settingsForm.evaluation_sheet_id ?? ""} onChange={e => setSettingsForm(f => ({ ...f, evaluation_sheet_id: e.target.value }))} placeholder="URL or ID from the eval sheet" />
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Sender title <span className="text-xs text-muted-foreground font-normal">(sender name comes from whoever is signed in)</span></Label>

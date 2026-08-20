@@ -11,14 +11,14 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.membership import Membership
-from app.models.recruitment import CoffeeChatApplicant, GmailToken, RecruitmentCycle
+from app.models.recruitment import CoffeeChatApplicant, CoffeeChatEvaluation, GmailToken, RecruitmentCycle
 from app.models.user import User, UserRole
 from app.modules.ops.deps import get_current_user, require_role
 
@@ -268,6 +268,7 @@ class CycleCreate(BaseModel):
 class CycleUpdate(BaseModel):
     name: str | None = None
     sheet_id: str | None = None
+    evaluation_sheet_id: str | None = None
     sender_name: str | None = None
     sender_title: str | None = None
     pairing_subject: str | None = None
@@ -282,6 +283,7 @@ class CyclePublic(BaseModel):
     id: uuid.UUID
     name: str
     sheet_id: str | None
+    evaluation_sheet_id: str | None = None
     sender_name: str
     sender_title: str
     pairing_subject: str
@@ -314,6 +316,7 @@ async def list_cycles(
             sender_name=c.sender_name, sender_title=c.sender_title,
             pairing_subject=c.pairing_subject, pairing_body=c.pairing_body,
             rejection_subject=c.rejection_subject, rejection_body=c.rejection_body,
+            evaluation_sheet_id=c.evaluation_sheet_id,
             is_active=c.is_active, column_mapping=c.column_mapping or {},
             applicant_count=count,
         ))
@@ -811,3 +814,163 @@ async def reset_email_status(
     applicant.sent_at = None
     await db.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Coffee chat evaluations — member feedback imported from a Google Sheet
+# ---------------------------------------------------------------------------
+
+class EvalColumnMapping(BaseModel):
+    eval_timestamp_col: str = "Timestamp"
+    eval_member_name_col: str = "Member Name"
+    eval_applicant_name_col: str = "Prospective Applicant Name"
+    eval_applicant_email_col: str = "Prospective Applicant Email"
+    eval_chat_date_col: str = "Date of Coffee Chat"
+    eval_score_col: str = "Score:"
+    eval_comments_col: str = "Comments - Describe your experience"
+
+
+class EvaluationPublic(BaseModel):
+    id: uuid.UUID
+    cycle_id: uuid.UUID
+    applicant_name: str
+    applicant_email: str
+    member_name: str
+    chat_date: str | None
+    score: float | None
+    comments: str | None
+    model_config = {"from_attributes": True}
+
+
+@router.post("/cycles/{cycle_id}/evaluations/import")
+async def import_evaluations(
+    cycle_id: uuid.UUID,
+    current_user: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(RecruitmentCycle).where(RecruitmentCycle.id == cycle_id))
+    cycle = result.scalar_one_or_none()
+    if not cycle:
+        raise HTTPException(status_code=404, detail="Cycle not found")
+    if not cycle.evaluation_sheet_id:
+        raise HTTPException(status_code=400, detail="No evaluation Google Sheet ID set for this cycle")
+
+    stored = cycle.column_mapping or {}
+    defaults = EvalColumnMapping()
+    mapping = EvalColumnMapping(
+        eval_timestamp_col=stored.get("eval_timestamp_col", defaults.eval_timestamp_col),
+        eval_member_name_col=stored.get("eval_member_name_col", defaults.eval_member_name_col),
+        eval_applicant_name_col=stored.get("eval_applicant_name_col", defaults.eval_applicant_name_col),
+        eval_applicant_email_col=stored.get("eval_applicant_email_col", defaults.eval_applicant_email_col),
+        eval_chat_date_col=stored.get("eval_chat_date_col", defaults.eval_chat_date_col),
+        eval_score_col=stored.get("eval_score_col", defaults.eval_score_col),
+        eval_comments_col=stored.get("eval_comments_col", defaults.eval_comments_col),
+    )
+
+    sheet_id = _extract_sheet_id(cycle.evaluation_sheet_id)
+    token = await _get_valid_token(db, current_user.id)
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/A:ZZ",
+            headers={"Authorization": f"Bearer {token.access_token}"},
+        )
+    if resp.status_code == 403:
+        raise HTTPException(
+            status_code=502,
+            detail="Permission denied — make sure the sheet is shared with the connected Gmail account.",
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Google Sheets error: {resp.text}")
+
+    values = resp.json().get("values", [])
+    if len(values) < 2:
+        return {"imported": 0, "updated": 0, "skipped": 0, "missing_cols": []}
+
+    headers = [h.strip() for h in values[0]]
+    rows = values[1:]
+
+    def col(row: list, name: str) -> str:
+        # Exact match first, then prefix match for long form question headers
+        try:
+            idx = headers.index(name)
+            return row[idx].strip() if idx < len(row) else ""
+        except ValueError:
+            # Try prefix match — Google Form question headers can be very long
+            for i, h in enumerate(headers):
+                if h.startswith(name):
+                    return row[i].strip() if i < len(row) else ""
+            return ""
+
+    configured_cols = {
+        "Timestamp": mapping.eval_timestamp_col,
+        "Member Name": mapping.eval_member_name_col,
+        "Applicant Name": mapping.eval_applicant_name_col,
+        "Applicant Email": mapping.eval_applicant_email_col,
+        "Chat Date": mapping.eval_chat_date_col,
+        "Score": mapping.eval_score_col,
+        "Comments": mapping.eval_comments_col,
+    }
+    missing_cols = [label for label, col_name in configured_cols.items() if not any(
+        h == col_name or h.startswith(col_name) for h in headers
+    )]
+
+    imported = updated = skipped = 0
+    for i, row in enumerate(rows):
+        applicant_email = col(row, mapping.eval_applicant_email_col).lower()
+        member_name = col(row, mapping.eval_member_name_col)
+        if not applicant_email or not member_name:
+            skipped += 1
+            continue
+
+        timestamp = col(row, mapping.eval_timestamp_col) or str(i)
+        row_key = f"{applicant_email}_{member_name}_{timestamp}"
+
+        score_raw = col(row, mapping.eval_score_col)
+        try:
+            score = float(score_raw) if score_raw else None
+        except ValueError:
+            score = None
+
+        existing_result = await db.execute(
+            select(CoffeeChatEvaluation).where(
+                CoffeeChatEvaluation.cycle_id == cycle_id,
+                CoffeeChatEvaluation.row_key == row_key,
+            )
+        )
+        existing_row = existing_result.scalar_one_or_none()
+        if existing_row:
+            existing_row.score = score
+            existing_row.comments = col(row, mapping.eval_comments_col) or None
+            updated += 1
+            continue
+
+        evaluation = CoffeeChatEvaluation(
+            cycle_id=cycle_id,
+            row_key=row_key,
+            applicant_name=col(row, mapping.eval_applicant_name_col),
+            applicant_email=applicant_email,
+            member_name=member_name,
+            chat_date=col(row, mapping.eval_chat_date_col) or None,
+            score=score,
+            comments=col(row, mapping.eval_comments_col) or None,
+        )
+        db.add(evaluation)
+        imported += 1
+
+    await db.commit()
+    return {"imported": imported, "updated": updated, "skipped": skipped, "missing_cols": missing_cols}
+
+
+@router.get("/cycles/{cycle_id}/evaluations", response_model=list[EvaluationPublic])
+async def list_evaluations(
+    cycle_id: uuid.UUID,
+    _: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CoffeeChatEvaluation)
+        .where(CoffeeChatEvaluation.cycle_id == cycle_id)
+        .order_by(CoffeeChatEvaluation.applicant_email, CoffeeChatEvaluation.created_at)
+    )
+    return result.scalars().all()

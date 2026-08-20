@@ -35,6 +35,23 @@ export default function CandidatePage() {
     enabled: !!session?.accessToken,
   });
 
+  interface CoffeeChatEvaluation {
+    id: string;
+    cycle_id: string;
+    applicant_name: string;
+    applicant_email: string;
+    member_name: string;
+    chat_date: string | null;
+    score: number | null;
+    comments: string | null;
+  }
+
+  const { data: evaluations = [] } = useQuery<CoffeeChatEvaluation[]>({
+    queryKey: ["candidate", id, "evaluations"],
+    queryFn: () => api().get(`/ops/v1/candidates/${id}/coffee-chat-evaluations`),
+    enabled: !!session?.accessToken,
+  });
+
   const updateStatus = useMutation({
     mutationFn: (status: CandidateStatus) =>
       api().patch(`/ops/v1/candidates/${id}/status`, { status }),
@@ -130,6 +147,48 @@ export default function CandidatePage() {
                 </div>
               </li>
             ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Coffee chat evaluations */}
+      <div className="rounded-lg border bg-white p-4 space-y-3">
+        <h2 className="text-sm font-semibold">Coffee Chat Evaluations</h2>
+        {evaluations.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No evaluations imported yet.</p>
+        ) : (
+          <ul className="space-y-3">
+            {evaluations.map((ev) => {
+              const score = ev.score;
+              const scoreBg =
+                score === null ? "bg-muted text-muted-foreground"
+                : score < 2 ? "bg-red-100 text-red-700"
+                : score < 3 ? "bg-yellow-100 text-yellow-700"
+                : "bg-green-100 text-green-700";
+              const scoreLabel =
+                score === null ? "No score"
+                : score < 2 ? "Unacceptable"
+                : score < 3 ? "Would interview"
+                : "Outstanding";
+              return (
+                <li key={ev.id} className="rounded-md bg-muted/40 px-3 py-3 text-sm space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{ev.member_name}</span>
+                    <div className="flex items-center gap-2">
+                      {ev.chat_date && (
+                        <span className="text-xs text-muted-foreground">{ev.chat_date}</span>
+                      )}
+                      <span className={`text-xs font-medium rounded px-2 py-0.5 ${scoreBg}`}>
+                        {score !== null ? `${score} — ${scoreLabel}` : scoreLabel}
+                      </span>
+                    </div>
+                  </div>
+                  {ev.comments && (
+                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">{ev.comments}</p>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

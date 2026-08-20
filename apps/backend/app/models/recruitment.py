@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,8 +37,10 @@ class RecruitmentCycle(UUIDMixin, TimestampMixin, Base):
     sender_title: Mapped[str] = mapped_column(String(100), nullable=False, default="Director of Recruitment")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     column_mapping: Mapped[dict] = mapped_column(JSONB, nullable=False, default=_DEFAULT_COLUMN_MAPPING, server_default="{}")
+    evaluation_sheet_id: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     applicants: Mapped[list["CoffeeChatApplicant"]] = relationship(back_populates="cycle", cascade="all, delete-orphan")
+    evaluations: Mapped[list["CoffeeChatEvaluation"]] = relationship(back_populates="cycle", cascade="all, delete-orphan")
 
 
 class CoffeeChatApplicant(UUIDMixin, TimestampMixin, Base):
@@ -69,6 +71,23 @@ class CoffeeChatApplicant(UUIDMixin, TimestampMixin, Base):
 
     cycle: Mapped["RecruitmentCycle"] = relationship(back_populates="applicants")
     paired_membership: Mapped["Membership | None"] = relationship()  # noqa: F821
+
+
+class CoffeeChatEvaluation(UUIDMixin, TimestampMixin, Base):
+    __tablename__ = "coffee_chat_evaluations"
+
+    cycle_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recruitment_cycles.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    row_key: Mapped[str] = mapped_column(String(300), nullable=False)
+    applicant_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    applicant_email: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    member_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    chat_date: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    comments: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    cycle: Mapped["RecruitmentCycle"] = relationship(back_populates="evaluations")
 
 
 class GmailToken(UUIDMixin, TimestampMixin, Base):
