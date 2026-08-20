@@ -61,21 +61,41 @@ export default async function RecruitmentPage() {
 
           {steps.length > 0 && (
             <div className={!hasEvents ? "max-w-xl" : ""}>
-              <h2 className="text-2xl font-bold text-cba-dark">The process</h2>
-              <ol className="mt-6 space-y-6">
-                {steps.map(({ title, desc, step_number }, i) => (
-                  <li key={i} className={`flex gap-4 items-start ${!step_number ? "pl-2 border-l-2 border-gray-200" : ""}`}>
-                    {step_number && (
-                      <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-cba-green px-3 py-1 text-xs font-bold text-white whitespace-nowrap">
-                        Round {step_number}
-                      </span>
-                    )}
-                    <div className={step_number ? "" : "text-gray-500"}>
-                      <p className={`font-semibold ${step_number ? "text-cba-dark" : "text-gray-600"}`}>{title}</p>
-                      {desc && <p className="mt-0.5 text-sm text-gray-500">{desc}</p>}
-                    </div>
-                  </li>
-                ))}
+              <h2 className="text-3xl font-bold text-cba-dark">The process</h2>
+              <ol className="mt-8 relative">
+                {steps.map(({ title, desc, step_number }, i) => {
+                  const hasNumber = step_number !== null && step_number !== undefined;
+                  return (
+                    <li key={i} className="relative flex gap-5 pb-8 last:pb-0">
+                      {/* Vertical connector */}
+                      {i < steps.length - 1 && (
+                        <div className="absolute left-5 top-12 bottom-0 w-0.5 bg-gray-200" aria-hidden="true" />
+                      )}
+                      {/* Badge */}
+                      <div className="relative z-10 flex-shrink-0">
+                        {hasNumber ? (
+                          <div className="h-10 w-10 rounded-full bg-cba-green flex flex-col items-center justify-center text-white shadow-sm">
+                            <span className="text-[8px] font-semibold leading-none opacity-75 uppercase tracking-wide">Rnd</span>
+                            <span className="text-sm font-bold leading-tight">{step_number}</span>
+                          </div>
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center text-base">
+                            ☕
+                          </div>
+                        )}
+                      </div>
+                      {/* Content */}
+                      <div className="pt-1.5 flex-1">
+                        <p className={`text-lg font-semibold leading-snug ${hasNumber ? "text-cba-dark" : "text-gray-600"}`}>
+                          {title}
+                        </p>
+                        {desc && (
+                          <p className="mt-1 text-gray-500 leading-relaxed">{desc}</p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ol>
             </div>
           )}
