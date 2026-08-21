@@ -14,6 +14,7 @@
   "dependencies": {
     "@cba/types": "workspace:*",
     "@cba/ui": "workspace:*",
+    "@vercel/analytics": "^2.0.1",
     "geist": "^1.7.2",
     "next": "^15.1.4",
     "react": "^19.0.0",
