@@ -4,7 +4,6 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Nav } from "@/components/layout/Nav";
 import { Footer } from "@/components/layout/Footer";
-import { PageTransition } from "@/components/layout/PageTransition";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -16,6 +15,7 @@ const poppins = Poppins({
 
 const jost = Jost({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-jost",
   display: "swap",
 });
@@ -50,8 +50,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${poppins.variable} ${jost.variable}`}>
       <body className="flex min-h-screen flex-col">
         <Nav />
-        <main className="flex-1">
-          <PageTransition>{children}</PageTransition>
+        <main className="flex-1 animate-fade-in">
+          {children}
         </main>
         <Footer />
         <Analytics />

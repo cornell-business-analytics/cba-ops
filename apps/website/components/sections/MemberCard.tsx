@@ -1,5 +1,3 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import type { MemberPublic } from "@cba/types";
@@ -10,14 +8,20 @@ interface MemberCardProps {
 
 export function MemberCard({ member }: MemberCardProps) {
   return (
-    <Link href={`/team/${member.id}`} className="flex flex-col rounded-lg border border-gray-100 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+    <div className="relative flex flex-col rounded-lg border border-gray-100 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      {/* Overlay link covers the whole card; inner links sit above it via z-10 */}
+      <Link
+        href={`/team/${member.id}`}
+        className="absolute inset-0 z-0"
+        aria-label={`View ${member.name}'s profile`}
+      />
+
       <div className="relative w-full aspect-square bg-cba-dark/10 flex-shrink-0">
         {member.headshot_url ? (
           <Image
             src={member.headshot_url}
             alt={member.name}
             fill
-            quality={90}
             className="object-cover"
             style={{ objectPosition: `${member.headshot_focal_x}% ${member.headshot_focal_y}%` }}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -50,8 +54,7 @@ export function MemberCard({ member }: MemberCardProps) {
           {member.email && (
             <a
               href={`mailto:${member.email}`}
-              className="text-xs text-cba-green hover:underline truncate"
-              onClick={(e) => e.stopPropagation()}
+              className="relative z-10 text-xs text-cba-green hover:underline truncate"
             >
               {member.email}
             </a>
@@ -61,14 +64,13 @@ export function MemberCard({ member }: MemberCardProps) {
               href={member.linkedin_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-auto flex-shrink-0 text-xs font-medium text-cba-green hover:text-cba-green-dark"
-              onClick={(e) => e.stopPropagation()}
+              className="relative z-10 ml-auto flex-shrink-0 text-xs font-medium text-cba-green hover:text-cba-green-dark"
             >
               LinkedIn →
             </a>
           )}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

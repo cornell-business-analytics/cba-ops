@@ -35,7 +35,7 @@ export default async function HomePage() {
         subheading="Cornell Business Analytics is the first student-run analytics consulting organization delivering data-backed insights to real clients."
         ctaLabel="Apply now"
         ctaHref="/recruitment"
-        image="/group.jpg"
+        image="/group.webp"
       />
 
       <section className="bg-cba-gray" aria-label="Mission">
@@ -50,17 +50,17 @@ export default async function HomePage() {
       {[
         {
           title: "Turning Data Into Decisions",
-          image: "/front/pillar-consulting.jpg",
+          image: "/front/pillar-consulting.webp",
           alt: "CBA members presenting analysis to a client",
         },
         {
           title: "Developing Analytical Leaders",
-          image: "/front/pillar-education.jpg",
+          image: "/front/pillar-education.webp",
           alt: "CBA workshop session",
         },
         {
           title: "Building Lasting Community",
-          image: "/front/pillar-community.jpg",
+          image: "/front/pillar-community.webp",
           alt: "CBA members at a social event",
         },
       ].map(({ title, image, alt }, i) => (

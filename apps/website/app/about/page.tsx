@@ -86,7 +86,7 @@ export default async function AboutPage() {
     <>
       <Hero
         heading="About CBA"
-        image="/about.jpg"
+        image="/about.webp"
       />
 
       <section className="container-section py-16">
