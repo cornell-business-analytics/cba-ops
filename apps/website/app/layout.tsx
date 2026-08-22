@@ -50,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${poppins.variable} ${jost.variable}`}>
       <body className="flex min-h-screen flex-col">
         <Nav />
-        <main className="flex-1 animate-fade-in">
+        <main className="flex-1">
           {children}
         </main>
         <Footer />
