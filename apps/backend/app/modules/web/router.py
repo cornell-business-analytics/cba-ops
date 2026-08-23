@@ -1,10 +1,15 @@
 import uuid
 
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.membership import Membership
 from app.models.org import Event, EventType
@@ -15,6 +20,34 @@ from app.schemas.member import MemberPublic
 from app.schemas.page import PagePublic
 
 router = APIRouter(tags=["web"])
+
+
+@router.get("/assets/{key:path}", include_in_schema=False)
+def proxy_asset(key: str):
+    """Serve R2 assets through the backend using credentials — no public bucket access needed."""
+    if not settings.R2_ACCESS_KEY_ID:
+        raise HTTPException(status_code=503, detail="Asset storage not configured")
+    r2 = boto3.client(
+        "s3",
+        endpoint_url=f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+        config=Config(signature_version="s3v4"),
+        region_name="auto",
+    )
+    try:
+        obj = r2.get_object(Bucket=settings.R2_BUCKET_NAME, Key=key)
+        body = obj["Body"].read()
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code in ("NoSuchKey", "404"):
+            raise HTTPException(status_code=404, detail="Asset not found")
+        raise HTTPException(status_code=502, detail="Could not fetch asset")
+    return Response(
+        content=body,
+        media_type=obj.get("ContentType", "application/octet-stream"),
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 
 @router.get("/health")

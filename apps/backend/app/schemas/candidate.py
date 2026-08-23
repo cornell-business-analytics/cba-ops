@@ -1,8 +1,9 @@
 import uuid
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.models.candidate import CandidateStatus
+from app.schemas.member import _proxy_url
 
 
 class CandidateCreate(BaseModel):
@@ -42,6 +43,11 @@ class CandidatePublic(BaseModel):
     notes: str | None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("headshot_url", mode="before")
+    @classmethod
+    def proxy_headshot(cls, v: str | None) -> str | None:
+        return _proxy_url(v)
 
 
 class CandidateUpdate(BaseModel):

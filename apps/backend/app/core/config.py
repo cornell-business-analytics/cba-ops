@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     R2_SECRET_ACCESS_KEY: str = ""
     R2_BUCKET_NAME: str = "cba-assets"
     R2_PUBLIC_URL: str = "http://localhost:9000/cba-assets"  # CDN or public bucket URL
+    # Publicly reachable URL of this API server — used to rewrite headshot URLs
+    # so images are proxied through the backend (credentials-based R2 fetch)
+    # instead of served directly from R2. Set to the Railway deployment URL in
+    # production, e.g. https://cba-ops-production.up.railway.app
+    API_BASE_URL: str = ""
 
     # GitHub (design-request AI agent — see docs/handover.md for credential ownership)
     GITHUB_TOKEN: str = ""

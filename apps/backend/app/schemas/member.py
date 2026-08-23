@@ -1,7 +1,20 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+from app.core.config import settings
+
+
+def _proxy_url(v: str | None) -> str | None:
+    """Rewrite a raw R2 URL to the backend proxy URL if API_BASE_URL is set."""
+    if not v or not settings.API_BASE_URL:
+        return v
+    idx = v.find("uploads/")
+    if idx == -1:
+        return v
+    key = v[idx:]  # "uploads/..."
+    return f"{settings.API_BASE_URL}/web/v1/assets/{key}"
 
 
 class MemberPublic(BaseModel):
@@ -27,6 +40,11 @@ class MemberPublic(BaseModel):
     cohort_semester: str
 
     model_config = {"from_attributes": True}
+
+    @field_validator("headshot_url", mode="before")
+    @classmethod
+    def proxy_headshot(cls, v: str | None) -> str | None:
+        return _proxy_url(v)
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +74,11 @@ class MembershipPublic(BaseModel):
     website_role: str | None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("headshot_url", mode="before")
+    @classmethod
+    def proxy_headshot(cls, v: str | None) -> str | None:
+        return _proxy_url(v)
 
 
 class MembershipCreate(BaseModel):
