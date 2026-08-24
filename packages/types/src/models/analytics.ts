@@ -3,6 +3,8 @@ export interface AnalyticsOverview {
   active_candidates: number;
   published_pages: number;
   events_this_semester: number;
+  total_coffee_chats: number;
+  unique_coffee_chats: number;
 }
 
 export interface RecruitmentCycleStat {

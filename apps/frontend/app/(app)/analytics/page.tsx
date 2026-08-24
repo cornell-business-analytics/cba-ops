@@ -14,7 +14,7 @@ import {
   Pie,
   Legend,
 } from "recharts";
-import { Users, UserSearch, TrendingUp, Percent } from "lucide-react";
+import { Users, UserSearch, TrendingUp, Percent, Coffee, Users2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { createApi } from "@/lib/api";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -74,6 +74,8 @@ export default function AnalyticsPage() {
         : undefined,
       icon: Percent,
     },
+    { label: "Coffee Chats", value: overview?.total_coffee_chats, icon: Coffee },
+    { label: "Unique Candidates Chatted", value: overview?.unique_coffee_chats, icon: Users2 },
   ];
 
   return (

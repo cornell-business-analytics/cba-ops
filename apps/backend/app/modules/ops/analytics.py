@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import cache
 from app.db.session import get_db
-from app.models.candidate import ApplicationCycle, Candidate, CandidateStatus
+from app.models.candidate import ApplicationCycle, Candidate, CandidateStatus, CoffeeChat
 from app.models.membership import Cohort, Membership
 from app.models.org import Event
 from app.models.page import Page, PageStatus
@@ -57,11 +57,20 @@ async def overview(
         select(func.count(Event.id)).where(Event.event_date >= semester_start)
     )
 
+    total_coffee_chats = await db.scalar(
+        select(func.count(CoffeeChat.id)).where(CoffeeChat.completed == True)
+    )
+    unique_coffee_chats = await db.scalar(
+        select(func.count(func.distinct(CoffeeChat.candidate_id))).where(CoffeeChat.completed == True)
+    )
+
     result = {
         "total_members": total_members or 0,
         "active_candidates": active_candidates or 0,
         "published_pages": published_pages or 0,
         "events_this_semester": events_this_semester or 0,
+        "total_coffee_chats": total_coffee_chats or 0,
+        "unique_coffee_chats": unique_coffee_chats or 0,
     }
     await cache.set_json("analytics:overview", result, ttl=_ANALYTICS_TTL)
     return result
