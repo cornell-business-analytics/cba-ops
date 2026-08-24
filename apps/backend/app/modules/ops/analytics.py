@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import cache
 from app.db.session import get_db
-from app.models.candidate import ApplicationCycle, Candidate, CandidateStatus, CoffeeChat
+from app.models.candidate import ApplicationCycle, Candidate, CandidateStatus
+from app.models.recruitment import CoffeeChatApplicant
 from app.models.membership import Cohort, Membership
 from app.models.org import Event
 from app.models.page import Page, PageStatus
@@ -57,11 +58,16 @@ async def overview(
         select(func.count(Event.id)).where(Event.event_date >= semester_start)
     )
 
+    _chat_statuses = ("paired", "sent")
     total_coffee_chats = await db.scalar(
-        select(func.count(CoffeeChat.id)).where(CoffeeChat.completed == True)
+        select(func.count(CoffeeChatApplicant.id)).where(
+            CoffeeChatApplicant.pairing_status.in_(_chat_statuses)
+        )
     )
     unique_coffee_chats = await db.scalar(
-        select(func.count(func.distinct(CoffeeChat.candidate_id))).where(CoffeeChat.completed == True)
+        select(func.count(CoffeeChatApplicant.email.distinct())).where(
+            CoffeeChatApplicant.pairing_status.in_(_chat_statuses)
+        )
     )
 
     result = {
