@@ -480,6 +480,35 @@ export default function MemberProfilePage() {
           </div>
         )}
 
+        {/* Hide from website — directors+ */}
+        {canDirectEdit && (
+          <div className="rounded-lg border bg-white p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold">Hide from website</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Temporarily hides this member from the public team page while their profile is being set up.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                directUpdate.mutate({
+                  website_role: membership.website_role === "hidden" ? null : "hidden",
+                } as never)
+              }
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                membership.website_role === "hidden" ? "bg-orange-500" : "bg-muted-foreground/30"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  membership.website_role === "hidden" ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+        )}
+
         {/* Website section — eboard only */}
         {isEboard && (
           <div className="rounded-lg border bg-white p-4 space-y-2">
