@@ -151,7 +151,12 @@ export default function MembersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Members</h1>
-          <p className="text-sm text-muted-foreground">{filtered.length} active</p>
+          <p className="text-sm text-muted-foreground">
+            {members.filter((m) => m.is_active).length} active
+            {members.filter((m) => !m.is_active).length > 0 && (
+              <> · {members.filter((m) => !m.is_active).length} inactive</>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {/* Cohort filter */}
