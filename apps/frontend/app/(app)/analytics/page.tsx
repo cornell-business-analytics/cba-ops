@@ -36,18 +36,21 @@ export default function AnalyticsPage() {
     queryKey: ["analytics", "overview"],
     queryFn: () => api().get("/ops/v1/analytics/overview"),
     enabled: !!session?.accessToken,
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: recruitment } = useQuery<RecruitmentAnalytics>({
     queryKey: ["analytics", "recruitment"],
     queryFn: () => api().get("/ops/v1/analytics/recruitment"),
     enabled: !!session?.accessToken,
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: members } = useQuery<MembersAnalytics>({
     queryKey: ["analytics", "members"],
     queryFn: () => api().get("/ops/v1/analytics/members"),
     enabled: !!session?.accessToken,
+    staleTime: 5 * 60 * 1000,
   });
 
   const funnelData = FUNNEL_ORDER.map((stage, i) => ({

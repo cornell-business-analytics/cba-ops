@@ -531,6 +531,7 @@ export default function MemberProfilePage() {
                   <SelectItem value="director">Directors & PMs — Director</SelectItem>
                   <SelectItem value="pm">Directors & PMs — Project Manager</SelectItem>
                   <SelectItem value="analyst">Analysts</SelectItem>
+                  <SelectItem value="abroad">Abroad</SelectItem>
                   <SelectItem value="hidden">Hidden (not on website)</SelectItem>
                 </SelectContent>
               </Select>

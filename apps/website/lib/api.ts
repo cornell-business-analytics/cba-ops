@@ -34,14 +34,12 @@ export async function getMembers(): Promise<MemberGroups> {
       abroad: [],
     };
   }
-  const active = data.filter((m) => m.is_active);
-  const inactive = data.filter((m) => !m.is_active);
   return {
-    eboard: active.filter((m) => m.role === "eboard"),
-    directors: active.filter((m) => m.role === "director"),
-    pms: active.filter((m) => m.role === "pm"),
-    analysts: active.filter((m) => m.role === "member" || m.role === "analyst"),
-    abroad: inactive,
+    eboard: data.filter((m) => m.role === "eboard"),
+    directors: data.filter((m) => m.role === "director"),
+    pms: data.filter((m) => m.role === "pm"),
+    analysts: data.filter((m) => m.role === "member" || m.role === "analyst"),
+    abroad: data.filter((m) => m.role === "abroad"),
   };
 }
 

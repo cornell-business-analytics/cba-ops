@@ -21,6 +21,7 @@ export default function DashboardPage() {
     queryKey: ["analytics", "overview"],
     queryFn: () => createApi(session?.accessToken).get("/ops/v1/analytics/overview"),
     enabled: !!session?.accessToken,
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: events = [] } = useQuery<Event[]>({
