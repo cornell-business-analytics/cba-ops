@@ -62,7 +62,7 @@ async def get_member(
 ):
     result = await db.execute(
         select(Membership)
-        .where(Membership.user_id == member_id)
+        .where(Membership.user_id == member_id, Membership.is_active == True)
         .options(selectinload(Membership.user), selectinload(Membership.cohort))
         .order_by(Membership.display_order)
         .limit(1)
@@ -99,6 +99,7 @@ async def get_members(
 ):
     result = await db.execute(
         select(Membership)
+        .where(Membership.is_active == True)
         .options(selectinload(Membership.user), selectinload(Membership.cohort))
         .order_by(Membership.display_order)
     )

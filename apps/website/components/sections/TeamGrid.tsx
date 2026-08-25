@@ -44,7 +44,7 @@ export function TeamGrid({ eboard, directors, pms, analysts, abroad }: TeamGridP
       <GroupSection title="Executive Board" members={sortedEboard} cols="sm:grid-cols-2 lg:grid-cols-4" />
       <GroupSection title="Directors" members={sortedDirectors} cols="sm:grid-cols-2 lg:grid-cols-4" />
       <GroupSection title="Project Managers" members={pms} cols="sm:grid-cols-2 lg:grid-cols-4" />
-      <GroupSection title="Analysts" members={analysts} cols="sm:grid-cols-2 lg:grid-cols-4" />
+      <GroupSection title="Active Analysts" members={analysts} cols="sm:grid-cols-2 lg:grid-cols-4" />
       <GroupSection title="Abroad" members={abroad} cols="sm:grid-cols-2 lg:grid-cols-4" />
     </section>
   );
