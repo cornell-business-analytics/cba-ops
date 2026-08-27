@@ -24,6 +24,17 @@ interface ColMap {
   timestamp_col: string;
 }
 
+interface Evaluation {
+  id: string;
+  cycle_id: string;
+  applicant_name: string;
+  applicant_email: string;
+  member_name: string;
+  chat_date: string | null;
+  score: number | null;
+  comments: string | null;
+}
+
 interface Cycle {
   id: string;
   name: string;
@@ -87,6 +98,8 @@ export default function CycleDetailPage() {
 
   const canManageRecruitment = session?.role === "recruitment" || session?.role === "eboard" || session?.role === "director";
 
+  const [activeTab, setActiveTab] = useState<"applicants" | "evaluations">("applicants");
+  const [evalSearch, setEvalSearch] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsForm, setSettingsForm] = useState<Partial<Cycle & { column_mapping: ColMap }>>({});
@@ -134,11 +147,18 @@ export default function CycleDetailPage() {
     enabled: !!session?.accessToken && settingsOpen && !!cycle?.sheet_id,
   });
 
+  const { data: evaluations = [] } = useQuery<Evaluation[]>({
+    queryKey: ["evaluations", id],
+    queryFn: () => api.get<Evaluation[]>(`/ops/v1/recruitment/cycles/${id}/evaluations`),
+    enabled: !!session?.accessToken,
+  });
+
   const activeMembers = members.filter(m => m.is_active);
 
   const evalImportMutation = useMutation({
     mutationFn: () => api.post<{ imported: number; updated: number; skipped: number; missing_cols: string[] }>(`/ops/v1/recruitment/cycles/${id}/evaluations/import`, {}),
     onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["evaluations", id] });
       setEvalSyncStatus("done");
       const parts: string[] = [];
       if (data.imported > 0) parts.push(`${data.imported} new`);
@@ -418,8 +438,25 @@ export default function CycleDetailPage() {
         </div>
       </div>
 
+      {/* Tab switcher */}
+      <div className="flex gap-1 border-b">
+        {(["applicants", "evaluations"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors -mb-px ${
+              activeTab === tab
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab === "applicants" ? `Applicants (${applicants.length})` : `Evaluations (${evaluations.length})`}
+          </button>
+        ))}
+      </div>
+
       {/* Applicant table */}
-      <div className="rounded-lg border bg-white overflow-x-auto">
+      {activeTab === "applicants" && <div className="rounded-lg border bg-white overflow-x-auto">
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Loading applicants…</p>
         ) : applicants.length === 0 ? (
@@ -534,7 +571,82 @@ export default function CycleDetailPage() {
             </tbody>
           </table>
         )}
-      </div>
+      </div>}
+
+      {/* Evaluations table */}
+      {activeTab === "evaluations" && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-8 h-9"
+                placeholder="Search applicant or member…"
+                value={evalSearch}
+                onChange={(e) => setEvalSearch(e.target.value)}
+              />
+            </div>
+            {evaluations.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                avg score: {(evaluations.filter(e => e.score !== null).reduce((s, e) => s + (e.score ?? 0), 0) / (evaluations.filter(e => e.score !== null).length || 1)).toFixed(1)} / {evaluations.filter(e => e.score !== null).length} rated
+              </p>
+            )}
+          </div>
+          {evaluations.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-12 text-center">
+              <p className="text-sm text-muted-foreground">
+                {cycle?.evaluation_sheet_id
+                  ? "No evaluations imported yet. Click \"Import evals\" above."
+                  : "No evaluations yet. Add an Evaluation Sheet ID in Settings, then import."}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border bg-white overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    {["Applicant", "Member", "Date", "Score", "Comments"].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {evaluations
+                    .filter(e => {
+                      const q = evalSearch.toLowerCase();
+                      return !q
+                        || e.applicant_name.toLowerCase().includes(q)
+                        || e.applicant_email.toLowerCase().includes(q)
+                        || e.member_name.toLowerCase().includes(q);
+                    })
+                    .map(e => (
+                      <tr key={e.id} className="hover:bg-muted/10">
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{e.applicant_name}</p>
+                          <p className="text-xs text-muted-foreground">{e.applicant_email}</p>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{e.member_name}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{e.chat_date ?? "—"}</td>
+                        <td className="px-4 py-3">
+                          {e.score !== null ? (
+                            <span className={`inline-block font-semibold text-sm px-2 py-0.5 rounded ${
+                              e.score >= 4 ? "bg-green-100 text-green-800"
+                              : e.score >= 3 ? "bg-yellow-100 text-yellow-800"
+                              : "bg-red-100 text-red-800"
+                            }`}>{e.score}</span>
+                          ) : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground max-w-xs">
+                          {e.comments ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Action confirm dialog */}
       <Dialog open={!!confirmDialog} onOpenChange={(o) => { if (!o) { setConfirmDialog(null); setActionError(null); } }}>
