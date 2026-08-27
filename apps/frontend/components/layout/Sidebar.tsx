@@ -102,7 +102,7 @@ export function Sidebar() {
       {/* Bottom actions */}
       <div className="border-t border-sidebar-border p-2 space-y-0.5">
         <a
-          href={process.env.NEXT_PUBLIC_WEBSITE_URL ?? "https://cornellbusinessanalytics.com"}
+          href={process.env.NEXT_PUBLIC_WEBSITE_URL ?? "https://cornellbusinessanalytics.org"}
           target="_blank"
           rel="noopener noreferrer"
           className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
