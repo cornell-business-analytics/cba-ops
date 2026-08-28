@@ -940,6 +940,12 @@ async def import_evaluations(
         )
         existing_row = existing_result.scalar_one_or_none()
         if existing_row:
+            name_val = col(row, mapping.eval_applicant_name_col)
+            date_val = col(row, mapping.eval_chat_date_col)
+            if name_val:
+                existing_row.applicant_name = name_val
+            if date_val:
+                existing_row.chat_date = date_val
             existing_row.score = score
             existing_row.comments = col(row, mapping.eval_comments_col) or None
             updated += 1
