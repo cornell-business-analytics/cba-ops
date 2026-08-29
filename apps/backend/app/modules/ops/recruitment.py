@@ -111,7 +111,10 @@ async def _send_gmail(token: GmailToken, to: str, cc: str | None, subject: str, 
             json={"raw": raw},
         )
     if resp.status_code not in (200, 201):
-        raise HTTPException(status_code=502, detail=f"Gmail send failed: {resp.text}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Gmail send failed (to={repr(to)}, cc={repr(cc)}): {resp.text}",
+        )
     return resp.json().get("id", "")
 
 
