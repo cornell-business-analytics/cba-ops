@@ -481,6 +481,8 @@ async def import_from_sheet(
         if not email:
             skipped += 1
             continue
+        if "@" not in email:
+            email = f"{email}@cornell.edu"
         netid = email.split("@")[0]
 
         # Dedup key: netid + timestamp — allows same person to request multiple chats.
@@ -742,9 +744,11 @@ async def send_pairing_email(
 
     token = await _get_valid_token(db, current_user.id)
     member_email = f"{member_user.email}"
+    # Normalise applicant email — some applicants submit just their netid
+    to_email = applicant.email if "@" in applicant.email else f"{applicant.netid}@cornell.edu"
     msg_id = await _send_gmail(
         token,
-        to=applicant.email,
+        to=to_email,
         cc=member_email,
         subject=cycle.pairing_subject,
         body_html=body_html,
@@ -781,9 +785,10 @@ async def send_rejection_email(
     body_html = _render_rejection_body(cycle.rejection_body, applicant, current_user.name, cycle.sender_title)
 
     token = await _get_valid_token(db, current_user.id)
+    to_email = applicant.email if "@" in applicant.email else f"{applicant.netid}@cornell.edu"
     msg_id = await _send_gmail(
         token,
-        to=applicant.email,
+        to=to_email,
         cc=None,
         subject=cycle.rejection_subject,
         body_html=body_html,
