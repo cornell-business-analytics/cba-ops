@@ -94,9 +94,9 @@ async def _get_valid_token(db: AsyncSession, user_id: uuid.UUID) -> GmailToken:
 
 def _build_email(to: str, cc: str | None, subject: str, body_html: str) -> str:
     msg = MIMEMultipart()
-    msg["to"] = to
+    msg["to"] = to.strip()
     if cc:
-        msg["cc"] = cc
+        msg["cc"] = cc.strip()
     msg["subject"] = subject
     msg.attach(MIMEText(body_html, "html", "utf-8"))
     return base64.urlsafe_b64encode(msg.as_bytes()).decode()
@@ -474,11 +474,11 @@ async def import_from_sheet(
     imported = 0
     skipped = 0
     for i, row in enumerate(rows):
-        email = col(row, mapping.email_col)
+        email = col(row, mapping.email_col).strip().lower()
         if not email:
             skipped += 1
             continue
-        netid = email.split("@")[0].strip().lower()
+        netid = email.split("@")[0]
 
         # Dedup key: netid + timestamp — allows same person to request multiple chats.
         # Fall back to row index only if timestamp col is missing entirely from headers.
