@@ -94,9 +94,9 @@ async def _get_valid_token(db: AsyncSession, user_id: uuid.UUID) -> GmailToken:
 
 def _build_email(to: str, cc: str | None, subject: str, body_html: str) -> str:
     msg = MIMEMultipart()
-    msg["to"] = to.strip()
+    msg["to"] = "".join(to.split())
     if cc:
-        msg["cc"] = cc.strip()
+        msg["cc"] = "".join(cc.split())
     msg["subject"] = subject
     msg.attach(MIMEText(body_html, "html", "utf-8"))
     return base64.urlsafe_b64encode(msg.as_bytes()).decode()
@@ -474,7 +474,7 @@ async def import_from_sheet(
     imported = 0
     skipped = 0
     for i, row in enumerate(rows):
-        email = col(row, mapping.email_col).strip().lower()
+        email = "".join(col(row, mapping.email_col).split()).lower()
         if not email:
             skipped += 1
             continue
