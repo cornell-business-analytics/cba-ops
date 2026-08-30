@@ -70,7 +70,7 @@ GET /web/v1/members/{member_id}
 
 ## Completed
 
-All Priority Queue tasks complete as of 2026-08-29. Waiting for new tasks.
+All Priority Queue tasks complete as of 2026-08-30. Waiting for new tasks.
 
 - Task 1 — Email Allowlist + Admin Member Creation
 - Task 2 — Public Website: Render CMS Blocks
