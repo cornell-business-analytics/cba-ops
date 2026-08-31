@@ -948,8 +948,8 @@ async def import_evaluations(
         )
         existing_row = existing_result.scalar_one_or_none()
         if existing_row:
-            name_val = col(row, mapping.eval_applicant_name_col)
-            date_val = col(row, mapping.eval_chat_date_col)
+            name_val = col(row, mapping.eval_applicant_name_col)[:200]
+            date_val = col(row, mapping.eval_chat_date_col)[:100]
             if name_val:
                 existing_row.applicant_name = name_val
             if date_val:
@@ -961,11 +961,11 @@ async def import_evaluations(
 
         evaluation = CoffeeChatEvaluation(
             cycle_id=cycle_id,
-            row_key=row_key,
-            applicant_name=col(row, mapping.eval_applicant_name_col),
-            applicant_email=applicant_email,
-            member_name=member_name,
-            chat_date=col(row, mapping.eval_chat_date_col) or None,
+            row_key=row_key[:300],
+            applicant_name=col(row, mapping.eval_applicant_name_col)[:200],
+            applicant_email=applicant_email[:200],
+            member_name=member_name[:200],
+            chat_date=(col(row, mapping.eval_chat_date_col) or None)[:100] if col(row, mapping.eval_chat_date_col) else None,
             score=score,
             comments=col(row, mapping.eval_comments_col) or None,
         )
