@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createApi } from "@/lib/api";
 import type { MembershipDetail } from "@cba/types";
 
@@ -67,6 +68,25 @@ interface Applicant {
   sent_at: string | null;
 }
 
+function gradDateToYear(gradDate: string | null): string {
+  if (!gradDate) return "";
+  const now = new Date();
+  const academicYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  const s = gradDate.trim();
+  if (/^\d{4}$/.test(s)) {
+    const delta = parseInt(s) - academicYear;
+    return ({ 1: "senior", 2: "junior", 3: "sophomore", 4: "freshman" } as Record<number, string>)[delta] ?? s;
+  }
+  for (const [season, offset] of Object.entries({ Spring: 0, Fall: -1 } as Record<string, number>)) {
+    if (s.startsWith(season)) {
+      const year = parseInt(s.split(" ").pop() ?? "0") + offset;
+      const delta = year - academicYear;
+      return ({ 1: "senior", 2: "junior", 3: "sophomore", 4: "freshman" } as Record<number, string>)[delta] ?? s;
+    }
+  }
+  return s;
+}
+
 const STATUS_BADGE: Record<string, "outline" | "warning" | "success" | "destructive"> = {
   unpaired: "outline",
   paired: "warning",
@@ -100,6 +120,7 @@ export default function CycleDetailPage() {
 
   const [activeTab, setActiveTab] = useState<"applicants" | "evaluations">("applicants");
   const [evalSearch, setEvalSearch] = useState("");
+  const [yearFilter, setYearFilter] = useState<string>("all");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsForm, setSettingsForm] = useState<Partial<Cycle & { column_mapping: ColMap }>>({});
@@ -456,7 +477,27 @@ export default function CycleDetailPage() {
       </div>
 
       {/* Applicant table */}
-      {activeTab === "applicants" && <div className="rounded-lg border bg-white overflow-x-auto">
+      {activeTab === "applicants" && <>
+        <div className="flex items-center gap-2">
+          <Select value={yearFilter} onValueChange={setYearFilter}>
+            <SelectTrigger className="w-36 h-8 text-xs">
+              <SelectValue placeholder="All years" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All years</SelectItem>
+              <SelectItem value="freshman">Freshman</SelectItem>
+              <SelectItem value="sophomore">Sophomore</SelectItem>
+              <SelectItem value="junior">Junior</SelectItem>
+              <SelectItem value="senior">Senior</SelectItem>
+            </SelectContent>
+          </Select>
+          {yearFilter !== "all" && (
+            <span className="text-xs text-muted-foreground">
+              {applicants.filter(a => gradDateToYear(a.grad_date) === yearFilter).length} applicants
+            </span>
+          )}
+        </div>
+        <div className="rounded-lg border bg-white overflow-x-auto">
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Loading applicants…</p>
         ) : applicants.length === 0 ? (
@@ -477,7 +518,7 @@ export default function CycleDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {applicants.map((a) => (
+              {applicants.filter(a => yearFilter === "all" || gradDateToYear(a.grad_date) === yearFilter).map((a) => (
                 <tr key={a.id} className="hover:bg-muted/10">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
@@ -571,7 +612,8 @@ export default function CycleDetailPage() {
             </tbody>
           </table>
         )}
-      </div>}
+      </div>
+      </>}
 
       {/* Evaluations table */}
       {activeTab === "evaluations" && (
