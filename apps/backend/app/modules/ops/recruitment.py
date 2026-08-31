@@ -474,6 +474,14 @@ async def import_from_sheet(
     }
     missing_cols = [label for label, col_name in configured_cols.items() if col_name not in headers]
 
+    # Load all existing applicants for this cycle upfront — one query instead of one per row
+    existing_result = await db.execute(
+        select(CoffeeChatApplicant).where(CoffeeChatApplicant.cycle_id == cycle_id)
+    )
+    existing_by_key: dict[str, CoffeeChatApplicant] = {
+        a.row_key: a for a in existing_result.scalars().all() if a.row_key
+    }
+
     imported = 0
     skipped = 0
     for i, row in enumerate(rows):
@@ -490,13 +498,7 @@ async def import_from_sheet(
         timestamp = col(row, mapping.timestamp_col) or str(i)
         row_key = f"{netid}_{timestamp}"[:200]
 
-        existing = await db.execute(
-            select(CoffeeChatApplicant).where(
-                CoffeeChatApplicant.cycle_id == cycle_id,
-                CoffeeChatApplicant.row_key == row_key,
-            )
-        )
-        existing_row = existing.scalar_one_or_none()
+        existing_row = existing_by_key.get(row_key)
         if existing_row:
             existing_row.fields_of_interest = col(row, mapping.interest_col) or None
             skipped += 1
@@ -923,6 +925,14 @@ async def import_evaluations(
         h == col_name or h.startswith(col_name) for h in headers
     )]
 
+    # Load all existing evaluations for this cycle upfront — one query instead of one per row
+    existing_evals_result = await db.execute(
+        select(CoffeeChatEvaluation).where(CoffeeChatEvaluation.cycle_id == cycle_id)
+    )
+    existing_evals_by_key: dict[str, CoffeeChatEvaluation] = {
+        e.row_key: e for e in existing_evals_result.scalars().all()
+    }
+
     imported = updated = skipped = 0
     for i, row in enumerate(rows):
         applicant_email = col(row, mapping.eval_applicant_email_col).lower()
@@ -940,13 +950,7 @@ async def import_evaluations(
         except ValueError:
             score = None
 
-        existing_result = await db.execute(
-            select(CoffeeChatEvaluation).where(
-                CoffeeChatEvaluation.cycle_id == cycle_id,
-                CoffeeChatEvaluation.row_key == row_key,
-            )
-        )
-        existing_row = existing_result.scalar_one_or_none()
+        existing_row = existing_evals_by_key.get(row_key)
         if existing_row:
             name_val = col(row, mapping.eval_applicant_name_col)[:200]
             date_val = col(row, mapping.eval_chat_date_col)[:100]
