@@ -488,7 +488,7 @@ async def import_from_sheet(
         # Dedup key: netid + timestamp — allows same person to request multiple chats.
         # Fall back to row index only if timestamp col is missing entirely from headers.
         timestamp = col(row, mapping.timestamp_col) or str(i)
-        row_key = f"{netid}_{timestamp}"
+        row_key = f"{netid}_{timestamp}"[:200]
 
         existing = await db.execute(
             select(CoffeeChatApplicant).where(
@@ -504,13 +504,13 @@ async def import_from_sheet(
 
         applicant = CoffeeChatApplicant(
             cycle_id=cycle_id,
-            name=col(row, mapping.name_col),
-            email=email,
-            netid=netid,
-            grad_date=col(row, mapping.grad_col) or None,
-            major=col(row, mapping.major_col) or None,
+            name=col(row, mapping.name_col)[:200],
+            email=email[:200],
+            netid=netid[:50],
+            grad_date=(col(row, mapping.grad_col) or None) and col(row, mapping.grad_col)[:50],
+            major=(col(row, mapping.major_col) or None) and col(row, mapping.major_col)[:200],
             fields_of_interest=col(row, mapping.interest_col) or None,
-            requested_member_raw=col(row, mapping.request_col) or None,
+            requested_member_raw=(col(row, mapping.request_col) or None) and col(row, mapping.request_col)[:200],
             row_key=row_key,
         )
         db.add(applicant)
