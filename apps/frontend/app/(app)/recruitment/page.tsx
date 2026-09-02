@@ -76,6 +76,13 @@ const STATUS_BORDER: Record<CandidateStatus, string> = {
   withdrawn:    "border-l-gray-300",
 };
 
+function toSheetUrl(raw: string): string {
+  const s = raw.trim();
+  if (s.startsWith("http")) return s;
+  if (s.includes("spreadsheets/d/")) return `https://docs.google.com/${s}`;
+  return `https://docs.google.com/spreadsheets/d/${s}`;
+}
+
 export default function RecruitmentPage() {
   const session = useAppSession();
   const api = () => createApi(session?.accessToken);
@@ -370,7 +377,7 @@ export default function RecruitmentPage() {
               <>
                 <span className="text-emerald-800 font-medium">Application sheet connected</span>
                 <a
-                  href={selectedCycle.sheet_url}
+                  href={toSheetUrl(selectedCycle.sheet_url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-xs text-emerald-700 hover:underline ml-1"
