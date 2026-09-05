@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -92,6 +92,7 @@ class CoffeeChatEvaluation(UUIDMixin, TimestampMixin, Base):
 
 
 class CycleParticipant(UUIDMixin, TimestampMixin, Base):
+    """Stores members opted OUT of auto-pairing for a cycle. All active members are eligible by default."""
     __tablename__ = "cycle_participants"
     __table_args__ = (UniqueConstraint("cycle_id", "membership_id", name="uq_cycle_participant"),)
 
@@ -101,7 +102,6 @@ class CycleParticipant(UUIDMixin, TimestampMixin, Base):
     membership_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("memberships.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    max_pairings: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     cycle: Mapped["RecruitmentCycle"] = relationship(back_populates="participants")
     membership: Mapped["Membership"] = relationship()  # noqa: F821

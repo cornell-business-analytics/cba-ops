@@ -1001,27 +1001,24 @@ async def list_evaluations(
 # Cycle Participants
 # ---------------------------------------------------------------------------
 
-class CycleParticipantCreate(BaseModel):
+class CycleExclusionCreate(BaseModel):
     membership_id: uuid.UUID
-    max_pairings: int = 1
 
 
-class CycleParticipantPublic(BaseModel):
+class CycleExclusionPublic(BaseModel):
     id: uuid.UUID
     membership_id: uuid.UUID
-    max_pairings: int
     member_name: str
-    member_major: str | None
-    member_grad_year: str | None
     model_config = {"from_attributes": True}
 
 
-@router.get("/cycles/{cycle_id}/participants", response_model=list[CycleParticipantPublic])
-async def list_participants(
+@router.get("/cycles/{cycle_id}/participants", response_model=list[CycleExclusionPublic])
+async def list_exclusions(
     cycle_id: uuid.UUID,
     _: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
+    """Returns members opted OUT of auto-pairing for this cycle."""
     result = await db.execute(
         select(CycleParticipant)
         .where(CycleParticipant.cycle_id == cycle_id)
@@ -1030,60 +1027,52 @@ async def list_participants(
     )
     rows = result.scalars().all()
     return [
-        CycleParticipantPublic(
+        CycleExclusionPublic(
             id=p.id,
             membership_id=p.membership_id,
-            max_pairings=p.max_pairings,
             member_name=p.membership.user.name,
-            member_major=p.membership.major,
-            member_grad_year=p.membership.grad_year,
         )
         for p in rows
     ]
 
 
-@router.post("/cycles/{cycle_id}/participants", response_model=CycleParticipantPublic, status_code=201)
-async def add_participant(
+@router.post("/cycles/{cycle_id}/participants", response_model=CycleExclusionPublic, status_code=201)
+async def exclude_member(
     cycle_id: uuid.UUID,
-    body: CycleParticipantCreate,
+    body: CycleExclusionCreate,
     _: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
+    """Opt a member OUT of auto-pairing for this cycle."""
     cycle_result = await db.execute(select(RecruitmentCycle).where(RecruitmentCycle.id == cycle_id))
     if not cycle_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Cycle not found")
 
-    participant = CycleParticipant(
-        cycle_id=cycle_id,
-        membership_id=body.membership_id,
-        max_pairings=body.max_pairings,
-    )
+    participant = CycleParticipant(cycle_id=cycle_id, membership_id=body.membership_id)
     db.add(participant)
     try:
         await db.flush()
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(status_code=409, detail="Member already participating in this cycle")
+        raise HTTPException(status_code=409, detail="Member already excluded from this cycle")
     await db.refresh(participant, ["membership"])
     await db.refresh(participant.membership, ["user"])
     await db.commit()
-    return CycleParticipantPublic(
+    return CycleExclusionPublic(
         id=participant.id,
         membership_id=participant.membership_id,
-        max_pairings=participant.max_pairings,
         member_name=participant.membership.user.name,
-        member_major=participant.membership.major,
-        member_grad_year=participant.membership.grad_year,
     )
 
 
 @router.delete("/cycles/{cycle_id}/participants/{membership_id}", status_code=204)
-async def remove_participant(
+async def include_member(
     cycle_id: uuid.UUID,
     membership_id: uuid.UUID,
     _: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
+    """Re-include a member in auto-pairing (remove from exclusion list)."""
     result = await db.execute(
         select(CycleParticipant).where(
             CycleParticipant.cycle_id == cycle_id,
@@ -1092,7 +1081,7 @@ async def remove_participant(
     )
     participant = result.scalar_one_or_none()
     if not participant:
-        raise HTTPException(status_code=404, detail="Participant not found")
+        raise HTTPException(status_code=404, detail="Exclusion not found")
     await db.delete(participant)
     await db.commit()
 
@@ -1169,10 +1158,9 @@ def _interest_score(app_interests: str | None, member_interests: str | None, mem
 
 def _compute_static_score(
     applicant: CoffeeChatApplicant,
-    participant: CycleParticipant,
+    member: "Membership",
     weights: dict[str, float],
 ) -> float:
-    member = participant.membership
     user = member.user
     return (
         weights.get("requested_match", 1.0) * _name_match_score(applicant.requested_member_raw, user.name)
@@ -1185,25 +1173,26 @@ def _compute_static_score(
 
 def _run_greedy(
     unpaired: list[CoffeeChatApplicant],
-    participants: list[CycleParticipant],
+    members: list["Membership"],
     weights: dict[str, float],
     excluded_ids: set[uuid.UUID] | None = None,
+    max_pairings: int = 1,
 ) -> list[tuple[uuid.UUID, uuid.UUID, float]]:
     excluded_ids = excluded_ids or set()
-    active_participants = [p for p in participants if p.membership_id not in excluded_ids]
-    if not active_participants:
+    eligible = [m for m in members if m.id not in excluded_ids]
+    if not eligible:
         return []
 
     load_weight = weights.get("load_balance", 0.2)
 
     # Pre-compute static score matrix
     static: dict[uuid.UUID, dict[uuid.UUID, float]] = {
-        a.id: {p.membership_id: _compute_static_score(a, p, weights) for p in active_participants}
+        a.id: {m.id: _compute_static_score(a, m, weights) for m in eligible}
         for a in unpaired
     }
 
-    slots = {p.membership_id: p.max_pairings for p in active_participants}
-    assigned_count: dict[uuid.UUID, int] = {p.membership_id: 0 for p in active_participants}
+    slots = {m.id: max_pairings for m in eligible}
+    assigned_count: dict[uuid.UUID, int] = {m.id: 0 for m in eligible}
     assigned_applicants: set[uuid.UUID] = set()
     assignments: list[tuple[uuid.UUID, uuid.UUID, float]] = []
 
@@ -1214,8 +1203,8 @@ def _run_greedy(
         for a in unpaired:
             if a.id in assigned_applicants:
                 continue
-            for p in active_participants:
-                mid = p.membership_id
+            for m in eligible:
+                mid = m.id
                 if slots.get(mid, 0) <= 0:
                     continue
                 effective = static[a.id][mid] - load_weight * assigned_count[mid]
@@ -1254,8 +1243,14 @@ class AutoPairRequest(BaseModel):
 class AutoPairSuggestion(BaseModel):
     applicant_id: uuid.UUID
     applicant_name: str
+    applicant_major: str | None
+    applicant_grad_date: str | None
+    applicant_interests: str | None
+    applicant_requested: str | None
     membership_id: uuid.UUID
     member_name: str
+    member_major: str | None
+    member_grad_year: str | None
     score: float
 
 
@@ -1279,33 +1274,41 @@ async def auto_pair(
     )
     unpaired = unpaired_result.scalars().all()
 
-    participant_result = await db.execute(
-        select(CycleParticipant)
-        .where(CycleParticipant.cycle_id == cycle_id)
-        .options(
-            selectinload(CycleParticipant.membership).selectinload(Membership.user),
-            selectinload(CycleParticipant.membership),
-        )
+    # Load all active members with user info
+    member_result = await db.execute(
+        select(Membership)
+        .where(Membership.is_active == True)
+        .options(selectinload(Membership.user))
     )
-    participants = participant_result.scalars().all()
+    all_members = member_result.scalars().all()
 
-    if not participants:
-        raise HTTPException(status_code=400, detail="No participants opted in for this cycle")
+    # Load cycle-level exclusions
+    excl_result = await db.execute(
+        select(CycleParticipant.membership_id).where(CycleParticipant.cycle_id == cycle_id)
+    )
+    cycle_excluded = {row for (row,) in excl_result.all()}
 
-    excluded_ids = set(body.excluded_membership_ids)
+    # Combine cycle-level + per-run exclusions
+    excluded_ids = cycle_excluded | set(body.excluded_membership_ids)
     weights = body.weights.model_dump()
-    assignments = _run_greedy(list(unpaired), list(participants), weights, excluded_ids)
+    assignments = _run_greedy(list(unpaired), list(all_members), weights, excluded_ids)
 
     # Build lookup maps
     applicant_map = {a.id: a for a in unpaired}
-    participant_map = {p.membership_id: p for p in participants}
+    member_map = {m.id: m for m in all_members}
 
     suggestions = [
         AutoPairSuggestion(
             applicant_id=a_id,
             applicant_name=applicant_map[a_id].name,
+            applicant_major=applicant_map[a_id].major,
+            applicant_grad_date=applicant_map[a_id].grad_date,
+            applicant_interests=applicant_map[a_id].fields_of_interest,
+            applicant_requested=applicant_map[a_id].requested_member_raw,
             membership_id=m_id,
-            member_name=participant_map[m_id].membership.user.name,
+            member_name=member_map[m_id].user.name,
+            member_major=member_map[m_id].major,
+            member_grad_year=member_map[m_id].grad_year,
             score=round(score, 4),
         )
         for a_id, m_id, score in assignments

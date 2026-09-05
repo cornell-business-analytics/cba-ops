@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, X, Settings, Check, RotateCcw, RefreshCw, Search, UserRound, Plus, Minus, Wand2 } from "lucide-react";
+import { ArrowLeft, Send, X, Settings, Check, RotateCcw, RefreshCw, Search, UserRound, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,20 +36,23 @@ interface Evaluation {
   comments: string | null;
 }
 
-interface CycleParticipant {
+interface CycleExclusion {
   id: string;
   membership_id: string;
-  max_pairings: number;
   member_name: string;
-  member_major: string | null;
-  member_grad_year: string | null;
 }
 
 interface AutoPairSuggestion {
   applicant_id: string;
   applicant_name: string;
+  applicant_major: string | null;
+  applicant_grad_date: string | null;
+  applicant_interests: string | null;
+  applicant_requested: string | null;
   membership_id: string;
   member_name: string;
+  member_major: string | null;
+  member_grad_year: string | null;
   score: number;
 }
 
@@ -214,9 +217,9 @@ export default function CycleDetailPage() {
     enabled: !!session?.accessToken,
   });
 
-  const { data: participants = [] } = useQuery<CycleParticipant[]>({
+  const { data: exclusions = [] } = useQuery<CycleExclusion[]>({
     queryKey: ["participants", id],
-    queryFn: () => api.get<CycleParticipant[]>(`/ops/v1/recruitment/cycles/${id}/participants`),
+    queryFn: () => api.get<CycleExclusion[]>(`/ops/v1/recruitment/cycles/${id}/participants`),
     enabled: !!session?.accessToken,
   });
 
@@ -242,13 +245,13 @@ export default function CycleDetailPage() {
     },
   });
 
-  const addParticipant = useMutation({
-    mutationFn: ({ membership_id, max_pairings }: { membership_id: string; max_pairings: number }) =>
-      api.post<CycleParticipant>(`/ops/v1/recruitment/cycles/${id}/participants`, { membership_id, max_pairings }),
+  const excludeMember = useMutation({
+    mutationFn: (membership_id: string) =>
+      api.post<CycleExclusion>(`/ops/v1/recruitment/cycles/${id}/participants`, { membership_id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["participants", id] }),
   });
 
-  const removeParticipant = useMutation({
+  const includeMember = useMutation({
     mutationFn: (membership_id: string) =>
       api.delete<void>(`/ops/v1/recruitment/cycles/${id}/participants/${membership_id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["participants", id] }),
@@ -541,7 +544,7 @@ export default function CycleDetailPage() {
       <div className="flex gap-1 border-b">
         {([
           { key: "applicants", label: `Applicants (${applicants.length})` },
-          { key: "participants", label: `Participants (${participants.length})` },
+          { key: "participants", label: exclusions.length > 0 ? `Participants (${exclusions.length} excluded)` : "Participants" },
           { key: "evaluations", label: `Evaluations (${evaluations.length})` },
         ] as { key: "applicants" | "participants" | "evaluations"; label: string }[]).map(({ key, label }) => (
           <button
@@ -709,112 +712,83 @@ export default function CycleDetailPage() {
 
       {/* Participants tab */}
       {activeTab === "participants" && (
-        <div className="space-y-5">
-          {/* Opted-in members */}
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Opted-in members</h3>
-            {participants.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">No members added yet. Add members below to include them in auto-pairing.</p>
-            ) : (
-              <div className="rounded-lg border bg-white overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      {["Member", "Major", "Grad Year", "Max Pairings", ""].map(h => (
-                        <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {participants.map(p => (
-                      <tr key={p.id} className="hover:bg-muted/10">
-                        <td className="px-4 py-3 font-medium">{p.member_name}</td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">{p.member_major ?? "—"}</td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">{p.member_grad_year ?? "—"}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              className="h-6 w-6 rounded border flex items-center justify-center hover:bg-muted/50 disabled:opacity-40"
-                              disabled={p.max_pairings <= 1 || removeParticipant.isPending || addParticipant.isPending}
-                              onClick={async () => {
-                                await removeParticipant.mutateAsync(p.membership_id);
-                                addParticipant.mutate({ membership_id: p.membership_id, max_pairings: Math.max(1, p.max_pairings - 1) });
-                              }}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </button>
-                            <span className="w-4 text-center text-xs font-medium">{p.max_pairings}</span>
-                            <button
-                              className="h-6 w-6 rounded border flex items-center justify-center hover:bg-muted/50 disabled:opacity-40"
-                              disabled={removeParticipant.isPending || addParticipant.isPending}
-                              onClick={async () => {
-                                await removeParticipant.mutateAsync(p.membership_id);
-                                addParticipant.mutate({ membership_id: p.membership_id, max_pairings: p.max_pairings + 1 });
-                              }}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 text-xs text-destructive hover:text-destructive"
-                            onClick={() => removeParticipant.mutate(p.membership_id)}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Add members */}
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Add members</h3>
-            <div className="relative max-w-xs">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                All active members are included in auto-pairing by default. Exclude specific members below.
+              </p>
+              {exclusions.length > 0 && (
+                <p className="text-xs text-amber-700 mt-0.5">{exclusions.length} member{exclusions.length !== 1 ? "s" : ""} excluded</p>
+              )}
+            </div>
+            <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                className="pl-8 h-9"
-                placeholder="Search by name, major…"
+                className="pl-8 h-9 w-60"
+                placeholder="Search members…"
                 value={participantSearch}
                 onChange={(e) => setParticipantSearch(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {activeMembers
-                .filter(m => !participants.some(p => p.membership_id === m.id))
-                .filter(m => {
-                  const q = participantSearch.toLowerCase();
-                  return !q || m.user_name.toLowerCase().includes(q) || (m.major ?? "").toLowerCase().includes(q);
-                })
-                .map(m => (
-                  <div key={m.id} className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{m.user_name}</p>
-                      {(m.major || m.grad_year) && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {[m.major, m.grad_year ? `'${m.grad_year.slice(-2)}` : null].filter(Boolean).join(" · ")}
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs shrink-0"
-                      disabled={addParticipant.isPending}
-                      onClick={() => addParticipant.mutate({ membership_id: m.id, max_pairings: 1 })}
-                    >
-                      <Plus className="h-3 w-3 mr-1" /> Add
-                    </Button>
-                  </div>
-                ))}
-            </div>
+          </div>
+          <div className="rounded-lg border bg-white overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  {["Member", "Major", "Grad Year", "Status", ""].map(h => (
+                    <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {activeMembers
+                  .filter(m => {
+                    const q = participantSearch.toLowerCase();
+                    return !q || m.user_name.toLowerCase().includes(q) || (m.major ?? "").toLowerCase().includes(q);
+                  })
+                  .map(m => {
+                    const excl = exclusions.find(e => e.membership_id === m.id);
+                    return (
+                      <tr key={m.id} className={`hover:bg-muted/10 ${excl ? "opacity-60" : ""}`}>
+                        <td className="px-4 py-3 font-medium">{m.user_name}</td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs">{m.major ?? "—"}</td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs">{m.grad_year ?? "—"}</td>
+                        <td className="px-4 py-3">
+                          {excl ? (
+                            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">Excluded</span>
+                          ) : (
+                            <span className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-0.5">Included</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {excl ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              disabled={includeMember.isPending}
+                              onClick={() => includeMember.mutate(m.id)}
+                            >
+                              Include
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs text-muted-foreground hover:text-destructive"
+                              disabled={excludeMember.isPending}
+                              onClick={() => excludeMember.mutate(m.id)}
+                            >
+                              Exclude
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -1104,35 +1078,36 @@ export default function CycleDetailPage() {
               ))}
             </div>
 
-            {/* Exclude members */}
-            {participants.length > 0 && (
+            {/* Per-run exclusion override (for members not already cycle-excluded) */}
+            {activeMembers.filter(m => !exclusions.some(e => e.membership_id === m.id)).length > 0 && (
               <div className="space-y-1.5">
-                <Label>Exclude from this run</Label>
-                <p className="text-xs text-muted-foreground">Unchecked members are skipped in this auto-pair run (they stay opted in for the cycle).</p>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {participants.map(p => {
-                    const excluded = excludedMemberIds.has(p.membership_id);
-                    return (
-                      <label key={p.membership_id} className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors ${excluded ? "bg-muted/40 text-muted-foreground" : "hover:bg-muted/20"}`}>
-                        <input
-                          type="checkbox"
-                          checked={!excluded}
-                          onChange={(e) => {
-                            setExcludedMemberIds(prev => {
-                              const next = new Set(prev);
-                              if (e.target.checked) next.delete(p.membership_id);
-                              else next.add(p.membership_id);
-                              return next;
-                            });
-                            setAutoPairPreview(null);
-                          }}
-                          className="rounded"
-                        />
-                        <span className="truncate">{p.member_name}</span>
-                        <span className="text-xs text-muted-foreground ml-auto">×{p.max_pairings}</span>
-                      </label>
-                    );
-                  })}
+                <Label>Skip for this run only</Label>
+                <p className="text-xs text-muted-foreground">Uncheck members to exclude them from just this run without changing cycle settings.</p>
+                <div className="grid grid-cols-2 gap-2 mt-2 max-h-40 overflow-y-auto">
+                  {activeMembers
+                    .filter(m => !exclusions.some(e => e.membership_id === m.id))
+                    .map(m => {
+                      const skipped = excludedMemberIds.has(m.id);
+                      return (
+                        <label key={m.id} className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors ${skipped ? "bg-muted/40 text-muted-foreground" : "hover:bg-muted/20"}`}>
+                          <input
+                            type="checkbox"
+                            checked={!skipped}
+                            onChange={(e) => {
+                              setExcludedMemberIds(prev => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.delete(m.id);
+                                else next.add(m.id);
+                                return next;
+                              });
+                              setAutoPairPreview(null);
+                            }}
+                            className="rounded"
+                          />
+                          <span className="truncate text-xs">{m.user_name}</span>
+                        </label>
+                      );
+                    })}
                 </div>
               </div>
             )}
@@ -1140,29 +1115,43 @@ export default function CycleDetailPage() {
             {/* Preview table */}
             {autoPairPreview && (
               <div className="space-y-2">
-                <p className="text-sm font-medium">Preview ({autoPairPreview.length} pairs)</p>
+                <p className="text-sm font-medium">Preview — {autoPairPreview.length} pairs</p>
                 <div className="rounded-lg border overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
-                        {["Applicant", "Member", "Score"].map(h => (
-                          <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>
-                        ))}
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Applicant</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Member</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Score</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
                       {autoPairPreview.map(s => (
                         <tr key={s.applicant_id} className="hover:bg-muted/10">
-                          <td className="px-4 py-2">{s.applicant_name}</td>
-                          <td className="px-4 py-2">{s.member_name}</td>
-                          <td className="px-4 py-2 text-muted-foreground tabular-nums">{s.score.toFixed(2)}</td>
+                          <td className="px-4 py-3">
+                            <p className="font-medium">{s.applicant_name}</p>
+                            {s.applicant_major && <p className="text-xs text-muted-foreground">{s.applicant_major}</p>}
+                            {s.applicant_grad_date && <p className="text-xs text-muted-foreground">{s.applicant_grad_date}</p>}
+                            {s.applicant_requested && (
+                              <p className="text-xs text-muted-foreground italic">Requested: {s.applicant_requested}</p>
+                            )}
+                            {s.applicant_interests && (
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{s.applicant_interests}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-medium">{s.member_name}</p>
+                            {s.member_major && <p className="text-xs text-muted-foreground">{s.member_major}</p>}
+                            {s.member_grad_year && <p className="text-xs text-muted-foreground">{s.member_grad_year}</p>}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground tabular-nums text-xs">{s.score.toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                   {autoPairPreview.length < applicants.filter(a => a.pairing_status === "unpaired").length && (
                     <p className="px-4 py-2 text-xs text-amber-700 bg-amber-50 border-t">
-                      {applicants.filter(a => a.pairing_status === "unpaired").length - autoPairPreview.length} applicant(s) could not be paired — no participant capacity remaining.
+                      {applicants.filter(a => a.pairing_status === "unpaired").length - autoPairPreview.length} applicant(s) could not be paired — all eligible members are at capacity.
                     </p>
                   )}
                 </div>

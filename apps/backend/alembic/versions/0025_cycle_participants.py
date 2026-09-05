@@ -20,7 +20,6 @@ def upgrade() -> None:
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("cycle_id", UUID(as_uuid=True), sa.ForeignKey("recruitment_cycles.id", ondelete="CASCADE"), nullable=False, index=True),
         sa.Column("membership_id", UUID(as_uuid=True), sa.ForeignKey("memberships.id", ondelete="CASCADE"), nullable=False, index=True),
-        sa.Column("max_pairings", sa.Integer, nullable=False, server_default="1"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.UniqueConstraint("cycle_id", "membership_id", name="uq_cycle_participant"),
