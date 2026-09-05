@@ -2,6 +2,8 @@
 Coffee chat recruitment: Google Sheets import, pairing UI, Gmail send.
 """
 import base64
+import difflib
+import re
 import uuid
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
@@ -12,13 +14,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.membership import Membership
-from app.models.recruitment import CoffeeChatApplicant, CoffeeChatEvaluation, GmailToken, RecruitmentCycle
+from app.models.recruitment import CoffeeChatApplicant, CoffeeChatEvaluation, CycleParticipant, GmailToken, RecruitmentCycle
 from app.models.user import User, UserRole
 from app.modules.ops.deps import get_current_user, require_role
 
@@ -992,3 +995,327 @@ async def list_evaluations(
         .order_by(CoffeeChatEvaluation.applicant_email, CoffeeChatEvaluation.created_at)
     )
     return result.scalars().all()
+
+
+# ---------------------------------------------------------------------------
+# Cycle Participants
+# ---------------------------------------------------------------------------
+
+class CycleParticipantCreate(BaseModel):
+    membership_id: uuid.UUID
+    max_pairings: int = 1
+
+
+class CycleParticipantPublic(BaseModel):
+    id: uuid.UUID
+    membership_id: uuid.UUID
+    max_pairings: int
+    member_name: str
+    member_major: str | None
+    member_grad_year: str | None
+    model_config = {"from_attributes": True}
+
+
+@router.get("/cycles/{cycle_id}/participants", response_model=list[CycleParticipantPublic])
+async def list_participants(
+    cycle_id: uuid.UUID,
+    _: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CycleParticipant)
+        .where(CycleParticipant.cycle_id == cycle_id)
+        .options(selectinload(CycleParticipant.membership).selectinload(Membership.user))
+        .order_by(CycleParticipant.created_at)
+    )
+    rows = result.scalars().all()
+    return [
+        CycleParticipantPublic(
+            id=p.id,
+            membership_id=p.membership_id,
+            max_pairings=p.max_pairings,
+            member_name=p.membership.user.name,
+            member_major=p.membership.major,
+            member_grad_year=p.membership.grad_year,
+        )
+        for p in rows
+    ]
+
+
+@router.post("/cycles/{cycle_id}/participants", response_model=CycleParticipantPublic, status_code=201)
+async def add_participant(
+    cycle_id: uuid.UUID,
+    body: CycleParticipantCreate,
+    _: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    cycle_result = await db.execute(select(RecruitmentCycle).where(RecruitmentCycle.id == cycle_id))
+    if not cycle_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Cycle not found")
+
+    participant = CycleParticipant(
+        cycle_id=cycle_id,
+        membership_id=body.membership_id,
+        max_pairings=body.max_pairings,
+    )
+    db.add(participant)
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Member already participating in this cycle")
+    await db.refresh(participant, ["membership"])
+    await db.refresh(participant.membership, ["user"])
+    await db.commit()
+    return CycleParticipantPublic(
+        id=participant.id,
+        membership_id=participant.membership_id,
+        max_pairings=participant.max_pairings,
+        member_name=participant.membership.user.name,
+        member_major=participant.membership.major,
+        member_grad_year=participant.membership.grad_year,
+    )
+
+
+@router.delete("/cycles/{cycle_id}/participants/{membership_id}", status_code=204)
+async def remove_participant(
+    cycle_id: uuid.UUID,
+    membership_id: uuid.UUID,
+    _: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CycleParticipant).where(
+            CycleParticipant.cycle_id == cycle_id,
+            CycleParticipant.membership_id == membership_id,
+        )
+    )
+    participant = result.scalar_one_or_none()
+    if not participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
+    await db.delete(participant)
+    await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Auto-Pairing: scoring engine + greedy algorithm
+# ---------------------------------------------------------------------------
+
+_MAJOR_SYNONYMS: dict[str, str] = {
+    "econ": "economics",
+    "cs": "computer science",
+    "aem": "applied economics and management",
+    "applied economics": "applied economics and management",
+    "info sci": "information science",
+    "infosci": "information science",
+    "math": "mathematics",
+    "stats": "statistics",
+    "ops research": "operations research",
+    "orie": "operations research and information engineering",
+}
+
+_STOPWORDS = {
+    "and", "the", "for", "with", "are", "was", "has", "have", "had", "not",
+    "but", "that", "this", "from", "they", "been", "their", "more", "also",
+}
+
+
+def _normalize_major(raw: str) -> str:
+    return _MAJOR_SYNONYMS.get(raw.strip().lower(), raw.strip().lower())
+
+
+def _name_match_score(raw: str | None, member_name: str) -> float:
+    if not raw or not member_name:
+        return 0.0
+    raw_lower = raw.strip().lower()
+    member_lower = member_name.strip().lower()
+    ratio = difflib.SequenceMatcher(None, raw_lower, member_lower).ratio()
+    # Boost if any token of raw exactly matches any token of member_name
+    raw_tokens = set(raw_lower.split())
+    member_tokens = set(member_lower.split())
+    if raw_tokens & member_tokens:
+        ratio = max(ratio, 0.8)
+    return ratio
+
+
+def _major_score(app_major: str | None, member_major: str | None) -> float:
+    if not app_major or not member_major:
+        return 0.0
+    def tokenize(s: str) -> set[str]:
+        parts = re.split(r"[+,/&\s]+", s)
+        return {_normalize_major(p) for p in parts if p.strip()}
+    app_tokens = tokenize(app_major)
+    mem_tokens = tokenize(member_major)
+    if not app_tokens or not mem_tokens:
+        return 0.0
+    intersection = app_tokens & mem_tokens
+    union = app_tokens | mem_tokens
+    return len(intersection) / len(union)
+
+
+def _interest_score(app_interests: str | None, member_interests: str | None, member_exp: str | None) -> float:
+    app_text = (app_interests or "").lower()
+    mem_text = ((member_interests or "") + " " + (member_exp or "")).lower()
+    if not app_text.strip() or not mem_text.strip():
+        return 0.0
+    app_tokens = set(re.findall(r"\b[a-z]{3,}\b", app_text)) - _STOPWORDS
+    mem_tokens = set(re.findall(r"\b[a-z]{3,}\b", mem_text)) - _STOPWORDS
+    if not app_tokens or not mem_tokens:
+        return 0.0
+    intersection = app_tokens & mem_tokens
+    union = app_tokens | mem_tokens
+    return len(intersection) / len(union)
+
+
+def _compute_static_score(
+    applicant: CoffeeChatApplicant,
+    participant: CycleParticipant,
+    weights: dict[str, float],
+) -> float:
+    member = participant.membership
+    user = member.user
+    return (
+        weights.get("requested_match", 1.0) * _name_match_score(applicant.requested_member_raw, user.name)
+        + weights.get("major_similarity", 0.4) * _major_score(applicant.major, member.major)
+        + weights.get("interest_overlap", 0.3) * _interest_score(
+            applicant.fields_of_interest, member.interests, member.professional_experience
+        )
+    )
+
+
+def _run_greedy(
+    unpaired: list[CoffeeChatApplicant],
+    participants: list[CycleParticipant],
+    weights: dict[str, float],
+    excluded_ids: set[uuid.UUID] | None = None,
+) -> list[tuple[uuid.UUID, uuid.UUID, float]]:
+    excluded_ids = excluded_ids or set()
+    active_participants = [p for p in participants if p.membership_id not in excluded_ids]
+    if not active_participants:
+        return []
+
+    load_weight = weights.get("load_balance", 0.2)
+
+    # Pre-compute static score matrix
+    static: dict[uuid.UUID, dict[uuid.UUID, float]] = {
+        a.id: {p.membership_id: _compute_static_score(a, p, weights) for p in active_participants}
+        for a in unpaired
+    }
+
+    slots = {p.membership_id: p.max_pairings for p in active_participants}
+    assigned_count: dict[uuid.UUID, int] = {p.membership_id: 0 for p in active_participants}
+    assigned_applicants: set[uuid.UUID] = set()
+    assignments: list[tuple[uuid.UUID, uuid.UUID, float]] = []
+
+    while True:
+        best_score = -1.0
+        best: tuple[uuid.UUID, uuid.UUID, float] | None = None
+
+        for a in unpaired:
+            if a.id in assigned_applicants:
+                continue
+            for p in active_participants:
+                mid = p.membership_id
+                if slots.get(mid, 0) <= 0:
+                    continue
+                effective = static[a.id][mid] - load_weight * assigned_count[mid]
+                if effective > best_score:
+                    best_score = effective
+                    best = (a.id, mid, effective)
+
+        if best is None:
+            break
+
+        a_id, m_id, score = best
+        assignments.append(best)
+        assigned_applicants.add(a_id)
+        slots[m_id] -= 1
+        assigned_count[m_id] += 1
+
+    return assignments
+
+
+# ---------------------------------------------------------------------------
+# Auto-Pair endpoint
+# ---------------------------------------------------------------------------
+
+class AutoPairWeights(BaseModel):
+    requested_match: float = 1.0
+    major_similarity: float = 0.4
+    interest_overlap: float = 0.3
+    load_balance: float = 0.2
+
+
+class AutoPairRequest(BaseModel):
+    weights: AutoPairWeights = AutoPairWeights()
+    excluded_membership_ids: list[uuid.UUID] = []
+
+
+class AutoPairSuggestion(BaseModel):
+    applicant_id: uuid.UUID
+    applicant_name: str
+    membership_id: uuid.UUID
+    member_name: str
+    score: float
+
+
+@router.post("/cycles/{cycle_id}/auto-pair", response_model=list[AutoPairSuggestion])
+async def auto_pair(
+    cycle_id: uuid.UUID,
+    body: AutoPairRequest,
+    preview: bool = Query(default=False),
+    _: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    cycle_result = await db.execute(select(RecruitmentCycle).where(RecruitmentCycle.id == cycle_id))
+    if not cycle_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Cycle not found")
+
+    unpaired_result = await db.execute(
+        select(CoffeeChatApplicant).where(
+            CoffeeChatApplicant.cycle_id == cycle_id,
+            CoffeeChatApplicant.pairing_status == "unpaired",
+        )
+    )
+    unpaired = unpaired_result.scalars().all()
+
+    participant_result = await db.execute(
+        select(CycleParticipant)
+        .where(CycleParticipant.cycle_id == cycle_id)
+        .options(
+            selectinload(CycleParticipant.membership).selectinload(Membership.user),
+            selectinload(CycleParticipant.membership),
+        )
+    )
+    participants = participant_result.scalars().all()
+
+    if not participants:
+        raise HTTPException(status_code=400, detail="No participants opted in for this cycle")
+
+    excluded_ids = set(body.excluded_membership_ids)
+    weights = body.weights.model_dump()
+    assignments = _run_greedy(list(unpaired), list(participants), weights, excluded_ids)
+
+    # Build lookup maps
+    applicant_map = {a.id: a for a in unpaired}
+    participant_map = {p.membership_id: p for p in participants}
+
+    suggestions = [
+        AutoPairSuggestion(
+            applicant_id=a_id,
+            applicant_name=applicant_map[a_id].name,
+            membership_id=m_id,
+            member_name=participant_map[m_id].membership.user.name,
+            score=round(score, 4),
+        )
+        for a_id, m_id, score in assignments
+    ]
+
+    if not preview:
+        for a_id, m_id, _ in assignments:
+            applicant = applicant_map[a_id]
+            applicant.paired_membership_id = m_id
+            applicant.pairing_status = "paired"
+        await db.commit()
+
+    return suggestions

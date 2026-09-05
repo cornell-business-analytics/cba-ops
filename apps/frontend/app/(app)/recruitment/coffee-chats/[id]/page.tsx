@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, X, Settings, Check, RotateCcw, RefreshCw, Search, UserRound } from "lucide-react";
+import { ArrowLeft, Send, X, Settings, Check, RotateCcw, RefreshCw, Search, UserRound, Plus, Minus, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,30 @@ interface Evaluation {
   chat_date: string | null;
   score: number | null;
   comments: string | null;
+}
+
+interface CycleParticipant {
+  id: string;
+  membership_id: string;
+  max_pairings: number;
+  member_name: string;
+  member_major: string | null;
+  member_grad_year: string | null;
+}
+
+interface AutoPairSuggestion {
+  applicant_id: string;
+  applicant_name: string;
+  membership_id: string;
+  member_name: string;
+  score: number;
+}
+
+interface AutoPairWeights {
+  requested_match: number;
+  major_similarity: number;
+  interest_overlap: number;
+  load_balance: number;
 }
 
 interface Cycle {
@@ -118,7 +142,7 @@ export default function CycleDetailPage() {
 
   const canManageRecruitment = session?.role === "recruitment" || session?.role === "eboard" || session?.role === "director";
 
-  const [activeTab, setActiveTab] = useState<"applicants" | "evaluations">("applicants");
+  const [activeTab, setActiveTab] = useState<"applicants" | "participants" | "evaluations">("applicants");
   const [evalSearch, setEvalSearch] = useState("");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -141,6 +165,22 @@ export default function CycleDetailPage() {
   // Evaluation import state
   const [evalSyncStatus, setEvalSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const [evalSyncMsg, setEvalSyncMsg] = useState<string | null>(null);
+
+  // Participants state
+  const [participantSearch, setParticipantSearch] = useState("");
+
+  // Auto-pair dialog state
+  const [autoPairOpen, setAutoPairOpen] = useState(false);
+  const [autoPairPreset, setAutoPairPreset] = useState("balanced");
+  const [autoPairWeights, setAutoPairWeights] = useState<AutoPairWeights>({
+    requested_match: 1.0,
+    major_similarity: 0.4,
+    interest_overlap: 0.3,
+    load_balance: 0.2,
+  });
+  const [autoPairPreview, setAutoPairPreview] = useState<AutoPairSuggestion[] | null>(null);
+  const [autoPairError, setAutoPairError] = useState<string | null>(null);
+  const [excludedMemberIds, setExcludedMemberIds] = useState<Set<string>>(new Set());
 
   const { data: cycle } = useQuery<Cycle>({
     queryKey: ["cycle", id],
@@ -174,6 +214,12 @@ export default function CycleDetailPage() {
     enabled: !!session?.accessToken,
   });
 
+  const { data: participants = [] } = useQuery<CycleParticipant[]>({
+    queryKey: ["participants", id],
+    queryFn: () => api.get<CycleParticipant[]>(`/ops/v1/recruitment/cycles/${id}/participants`),
+    enabled: !!session?.accessToken,
+  });
+
   const activeMembers = members.filter(m => m.is_active);
 
   const evalImportMutation = useMutation({
@@ -194,6 +240,38 @@ export default function CycleDetailPage() {
       setEvalSyncStatus("error");
       setEvalSyncMsg(err.message);
     },
+  });
+
+  const addParticipant = useMutation({
+    mutationFn: ({ membership_id, max_pairings }: { membership_id: string; max_pairings: number }) =>
+      api.post<CycleParticipant>(`/ops/v1/recruitment/cycles/${id}/participants`, { membership_id, max_pairings }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["participants", id] }),
+  });
+
+  const removeParticipant = useMutation({
+    mutationFn: (membership_id: string) =>
+      api.delete<void>(`/ops/v1/recruitment/cycles/${id}/participants/${membership_id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["participants", id] }),
+  });
+
+  const previewAutoPair = useMutation({
+    mutationFn: (payload: { weights: AutoPairWeights; excluded_membership_ids: string[] }) =>
+      api.post<AutoPairSuggestion[]>(`/ops/v1/recruitment/cycles/${id}/auto-pair?preview=true`, payload),
+    onSuccess: (data) => { setAutoPairPreview(data); setAutoPairError(null); },
+    onError: (err: Error) => setAutoPairError(err.message),
+  });
+
+  const applyAutoPair = useMutation({
+    mutationFn: (payload: { weights: AutoPairWeights; excluded_membership_ids: string[] }) =>
+      api.post<AutoPairSuggestion[]>(`/ops/v1/recruitment/cycles/${id}/auto-pair`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["applicants", id] });
+      qc.invalidateQueries({ queryKey: ["participants", id] });
+      setAutoPairOpen(false);
+      setAutoPairPreview(null);
+      setAutoPairError(null);
+    },
+    onError: (err: Error) => setAutoPairError(err.message),
   });
 
   const importMutation = useMutation({
@@ -461,17 +539,21 @@ export default function CycleDetailPage() {
 
       {/* Tab switcher */}
       <div className="flex gap-1 border-b">
-        {(["applicants", "evaluations"] as const).map((tab) => (
+        {([
+          { key: "applicants", label: `Applicants (${applicants.length})` },
+          { key: "participants", label: `Participants (${participants.length})` },
+          { key: "evaluations", label: `Evaluations (${evaluations.length})` },
+        ] as { key: "applicants" | "participants" | "evaluations"; label: string }[]).map(({ key, label }) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors -mb-px ${
-              activeTab === tab
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              activeTab === key
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            {tab === "applicants" ? `Applicants (${applicants.length})` : `Evaluations (${evaluations.length})`}
+            {label}
           </button>
         ))}
       </div>
@@ -496,6 +578,16 @@ export default function CycleDetailPage() {
               {applicants.filter(a => gradDateToYear(a.grad_date) === yearFilter).length} applicants
             </span>
           )}
+          <div className="ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => { setAutoPairPreview(null); setAutoPairError(null); setExcludedMemberIds(new Set()); setAutoPairOpen(true); }}
+            >
+              <Wand2 className="h-3.5 w-3.5" /> Auto-Pair
+            </Button>
+          </div>
         </div>
         <div className="rounded-lg border bg-white overflow-x-auto">
         {isLoading ? (
@@ -614,6 +706,118 @@ export default function CycleDetailPage() {
         )}
       </div>
       </>}
+
+      {/* Participants tab */}
+      {activeTab === "participants" && (
+        <div className="space-y-5">
+          {/* Opted-in members */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Opted-in members</h3>
+            {participants.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">No members added yet. Add members below to include them in auto-pairing.</p>
+            ) : (
+              <div className="rounded-lg border bg-white overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      {["Member", "Major", "Grad Year", "Max Pairings", ""].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {participants.map(p => (
+                      <tr key={p.id} className="hover:bg-muted/10">
+                        <td className="px-4 py-3 font-medium">{p.member_name}</td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs">{p.member_major ?? "—"}</td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs">{p.member_grad_year ?? "—"}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              className="h-6 w-6 rounded border flex items-center justify-center hover:bg-muted/50 disabled:opacity-40"
+                              disabled={p.max_pairings <= 1 || removeParticipant.isPending || addParticipant.isPending}
+                              onClick={async () => {
+                                await removeParticipant.mutateAsync(p.membership_id);
+                                addParticipant.mutate({ membership_id: p.membership_id, max_pairings: Math.max(1, p.max_pairings - 1) });
+                              }}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <span className="w-4 text-center text-xs font-medium">{p.max_pairings}</span>
+                            <button
+                              className="h-6 w-6 rounded border flex items-center justify-center hover:bg-muted/50 disabled:opacity-40"
+                              disabled={removeParticipant.isPending || addParticipant.isPending}
+                              onClick={async () => {
+                                await removeParticipant.mutateAsync(p.membership_id);
+                                addParticipant.mutate({ membership_id: p.membership_id, max_pairings: p.max_pairings + 1 });
+                              }}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs text-destructive hover:text-destructive"
+                            onClick={() => removeParticipant.mutate(p.membership_id)}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Add members */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Add members</h3>
+            <div className="relative max-w-xs">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-8 h-9"
+                placeholder="Search by name, major…"
+                value={participantSearch}
+                onChange={(e) => setParticipantSearch(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {activeMembers
+                .filter(m => !participants.some(p => p.membership_id === m.id))
+                .filter(m => {
+                  const q = participantSearch.toLowerCase();
+                  return !q || m.user_name.toLowerCase().includes(q) || (m.major ?? "").toLowerCase().includes(q);
+                })
+                .map(m => (
+                  <div key={m.id} className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{m.user_name}</p>
+                      {(m.major || m.grad_year) && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {[m.major, m.grad_year ? `'${m.grad_year.slice(-2)}` : null].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs shrink-0"
+                      disabled={addParticipant.isPending}
+                      onClick={() => addParticipant.mutate({ membership_id: m.id, max_pairings: 1 })}
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Add
+                    </Button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Evaluations table */}
       {activeTab === "evaluations" && (
@@ -834,6 +1038,161 @@ export default function CycleDetailPage() {
               </Button>
             )}
             <Button variant="outline" onClick={() => setPickerApplicant(null)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Auto-Pair dialog */}
+      <Dialog open={autoPairOpen} onOpenChange={(o) => { if (!o) { setAutoPairOpen(false); setAutoPairPreview(null); setAutoPairError(null); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col gap-0 p-0">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b">
+            <DialogTitle>Auto-Pair Applicants</DialogTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Pairs unpaired applicants with opted-in members using weighted scoring. Preview before applying.
+            </p>
+          </DialogHeader>
+
+          <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+            {/* Preset */}
+            <div className="space-y-1.5">
+              <Label>Preset</Label>
+              <Select value={autoPairPreset} onValueChange={(v) => {
+                setAutoPairPreset(v);
+                const presets: Record<string, AutoPairWeights> = {
+                  balanced:  { requested_match: 1.0, major_similarity: 0.4, interest_overlap: 0.3, load_balance: 0.2 },
+                  requested: { requested_match: 2.0, major_similarity: 0.2, interest_overlap: 0.1, load_balance: 0.1 },
+                  major:     { requested_match: 0.5, major_similarity: 1.0, interest_overlap: 0.3, load_balance: 0.3 },
+                };
+                if (presets[v]) setAutoPairWeights(presets[v]);
+              }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="balanced">Balanced</SelectItem>
+                  <SelectItem value="requested">Honor Requested Matches</SelectItem>
+                  <SelectItem value="major">Spread by Major</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Weight sliders */}
+            <div className="space-y-3">
+              <Label>Weights</Label>
+              {([
+                { key: "requested_match" as keyof AutoPairWeights, label: "Requested match" },
+                { key: "major_similarity" as keyof AutoPairWeights, label: "Major similarity" },
+                { key: "interest_overlap" as keyof AutoPairWeights, label: "Interest overlap" },
+                { key: "load_balance" as keyof AutoPairWeights, label: "Load balance" },
+              ]).map(({ key, label }) => (
+                <div key={key} className="flex items-center gap-3">
+                  <span className="text-sm w-40 shrink-0">{label}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={2}
+                    step={0.1}
+                    value={autoPairWeights[key]}
+                    onChange={(e) => {
+                      setAutoPairPreset("custom");
+                      setAutoPairWeights(w => ({ ...w, [key]: parseFloat(e.target.value) }));
+                    }}
+                    className="flex-1 accent-foreground"
+                  />
+                  <span className="text-sm w-8 text-right tabular-nums">{autoPairWeights[key].toFixed(1)}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Exclude members */}
+            {participants.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Exclude from this run</Label>
+                <p className="text-xs text-muted-foreground">Unchecked members are skipped in this auto-pair run (they stay opted in for the cycle).</p>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {participants.map(p => {
+                    const excluded = excludedMemberIds.has(p.membership_id);
+                    return (
+                      <label key={p.membership_id} className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors ${excluded ? "bg-muted/40 text-muted-foreground" : "hover:bg-muted/20"}`}>
+                        <input
+                          type="checkbox"
+                          checked={!excluded}
+                          onChange={(e) => {
+                            setExcludedMemberIds(prev => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.delete(p.membership_id);
+                              else next.add(p.membership_id);
+                              return next;
+                            });
+                            setAutoPairPreview(null);
+                          }}
+                          className="rounded"
+                        />
+                        <span className="truncate">{p.member_name}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">×{p.max_pairings}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Preview table */}
+            {autoPairPreview && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Preview ({autoPairPreview.length} pairs)</p>
+                <div className="rounded-lg border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        {["Applicant", "Member", "Score"].map(h => (
+                          <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {autoPairPreview.map(s => (
+                        <tr key={s.applicant_id} className="hover:bg-muted/10">
+                          <td className="px-4 py-2">{s.applicant_name}</td>
+                          <td className="px-4 py-2">{s.member_name}</td>
+                          <td className="px-4 py-2 text-muted-foreground tabular-nums">{s.score.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {autoPairPreview.length < applicants.filter(a => a.pairing_status === "unpaired").length && (
+                    <p className="px-4 py-2 text-xs text-amber-700 bg-amber-50 border-t">
+                      {applicants.filter(a => a.pairing_status === "unpaired").length - autoPairPreview.length} applicant(s) could not be paired — no participant capacity remaining.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {autoPairError && <p className="text-sm text-destructive">{autoPairError}</p>}
+          </div>
+
+          <DialogFooter className="px-5 py-3 border-t gap-2">
+            <Button variant="outline" onClick={() => setAutoPairOpen(false)}>Cancel</Button>
+            <Button
+              variant="outline"
+              disabled={previewAutoPair.isPending}
+              onClick={() => previewAutoPair.mutate({
+                weights: autoPairWeights,
+                excluded_membership_ids: Array.from(excludedMemberIds),
+              })}
+            >
+              {previewAutoPair.isPending ? "Previewing…" : "Preview"}
+            </Button>
+            <Button
+              disabled={!autoPairPreview || applyAutoPair.isPending}
+              onClick={() => applyAutoPair.mutate({
+                weights: autoPairWeights,
+                excluded_membership_ids: Array.from(excludedMemberIds),
+              })}
+            >
+              {applyAutoPair.isPending ? "Applying…" : "Apply Pairings"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

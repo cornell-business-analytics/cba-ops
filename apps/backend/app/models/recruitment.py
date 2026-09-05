@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,6 +41,7 @@ class RecruitmentCycle(UUIDMixin, TimestampMixin, Base):
 
     applicants: Mapped[list["CoffeeChatApplicant"]] = relationship(back_populates="cycle", cascade="all, delete-orphan")
     evaluations: Mapped[list["CoffeeChatEvaluation"]] = relationship(back_populates="cycle", cascade="all, delete-orphan")
+    participants: Mapped[list["CycleParticipant"]] = relationship(back_populates="cycle", cascade="all, delete-orphan")
 
 
 class CoffeeChatApplicant(UUIDMixin, TimestampMixin, Base):
@@ -88,6 +89,22 @@ class CoffeeChatEvaluation(UUIDMixin, TimestampMixin, Base):
     comments: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     cycle: Mapped["RecruitmentCycle"] = relationship(back_populates="evaluations")
+
+
+class CycleParticipant(UUIDMixin, TimestampMixin, Base):
+    __tablename__ = "cycle_participants"
+    __table_args__ = (UniqueConstraint("cycle_id", "membership_id", name="uq_cycle_participant"),)
+
+    cycle_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recruitment_cycles.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    membership_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("memberships.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    max_pairings: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+    cycle: Mapped["RecruitmentCycle"] = relationship(back_populates="participants")
+    membership: Mapped["Membership"] = relationship()  # noqa: F821
 
 
 class GmailToken(UUIDMixin, TimestampMixin, Base):

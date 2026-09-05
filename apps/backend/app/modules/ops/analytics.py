@@ -17,6 +17,30 @@ from app.modules.ops.deps import get_current_user, require_role
 
 _ANALYTICS_TTL = 120  # 2 minutes
 
+_MAJOR_CANONICAL: dict[str, str] = {
+    "econ": "Economics",
+    "economics": "Economics",
+    "cs": "Computer Science",
+    "computer science": "Computer Science",
+    "aem": "Applied Economics and Management",
+    "applied economics": "Applied Economics and Management",
+    "applied economics and management": "Applied Economics and Management",
+    "info sci": "Information Science",
+    "infosci": "Information Science",
+    "information science": "Information Science",
+    "math": "Mathematics",
+    "mathematics": "Mathematics",
+    "stats": "Statistics",
+    "statistics": "Statistics",
+    "ops research": "Operations Research",
+    "operations research": "Operations Research",
+    "orie": "Operations Research and Information Engineering",
+}
+
+
+def _canonical_major(raw: str) -> str:
+    return _MAJOR_CANONICAL.get(raw.strip().lower(), raw.strip())
+
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
@@ -208,7 +232,7 @@ async def members_analytics(
     major_counts: dict[str, int] = {}
     for (raw,) in major_result.all():
         for part in raw.split("+"):
-            major = part.strip()
+            major = _canonical_major(part.strip())
             if major:
                 major_counts[major] = major_counts.get(major, 0) + 1
     major_distribution = dict(sorted(major_counts.items(), key=lambda x: x[1], reverse=True))
