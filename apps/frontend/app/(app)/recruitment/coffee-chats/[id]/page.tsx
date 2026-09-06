@@ -272,6 +272,10 @@ export default function CycleDetailPage() {
   // Stores the last-used payload so Apply can re-use it without re-opening the modal
   const [lastAutoPairPayload, setLastAutoPairPayload] = useState<{ weights: AutoPairWeights; excluded_membership_ids: string[] } | null>(null);
 
+  // Send All state
+  const [sendAllOpen, setSendAllOpen] = useState(false);
+  const [sendAllResult, setSendAllResult] = useState<{ sent: number; failed: { applicant_name: string; error: string }[] } | null>(null);
+
   const applyAutoPair = useMutation({
     mutationFn: (payload: { weights: AutoPairWeights; excluded_membership_ids: string[] }) =>
       api.post<AutoPairSuggestion[]>(`/ops/v1/recruitment/cycles/${id}/auto-pair`, payload),
@@ -393,6 +397,15 @@ export default function CycleDetailPage() {
     onError: (err: Error) => { setActionError(`Failed to delete: ${err.message}`); },
   });
 
+  const sendAllMutation = useMutation({
+    mutationFn: () =>
+      api.post<{ sent: number; failed: { applicant_name: string; error: string }[] }>(`/ops/v1/recruitment/cycles/${id}/send-all-pairing-emails`, {}),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["applicants", id] });
+      setSendAllResult(data);
+    },
+  });
+
   const updateCycle = useMutation({
     mutationFn: (data: Partial<Cycle>) => api.patch<Cycle>(`/ops/v1/recruitment/cycles/${id}`, {
       name: data.name,
@@ -441,6 +454,7 @@ export default function CycleDetailPage() {
 
   const unpairedCount = applicants.filter(a => a.pairing_status === "unpaired").length;
   const sentCount = applicants.filter(a => a.pairing_status === "sent").length;
+  const pairedUnsentCount = applicants.filter(a => a.pairing_status === "paired").length;
 
   // How many times each person has submitted a request this cycle (by email)
   const requestCounts = applicants.reduce<Record<string, number>>((acc, a) => {
@@ -590,7 +604,17 @@ export default function CycleDetailPage() {
               {applicants.filter(a => gradDateToYear(a.grad_date) === yearFilter).length} applicants
             </span>
           )}
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {pairedUnsentCount > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs gap-1.5"
+                onClick={() => { setSendAllResult(null); setSendAllOpen(true); }}
+              >
+                <Send className="h-3.5 w-3.5" /> Send All ({pairedUnsentCount})
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"
@@ -921,6 +945,46 @@ export default function CycleDetailPage() {
           )}
         </div>
       )}
+
+      {/* Send All dialog */}
+      <Dialog open={sendAllOpen} onOpenChange={(o) => { if (!o) { setSendAllOpen(false); setSendAllResult(null); sendAllMutation.reset(); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Send all pairing emails</DialogTitle>
+          </DialogHeader>
+          {sendAllResult ? (
+            <div className="space-y-3">
+              <p className="text-sm text-green-700 font-medium">{sendAllResult.sent} email{sendAllResult.sent !== 1 ? "s" : ""} sent successfully.</p>
+              {sendAllResult.failed.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-sm text-destructive font-medium">{sendAllResult.failed.length} failed:</p>
+                  {sendAllResult.failed.map((f, i) => (
+                    <p key={i} className="text-xs text-muted-foreground">{f.applicant_name}: {f.error}</p>
+                  ))}
+                </div>
+              )}
+              <DialogFooter>
+                <Button onClick={() => { setSendAllOpen(false); setSendAllResult(null); sendAllMutation.reset(); }}>Close</Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Send pairing emails to all {pairedUnsentCount} applicant{pairedUnsentCount !== 1 ? "s" : ""} with status "paired"? Each email will CC their paired member.
+              </p>
+              {sendAllMutation.isError && (
+                <p className="text-sm text-destructive">{(sendAllMutation.error as Error).message}</p>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setSendAllOpen(false); setSendAllResult(null); sendAllMutation.reset(); }}>Cancel</Button>
+                <Button disabled={sendAllMutation.isPending} onClick={() => sendAllMutation.mutate()}>
+                  {sendAllMutation.isPending ? "Sending…" : `Send ${pairedUnsentCount} email${pairedUnsentCount !== 1 ? "s" : ""}`}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Action confirm dialog */}
       <Dialog open={!!confirmDialog} onOpenChange={(o) => { if (!o) { setConfirmDialog(null); setActionError(null); } }}>

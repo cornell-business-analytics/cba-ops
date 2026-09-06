@@ -766,6 +766,72 @@ async def send_pairing_email(
     return {"ok": True, "gmail_message_id": msg_id}
 
 
+@router.post("/cycles/{cycle_id}/send-all-pairing-emails")
+async def send_all_pairing_emails(
+    cycle_id: uuid.UUID,
+    current_user: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send pairing emails to every applicant with status 'paired' in this cycle."""
+    cycle_result = await db.execute(select(RecruitmentCycle).where(RecruitmentCycle.id == cycle_id))
+    cycle = cycle_result.scalar_one_or_none()
+    if not cycle:
+        raise HTTPException(status_code=404, detail="Cycle not found")
+
+    paired_result = await db.execute(
+        select(CoffeeChatApplicant)
+        .options(selectinload(CoffeeChatApplicant.paired_membership).selectinload(Membership.user))
+        .where(
+            CoffeeChatApplicant.cycle_id == cycle_id,
+            CoffeeChatApplicant.pairing_status == "paired",
+        )
+    )
+    paired = paired_result.scalars().all()
+    if not paired:
+        return {"sent": 0, "failed": [], "skipped": 0}
+
+    token = await _get_valid_token(db, current_user.id)
+
+    sent = 0
+    failed = []
+    for applicant in paired:
+        if not applicant.paired_membership_id or not applicant.paired_membership:
+            failed.append({"applicant_name": applicant.name, "error": "No member paired"})
+            continue
+
+        member = applicant.paired_membership
+        member_user = member.user
+        member_first = member_user.name.split(" ")[0] if member_user.name else ""
+        member_last = member_user.name.split(" ", 1)[1] if " " in (member_user.name or "") else ""
+        member_major = member.major or ""
+        member_year = _grad_date_to_year(member.grad_year or "")
+
+        body_html = _render_pairing_body(
+            cycle.pairing_body, applicant,
+            member_first, member_last, member_major, member_year,
+            current_user.name, cycle.sender_title,
+        )
+
+        to_email = applicant.email if "@" in applicant.email else f"{applicant.netid}@cornell.edu"
+        try:
+            msg_id = await _send_gmail(
+                token,
+                to=to_email,
+                cc=member_user.email,
+                subject=cycle.pairing_subject,
+                body_html=body_html,
+            )
+            applicant.pairing_status = "sent"
+            applicant.gmail_message_id = msg_id
+            applicant.sent_at = datetime.now(timezone.utc)
+            sent += 1
+        except HTTPException as exc:
+            failed.append({"applicant_name": applicant.name, "error": exc.detail})
+
+    await db.commit()
+    return {"sent": sent, "failed": failed, "skipped": len(failed)}
+
+
 @router.post("/cycles/{cycle_id}/applicants/{applicant_id}/send-rejection-email")
 async def send_rejection_email(
     cycle_id: uuid.UUID,
