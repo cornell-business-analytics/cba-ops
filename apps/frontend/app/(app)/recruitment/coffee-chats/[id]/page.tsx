@@ -970,7 +970,7 @@ export default function CycleDetailPage() {
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Send pairing emails to all {pairedUnsentCount} applicant{pairedUnsentCount !== 1 ? "s" : ""} with status "paired"? Each email will CC their paired member.
+                Send pairing emails to all {pairedUnsentCount} applicant{pairedUnsentCount !== 1 ? "s" : ""} with status &ldquo;paired&rdquo;? Each email will CC their paired member.
               </p>
               {sendAllMutation.isError && (
                 <p className="text-sm text-destructive">{(sendAllMutation.error as Error).message}</p>
