@@ -260,9 +260,17 @@ export default function CycleDetailPage() {
   const previewAutoPair = useMutation({
     mutationFn: (payload: { weights: AutoPairWeights; excluded_membership_ids: string[] }) =>
       api.post<AutoPairSuggestion[]>(`/ops/v1/recruitment/cycles/${id}/auto-pair?preview=true`, payload),
-    onSuccess: (data) => { setAutoPairPreview(data); setAutoPairError(null); },
+    onSuccess: (data) => {
+      setAutoPairPreview(data);
+      setAutoPairError(null);
+      setAutoPairOpen(false);   // close modal → show inline in table
+      setActiveTab("applicants");
+    },
     onError: (err: Error) => setAutoPairError(err.message),
   });
+
+  // Stores the last-used payload so Apply can re-use it without re-opening the modal
+  const [lastAutoPairPayload, setLastAutoPairPayload] = useState<{ weights: AutoPairWeights; excluded_membership_ids: string[] } | null>(null);
 
   const applyAutoPair = useMutation({
     mutationFn: (payload: { weights: AutoPairWeights; excluded_membership_ids: string[] }) =>
@@ -270,8 +278,8 @@ export default function CycleDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["applicants", id] });
       qc.invalidateQueries({ queryKey: ["participants", id] });
-      setAutoPairOpen(false);
       setAutoPairPreview(null);
+      setLastAutoPairPayload(null);
       setAutoPairError(null);
     },
     onError: (err: Error) => setAutoPairError(err.message),
@@ -449,6 +457,7 @@ export default function CycleDetailPage() {
   }, {});
 
   const colMapForm = (settingsForm.column_mapping ?? DEFAULT_COL_MAP);
+  const suggestionMap = new Map(autoPairPreview?.map(s => [s.applicant_id, s]) ?? []);
 
   return (
     <div className="p-6 space-y-5 max-w-6xl">
@@ -592,6 +601,39 @@ export default function CycleDetailPage() {
             </Button>
           </div>
         </div>
+        {/* Auto-pair inline preview banner */}
+        {autoPairPreview && (
+          <div className="flex items-center gap-3 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm">
+            <Wand2 className="h-4 w-4 text-violet-600 shrink-0" />
+            <span className="text-violet-800 font-medium">
+              {autoPairPreview.length} suggested pair{autoPairPreview.length !== 1 ? "s" : ""} — review below, then apply or discard.
+            </span>
+            {autoPairPreview.length < applicants.filter(a => a.pairing_status === "unpaired").length && (
+              <span className="text-xs text-amber-700 bg-amber-100 rounded px-1.5 py-0.5">
+                {applicants.filter(a => a.pairing_status === "unpaired").length - autoPairPreview.length} could not be paired
+              </span>
+            )}
+            <div className="ml-auto flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => { setAutoPairPreview(null); setLastAutoPairPayload(null); }}
+              >
+                Discard
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 text-xs bg-violet-600 hover:bg-violet-700"
+                disabled={applyAutoPair.isPending}
+                onClick={() => lastAutoPairPayload && applyAutoPair.mutate(lastAutoPairPayload)}
+              >
+                {applyAutoPair.isPending ? "Applying…" : "Apply All"}
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="rounded-lg border bg-white overflow-x-auto">
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Loading applicants…</p>
@@ -613,8 +655,10 @@ export default function CycleDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {applicants.filter(a => yearFilter === "all" || gradDateToYear(a.grad_date) === yearFilter).map((a) => (
-                <tr key={a.id} className="hover:bg-muted/10">
+              {applicants.filter(a => yearFilter === "all" || gradDateToYear(a.grad_date) === yearFilter).map((a) => {
+                const suggestion = suggestionMap.get(a.id);
+                return (
+                <tr key={a.id} className={suggestion ? "bg-violet-50/60 hover:bg-violet-50" : "hover:bg-muted/10"}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       <p className="font-medium">{a.name}</p>
@@ -637,7 +681,16 @@ export default function CycleDetailPage() {
                     {a.requested_member_raw || "—"}
                   </td>
                   <td className="px-4 py-3">
-                    {a.pairing_status === "sent" || a.pairing_status === "rejected" ? (
+                    {suggestion && a.pairing_status === "unpaired" ? (
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <Wand2 className="h-3 w-3 text-violet-500 shrink-0" />
+                          <span className="text-sm font-medium text-violet-800">{suggestion.member_name}</span>
+                        </div>
+                        {suggestion.member_major && <p className="text-xs text-violet-600/70 pl-4">{suggestion.member_major}</p>}
+                        <p className="text-xs text-violet-400 pl-4 tabular-nums">score {suggestion.score.toFixed(2)}</p>
+                      </div>
+                    ) : a.pairing_status === "sent" || a.pairing_status === "rejected" ? (
                       <span className="text-sm text-muted-foreground">{a.paired_member_name ?? "—"}</span>
                     ) : (
                       <button
@@ -703,7 +756,8 @@ export default function CycleDetailPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         )}
@@ -1112,75 +1166,23 @@ export default function CycleDetailPage() {
               </div>
             )}
 
-            {/* Preview table */}
-            {autoPairPreview && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Preview — {autoPairPreview.length} pairs</p>
-                <div className="rounded-lg border overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Applicant</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Member</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Score</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {autoPairPreview.map(s => (
-                        <tr key={s.applicant_id} className="hover:bg-muted/10">
-                          <td className="px-4 py-3">
-                            <p className="font-medium">{s.applicant_name}</p>
-                            {s.applicant_major && <p className="text-xs text-muted-foreground">{s.applicant_major}</p>}
-                            {s.applicant_grad_date && <p className="text-xs text-muted-foreground">{s.applicant_grad_date}</p>}
-                            {s.applicant_requested && (
-                              <p className="text-xs text-muted-foreground italic">Requested: {s.applicant_requested}</p>
-                            )}
-                            {s.applicant_interests && (
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{s.applicant_interests}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="font-medium">{s.member_name}</p>
-                            {s.member_major && <p className="text-xs text-muted-foreground">{s.member_major}</p>}
-                            {s.member_grad_year && <p className="text-xs text-muted-foreground">{s.member_grad_year}</p>}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground tabular-nums text-xs">{s.score.toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {autoPairPreview.length < applicants.filter(a => a.pairing_status === "unpaired").length && (
-                    <p className="px-4 py-2 text-xs text-amber-700 bg-amber-50 border-t">
-                      {applicants.filter(a => a.pairing_status === "unpaired").length - autoPairPreview.length} applicant(s) could not be paired — all eligible members are at capacity.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
             {autoPairError && <p className="text-sm text-destructive">{autoPairError}</p>}
           </div>
 
           <DialogFooter className="px-5 py-3 border-t gap-2">
             <Button variant="outline" onClick={() => setAutoPairOpen(false)}>Cancel</Button>
             <Button
-              variant="outline"
               disabled={previewAutoPair.isPending}
-              onClick={() => previewAutoPair.mutate({
-                weights: autoPairWeights,
-                excluded_membership_ids: Array.from(excludedMemberIds),
-              })}
+              onClick={() => {
+                const payload = {
+                  weights: autoPairWeights,
+                  excluded_membership_ids: Array.from(excludedMemberIds),
+                };
+                setLastAutoPairPayload(payload);
+                previewAutoPair.mutate(payload);
+              }}
             >
-              {previewAutoPair.isPending ? "Previewing…" : "Preview"}
-            </Button>
-            <Button
-              disabled={!autoPairPreview || applyAutoPair.isPending}
-              onClick={() => applyAutoPair.mutate({
-                weights: autoPairWeights,
-                excluded_membership_ids: Array.from(excludedMemberIds),
-              })}
-            >
-              {applyAutoPair.isPending ? "Applying…" : "Apply Pairings"}
+              {previewAutoPair.isPending ? "Generating preview…" : "Preview in table"}
             </Button>
           </DialogFooter>
         </DialogContent>
