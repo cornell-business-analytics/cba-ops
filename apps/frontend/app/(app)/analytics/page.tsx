@@ -3,10 +3,6 @@
 import { useAppSession } from "@/hooks/session-context";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
   Tooltip,
   ResponsiveContainer,
   Cell,
@@ -14,14 +10,12 @@ import {
   Pie,
   Legend,
 } from "recharts";
-import { Users, UserSearch, TrendingUp, Percent, Coffee, Users2 } from "lucide-react";
+import { Users, UserSearch, Coffee, Users2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { createApi } from "@/lib/api";
 import { PageHeader } from "@/components/layout/PageHeader";
-import type { AnalyticsOverview, RecruitmentAnalytics, MembersAnalytics } from "@cba/types";
+import type { AnalyticsOverview, MembersAnalytics } from "@cba/types";
 
-const FUNNEL_ORDER = ["applied", "coffee_chat", "interviewing", "offer", "accepted"];
-const FUNNEL_COLORS = ["#94a3b8", "#818cf8", "#f59e0b", "#22d3ee", "#22c55e"];
 const PIE_COLORS = [
   "#1a7a3c", "#2a9e52", "#4DB8A0", "#818cf8", "#f59e0b",
   "#22d3ee", "#f43f5e", "#a78bfa", "#fb923c", "#34d399",
@@ -39,25 +33,12 @@ export default function AnalyticsPage() {
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: recruitment } = useQuery<RecruitmentAnalytics>({
-    queryKey: ["analytics", "recruitment"],
-    queryFn: () => api().get("/ops/v1/analytics/recruitment"),
-    enabled: !!session?.accessToken,
-    staleTime: 2 * 60 * 1000,
-  });
-
   const { data: members } = useQuery<MembersAnalytics>({
     queryKey: ["analytics", "members"],
     queryFn: () => api().get("/ops/v1/analytics/members"),
     enabled: !!session?.accessToken,
     staleTime: 5 * 60 * 1000,
   });
-
-  const funnelData = FUNNEL_ORDER.map((stage, i) => ({
-    name: stage.replace("_", " "),
-    count: recruitment?.funnel?.[stage] ?? 0,
-    color: FUNNEL_COLORS[i],
-  }));
 
   const gradYearData = Object.entries(members?.grad_year_distribution ?? {})
     .map(([year, value]) => ({ name: year, value }))
@@ -69,14 +50,6 @@ export default function AnalyticsPage() {
   const stats = [
     { label: "Total Members", value: overview?.total_members, icon: Users },
     { label: "Active Candidates", value: overview?.active_candidates, icon: UserSearch },
-    { label: "Total Applicants", value: recruitment?.total_applicants, icon: TrendingUp },
-    {
-      label: "Acceptance Rate",
-      value: recruitment?.acceptance_rate != null
-        ? `${(recruitment.acceptance_rate * 100).toFixed(0)}%`
-        : undefined,
-      icon: Percent,
-    },
     { label: "Coffee Chats", value: overview?.total_coffee_chats, icon: Coffee },
     { label: "Unique Candidates Chatted", value: overview?.unique_coffee_chats, icon: Users2 },
   ];
@@ -170,38 +143,6 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Recruitment Funnel</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            {[
-              { label: "Applicants", value: recruitment?.total_applicants },
-              { label: "Offers", value: recruitment?.offers },
-              { label: "Acceptance Rate", value: recruitment?.acceptance_rate != null ? `${(recruitment.acceptance_rate * 100).toFixed(0)}%` : undefined },
-            ].map(({ label, value }) => (
-              <div key={label} className="text-center">
-                <p className="text-xs text-muted-foreground mb-1">{label}</p>
-                <p className="text-lg font-semibold">{value ?? "—"}</p>
-              </div>
-            ))}
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={funnelData} margin={{ left: -10 }}>
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                {funnelData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
     </div>
   );
 }
