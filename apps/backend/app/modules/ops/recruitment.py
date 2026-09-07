@@ -592,7 +592,7 @@ async def list_applicants(
     result = await db.execute(
         select(CoffeeChatApplicant)
         .options(selectinload(CoffeeChatApplicant.paired_membership).selectinload(Membership.user))
-        .where(CoffeeChatApplicant.cycle_id == cycle_id)
+        .where(CoffeeChatApplicant.cycle_id == cycle_id, CoffeeChatApplicant.is_deleted == False)
         .order_by(CoffeeChatApplicant.created_at.desc())
     )
     applicants = result.scalars().all()
@@ -712,7 +712,7 @@ async def delete_applicant(
     applicant = result.scalar_one_or_none()
     if not applicant:
         raise HTTPException(status_code=404, detail="Applicant not found")
-    await db.delete(applicant)
+    applicant.is_deleted = True
     await db.commit()
 
 
@@ -816,6 +816,7 @@ async def send_all_pairing_emails(
         .where(
             CoffeeChatApplicant.cycle_id == cycle_id,
             CoffeeChatApplicant.pairing_status == "paired",
+            CoffeeChatApplicant.is_deleted == False,
         )
     )
     paired = paired_result.scalars().all()
@@ -1369,6 +1370,7 @@ async def auto_pair(
         select(CoffeeChatApplicant).where(
             CoffeeChatApplicant.cycle_id == cycle_id,
             CoffeeChatApplicant.pairing_status == "unpaired",
+            CoffeeChatApplicant.is_deleted == False,
         )
     )
     unpaired = unpaired_result.scalars().all()

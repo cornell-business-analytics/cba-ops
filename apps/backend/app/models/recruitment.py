@@ -60,6 +60,8 @@ class CoffeeChatApplicant(UUIDMixin, TimestampMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     row_key: Mapped[str | None] = mapped_column(String(200), nullable=True)  # timestamp or row index — dedup key
 
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
+
     # Pairing
     paired_membership_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("memberships.id", ondelete="SET NULL"), nullable=True, index=True
