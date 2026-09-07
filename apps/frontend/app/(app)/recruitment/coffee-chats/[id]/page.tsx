@@ -54,6 +54,7 @@ interface AutoPairSuggestion {
   member_major: string | null;
   member_grad_year: string | null;
   score: number;
+  previously_paired: boolean;
 }
 
 interface AutoPairWeights {
@@ -222,6 +223,14 @@ export default function CycleDetailPage() {
     queryFn: () => api.get<CycleExclusion[]>(`/ops/v1/recruitment/cycles/${id}/participants`),
     enabled: !!session?.accessToken,
   });
+
+  const { data: priorPairings } = useQuery<{ membership_ids: string[] }>({
+    queryKey: ["prior-pairings", id, pickerApplicant?.id],
+    queryFn: () => api.get<{ membership_ids: string[] }>(`/ops/v1/recruitment/cycles/${id}/applicants/${pickerApplicant!.id}/prior-pairings`),
+    enabled: !!session?.accessToken && !!pickerApplicant,
+    staleTime: 60_000,
+  });
+  const priorMemberIds = new Set(priorPairings?.membership_ids ?? []);
 
   const activeMembers = members.filter(m => m.is_active);
 
@@ -707,9 +716,12 @@ export default function CycleDetailPage() {
                   <td className="px-4 py-3">
                     {suggestion && a.pairing_status === "unpaired" ? (
                       <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <Wand2 className="h-3 w-3 text-violet-500 shrink-0" />
                           <span className="text-sm font-medium text-violet-800">{suggestion.member_name}</span>
+                          {suggestion.previously_paired && (
+                            <span className="text-xs font-medium rounded px-1.5 py-0.5 bg-orange-100 text-orange-700">Paired before</span>
+                          )}
                         </div>
                         {suggestion.member_major && <p className="text-xs text-violet-600/70 pl-4">{suggestion.member_major}</p>}
                         <p className="text-xs text-violet-400 pl-4 tabular-nums">score {suggestion.score.toFixed(2)}</p>
@@ -1040,7 +1052,12 @@ export default function CycleDetailPage() {
             <div className="grid grid-cols-2 gap-3">
               {activeMembers
                 .slice()
-                .sort((a, b) => (memberEmailCounts[a.id] ?? 0) - (memberEmailCounts[b.id] ?? 0))
+                .sort((a, b) => {
+                  const aPrev = priorMemberIds.has(a.id) ? 1 : 0;
+                  const bPrev = priorMemberIds.has(b.id) ? 1 : 0;
+                  if (aPrev !== bPrev) return aPrev - bPrev;
+                  return (memberEmailCounts[a.id] ?? 0) - (memberEmailCounts[b.id] ?? 0);
+                })
                 .filter((m) => {
                   const q = memberSearch.toLowerCase();
                   return !q
@@ -1049,6 +1066,7 @@ export default function CycleDetailPage() {
                 })
                 .map((m) => {
                   const count = memberEmailCounts[m.id] ?? 0;
+                  const isPreviouslyPaired = priorMemberIds.has(m.id);
                   const isSelected = pickerApplicant
                     && applicants.find(a => a.id === pickerApplicant.id)?.paired_membership_id === m.id;
                   const profText = m.professional_is_interests
@@ -1064,7 +1082,7 @@ export default function CycleDetailPage() {
                         setPickerApplicant(null);
                       }}
                       className={`text-left rounded-lg border p-3 transition-colors hover:border-foreground/40 hover:bg-muted/30 ${
-                        isSelected ? "border-foreground bg-muted/20" : "border-border"
+                        isSelected ? "border-foreground bg-muted/20" : isPreviouslyPaired ? "border-amber-200 bg-amber-50/50" : "border-border"
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -1083,13 +1101,18 @@ export default function CycleDetailPage() {
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-medium truncate">{m.user_name}</p>
                             <span className={`shrink-0 text-xs font-medium rounded px-1.5 py-0.5 ${
                               count >= 3 ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"
                             }`}>
                               {count} assigned
                             </span>
+                            {isPreviouslyPaired && (
+                              <span className="shrink-0 text-xs font-medium rounded px-1.5 py-0.5 bg-orange-100 text-orange-700">
+                                Paired before
+                              </span>
+                            )}
                           </div>
                           {(m.major || m.grad_year) && (
                             <p className="text-xs text-muted-foreground mt-0.5 truncate">

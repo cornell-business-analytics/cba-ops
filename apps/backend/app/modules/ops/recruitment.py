@@ -664,6 +664,38 @@ async def remove_pairing(
     return {"ok": True}
 
 
+@router.get("/cycles/{cycle_id}/applicants/{applicant_id}/prior-pairings")
+async def prior_pairings(
+    cycle_id: uuid.UUID,
+    applicant_id: uuid.UUID,
+    _: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return membership IDs this applicant has been paired with in any other cycle."""
+    app_result = await db.execute(
+        select(CoffeeChatApplicant.email).where(
+            CoffeeChatApplicant.id == applicant_id,
+            CoffeeChatApplicant.cycle_id == cycle_id,
+        )
+    )
+    row = app_result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Applicant not found")
+    email = row
+
+    prior_result = await db.execute(
+        select(CoffeeChatApplicant.paired_membership_id)
+        .where(
+            CoffeeChatApplicant.email == email,
+            CoffeeChatApplicant.cycle_id != cycle_id,
+            CoffeeChatApplicant.paired_membership_id.is_not(None),
+            CoffeeChatApplicant.pairing_status.in_(["paired", "sent"]),
+        )
+    )
+    membership_ids = [str(mid) for (mid,) in prior_result.all()]
+    return {"membership_ids": membership_ids}
+
+
 @router.delete("/cycles/{cycle_id}/applicants/{applicant_id}", status_code=204)
 async def delete_applicant(
     cycle_id: uuid.UUID,
@@ -1318,6 +1350,7 @@ class AutoPairSuggestion(BaseModel):
     member_major: str | None
     member_grad_year: str | None
     score: float
+    previously_paired: bool = False
 
 
 @router.post("/cycles/{cycle_id}/auto-pair", response_model=list[AutoPairSuggestion])
@@ -1363,6 +1396,22 @@ async def auto_pair(
     applicant_map = {a.id: a for a in unpaired}
     member_map = {m.id: m for m in all_members}
 
+    # Load prior pairings for emails of unpaired applicants (across other cycles)
+    applicant_emails = [a.email for a in unpaired]
+    prior_result = await db.execute(
+        select(CoffeeChatApplicant.email, CoffeeChatApplicant.paired_membership_id)
+        .where(
+            CoffeeChatApplicant.email.in_(applicant_emails),
+            CoffeeChatApplicant.cycle_id != cycle_id,
+            CoffeeChatApplicant.paired_membership_id.is_not(None),
+            CoffeeChatApplicant.pairing_status.in_(["paired", "sent"]),
+        )
+    )
+    # Map email → set of membership_ids they've been paired with before
+    prior_by_email: dict[str, set[uuid.UUID]] = {}
+    for email, mid in prior_result.all():
+        prior_by_email.setdefault(email, set()).add(mid)
+
     suggestions = [
         AutoPairSuggestion(
             applicant_id=a_id,
@@ -1376,6 +1425,7 @@ async def auto_pair(
             member_major=member_map[m_id].major,
             member_grad_year=member_map[m_id].grad_year,
             score=round(score, 4),
+            previously_paired=m_id in prior_by_email.get(applicant_map[a_id].email, set()),
         )
         for a_id, m_id, score in assignments
     ]
