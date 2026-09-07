@@ -12,7 +12,7 @@ export function MemberCard({ member }: MemberCardProps) {
       {/* Overlay link covers the whole card; inner links sit above it via z-10 */}
       <Link
         href={`/team/${member.id}`}
-        className="absolute inset-0 z-0"
+        className="absolute inset-0 z-[1]"
         aria-label={`View ${member.name}'s profile`}
       />
 
