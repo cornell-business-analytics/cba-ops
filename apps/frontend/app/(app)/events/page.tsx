@@ -23,6 +23,7 @@ type EventForm = {
   event_date: string;
   type: string;
   is_published: boolean;
+  is_pinned: boolean;
   unpublish_at: string;
   link_url: string;
   link_label: string;
@@ -93,9 +94,13 @@ function EventRow({
         <Badge variant="secondary" className="capitalize text-xs">
           {event.type}
         </Badge>
-        <Badge variant={event.is_published ? "success" : "outline"} className="text-xs">
-          {event.is_published ? "Published" : "Draft"}
-        </Badge>
+        {event.is_pinned && event.is_published ? (
+          <Badge variant="default" className="text-xs bg-violet-600 hover:bg-violet-600">Pinned</Badge>
+        ) : (
+          <Badge variant={event.is_published ? "success" : "outline"} className="text-xs">
+            {event.is_published ? "Published" : "Draft"}
+          </Badge>
+        )}
         {event.unpublish_at && (
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             unpublishes {new Date(event.unpublish_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
@@ -182,7 +187,7 @@ export default function EventsPage() {
 
   function openNew() {
     setEditing(null);
-    reset({ title: "", slug: "", description: "", location: "", event_date: "", type: "recruitment", is_published: false, unpublish_at: "", link_url: "", link_label: "" });
+    reset({ title: "", slug: "", description: "", location: "", event_date: "", type: "recruitment", is_published: false, is_pinned: false, unpublish_at: "", link_url: "", link_label: "" });
     setOpen(true);
   }
 
@@ -196,6 +201,7 @@ export default function EventsPage() {
       event_date: event.event_date.slice(0, 16),
       type: event.type,
       is_published: event.is_published,
+      is_pinned: event.is_pinned,
       unpublish_at: event.unpublish_at ? event.unpublish_at.slice(0, 16) : "",
       link_url: event.link_url ?? "",
       link_label: event.link_label ?? "",
@@ -344,9 +350,15 @@ export default function EventsPage() {
               <p className="-mt-1 text-xs text-muted-foreground">
                 Shown as a button on the public event listing. https:// is added for you if you leave it off.
               </p>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="published" {...register("is_published")} />
-                <Label htmlFor="published">Published on website</Label>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="published" {...register("is_published")} />
+                  <Label htmlFor="published">Published on website</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="pinned" {...register("is_pinned")} />
+                  <Label htmlFor="pinned">Pin — keep visible after event date passes</Label>
+                </div>
               </div>
               <div className="space-y-1">
                 <Label>

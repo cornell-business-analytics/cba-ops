@@ -9,6 +9,7 @@ export interface Event {
   location: string | null;
   type: EventType;
   is_published: boolean;
+  is_pinned: boolean;
   unpublish_at: string | null;
   /** Optional call-to-action link. Backend guarantees http(s) only. */
   link_url: string | null;

@@ -76,6 +76,7 @@ class EventPublic(BaseModel):
     event_date: datetime
     type: EventType
     is_published: bool
+    is_pinned: bool = False
     unpublish_at: datetime | None = None
     link_url: str | None = None
     link_label: str | None = None
@@ -91,6 +92,7 @@ class EventCreate(_EventLinkFields):
     event_date: datetime
     type: EventType
     is_published: bool = False
+    is_pinned: bool = False
     unpublish_at: datetime | None = None
     link_url: str | None = None
     link_label: str | None = None
@@ -103,6 +105,7 @@ class EventUpdate(_EventLinkFields):
     event_date: datetime | None = None
     type: EventType | None = None
     is_published: bool | None = None
+    is_pinned: bool | None = None
     unpublish_at: datetime | None = None
     link_url: str | None = None
     link_label: str | None = None

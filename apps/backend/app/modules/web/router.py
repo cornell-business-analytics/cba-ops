@@ -146,7 +146,7 @@ async def get_events(
         select(Event)
         .where(
             Event.is_published == True,
-            Event.event_date >= now,
+            or_(Event.is_pinned == True, Event.event_date >= now),
             or_(Event.unpublish_at == None, Event.unpublish_at > now),
         )
         .order_by(Event.event_date)
