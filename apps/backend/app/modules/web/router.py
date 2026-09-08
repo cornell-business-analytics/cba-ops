@@ -140,13 +140,14 @@ async def get_events(
     type: EventType | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    from sqlalchemy import or_
+    from sqlalchemy import or_, cast, Date as SADate, func
     now = datetime.now(timezone.utc)
+    today = cast(func.timezone("America/New_York", now), SADate)
     query = (
         select(Event)
         .where(
             Event.is_published == True,
-            or_(Event.is_pinned == True, Event.event_date >= now),
+            or_(Event.is_pinned == True, cast(func.timezone("America/New_York", Event.event_date), SADate) >= today),
             or_(Event.unpublish_at == None, Event.unpublish_at > now),
         )
         .order_by(Event.event_date)

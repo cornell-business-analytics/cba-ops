@@ -35,6 +35,12 @@ function toSlug(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const offset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - offset).toISOString().slice(0, 16);
+}
+
 function formatEventDate(iso: string) {
   const d = new Date(iso);
   return {
@@ -168,10 +174,17 @@ export default function EventsPage() {
   });
 
   const save = useMutation({
-    mutationFn: (data: EventForm) =>
-      editing
-        ? api().patch(`/ops/v1/events/${editing.id}`, data)
-        : api().post("/ops/v1/events", data),
+    mutationFn: (data: EventForm) => {
+      const toUtc = (val: string) => val ? new Date(val).toISOString() : val;
+      const payload = {
+        ...data,
+        event_date: toUtc(data.event_date),
+        unpublish_at: data.unpublish_at ? toUtc(data.unpublish_at) : null,
+      };
+      return editing
+        ? api().patch(`/ops/v1/events/${editing.id}`, payload)
+        : api().post("/ops/v1/events", payload);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["events"] });
       setOpen(false);
@@ -198,11 +211,11 @@ export default function EventsPage() {
       slug: event.slug,
       description: event.description ?? "",
       location: event.location ?? "",
-      event_date: event.event_date.slice(0, 16),
+      event_date: toLocalInput(event.event_date),
       type: event.type,
       is_published: event.is_published,
       is_pinned: event.is_pinned,
-      unpublish_at: event.unpublish_at ? event.unpublish_at.slice(0, 16) : "",
+      unpublish_at: event.unpublish_at ? toLocalInput(event.unpublish_at) : "",
       link_url: event.link_url ?? "",
       link_label: event.link_label ?? "",
     });
