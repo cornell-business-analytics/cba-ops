@@ -38,6 +38,8 @@ export interface RecruitmentStep {
   title: string;
   desc?: string;
   step_number?: string;
+  link_url?: string;
+  link_label?: string;
 }
 
 export interface ApiError {

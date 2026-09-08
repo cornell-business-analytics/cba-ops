@@ -117,6 +117,16 @@ export default function RecruitmentStepsPage() {
                     <Label className="text-xs">Description</Label>
                     <Textarea {...register(`steps.${i}.desc`)} placeholder="Brief description (optional)" rows={4} className="resize-y" />
                   </div>
+                  <div className="flex gap-2">
+                    <div className="space-y-1 flex-1">
+                      <Label className="text-xs">Link URL (optional)</Label>
+                      <Input {...register(`steps.${i}.link_url`)} placeholder="https://…" />
+                    </div>
+                    <div className="space-y-1 w-36 flex-shrink-0">
+                      <Label className="text-xs">Button label</Label>
+                      <Input {...register(`steps.${i}.link_label`)} placeholder="e.g. Apply now" />
+                    </div>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1 flex-shrink-0">
                   <Button type="button" variant="ghost" size="sm" onClick={() => move(i, i - 1)} disabled={i === 0} className="h-7 w-7 p-0">
@@ -137,7 +147,7 @@ export default function RecruitmentStepsPage() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => append({ title: "", desc: "" })}
+            onClick={() => append({ title: "", desc: "", link_url: "", link_label: "" })}
           >
             <Plus className="h-4 w-4 mr-1" /> Add step
           </Button>

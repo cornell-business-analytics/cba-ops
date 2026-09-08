@@ -47,10 +47,10 @@ export default async function RecruitmentPage() {
       <section className="container-section py-16">
         <div className={`grid gap-12 ${hasEvents ? "lg:grid-cols-2" : ""}`}>
           <div>
-            <h2 className="text-3xl font-bold text-cba-dark">Upcoming events</h2>
+            <h2 className="text-3xl font-bold text-cba-dark">Events</h2>
             {hasEvents ? (
-              <div className="mt-8">
-                <RecruitmentTimeline events={events} large />
+              <div className="mt-6">
+                <RecruitmentTimeline events={events} />
               </div>
             ) : (
               <p className="mt-4 text-gray-500 leading-relaxed">
@@ -63,7 +63,7 @@ export default async function RecruitmentPage() {
             <div className={!hasEvents ? "max-w-xl" : ""}>
               <h2 className="text-3xl font-bold text-cba-dark">The process</h2>
               <ol className="mt-8 relative">
-                {steps.map(({ title, desc, step_number }, i) => {
+                {steps.map(({ title, desc, step_number, link_url, link_label }, i) => {
                   const hasNumber = step_number !== null && step_number !== undefined && step_number !== "";
                   return (
                     <li key={i} className="relative flex gap-5 pb-8 last:pb-0">
@@ -95,6 +95,19 @@ export default async function RecruitmentPage() {
                         </p>
                         {desc && (
                           <p className="mt-1 text-gray-500 leading-relaxed">{desc}</p>
+                        )}
+                        {link_url && (
+                          <a
+                            href={link_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-cba-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-cba-dark"
+                          >
+                            {link_label || "Learn more"}
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                              <path d="M7 17 17 7M9 7h8v8" />
+                            </svg>
+                          </a>
                         )}
                       </div>
                     </li>

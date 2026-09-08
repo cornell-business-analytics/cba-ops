@@ -17,6 +17,8 @@ class RecruitmentStep(BaseModel):
     title: str
     desc: str = ""
     step_number: str | None = None
+    link_url: str | None = None
+    link_label: str | None = None
 
 
 @router.get("/recruitment-steps", response_model=list[RecruitmentStep])
