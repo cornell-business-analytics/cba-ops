@@ -23,6 +23,7 @@ type EventForm = {
   event_date: string;
   type: string;
   is_published: boolean;
+  unpublish_at: string;
   link_url: string;
   link_label: string;
 };
@@ -95,6 +96,11 @@ function EventRow({
         <Badge variant={event.is_published ? "success" : "outline"} className="text-xs">
           {event.is_published ? "Published" : "Draft"}
         </Badge>
+        {event.unpublish_at && (
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            unpublishes {new Date(event.unpublish_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+          </span>
+        )}
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(event)}>
             <Pencil className="h-3.5 w-3.5" />
@@ -176,7 +182,7 @@ export default function EventsPage() {
 
   function openNew() {
     setEditing(null);
-    reset({ title: "", slug: "", description: "", location: "", event_date: "", type: "recruitment", is_published: false, link_url: "", link_label: "" });
+    reset({ title: "", slug: "", description: "", location: "", event_date: "", type: "recruitment", is_published: false, unpublish_at: "", link_url: "", link_label: "" });
     setOpen(true);
   }
 
@@ -190,6 +196,7 @@ export default function EventsPage() {
       event_date: event.event_date.slice(0, 16),
       type: event.type,
       is_published: event.is_published,
+      unpublish_at: event.unpublish_at ? event.unpublish_at.slice(0, 16) : "",
       link_url: event.link_url ?? "",
       link_label: event.link_label ?? "",
     });
@@ -340,6 +347,15 @@ export default function EventsPage() {
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="published" {...register("is_published")} />
                 <Label htmlFor="published">Published on website</Label>
+              </div>
+              <div className="space-y-1">
+                <Label>
+                  Auto-unpublish <span className="text-xs text-muted-foreground">(optional)</span>
+                </Label>
+                <Input type="datetime-local" {...register("unpublish_at")} />
+                <p className="text-xs text-muted-foreground">
+                  If set, the event stops showing on the public website after this date and time.
+                </p>
               </div>
               <div className="flex items-center justify-end gap-3 pt-2">
                 {save.error instanceof Error && (
