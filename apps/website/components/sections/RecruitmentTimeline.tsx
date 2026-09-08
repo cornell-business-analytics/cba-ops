@@ -31,22 +31,22 @@ export function RecruitmentTimeline({ events, large }: RecruitmentTimelineProps)
   }
 
   return (
-    <ol className={`relative border-l-2 border-cba-green/30 ${large ? "space-y-12" : "space-y-5"}`} aria-label="Recruitment timeline">
+    <ol className={`relative border-l-2 border-cba-green/30 ${large ? "space-y-12" : "space-y-8"}`} aria-label="Recruitment timeline">
       {events.map((event) => (
-        <li key={event.id} className={large ? "ml-8" : "ml-5"}>
-          <span className={`absolute flex items-center justify-center rounded-full bg-cba-green ring-4 ring-white ${large ? "-left-3 h-6 w-6" : "-left-2 h-4 w-4"}`} />
-          <div className={`flex flex-wrap items-center gap-2 ${large ? "mb-2" : "mb-1"}`}>
-            <span className={`inline-block rounded-full bg-cba-green/10 font-medium text-cba-green ${large ? "px-3 py-1 text-sm" : "px-2 py-0.5 text-xs"}`}>
+        <li key={event.id} className={large ? "ml-8" : "ml-6"}>
+          <span className={`absolute flex items-center justify-center rounded-full bg-cba-green ring-4 ring-white ${large ? "-left-3 h-6 w-6" : "-left-2.5 h-5 w-5"}`} />
+          <div className={`flex flex-wrap items-center gap-2 ${large ? "mb-2" : "mb-1.5"}`}>
+            <span className={`inline-block rounded-full bg-cba-green/10 font-medium text-cba-green ${large ? "px-3 py-1 text-sm" : "px-2.5 py-0.5 text-xs"}`}>
               {typeLabel[event.type] ?? event.type}
             </span>
-            <h3 className={`font-semibold text-cba-dark ${large ? "text-2xl" : "text-sm"}`}>{event.title}</h3>
+            <h3 className={`font-semibold text-cba-dark ${large ? "text-2xl" : "text-lg"}`}>{event.title}</h3>
           </div>
-          <time className={large ? "text-base text-gray-500" : "text-xs text-gray-500"}>{formatDate(event.event_date)}</time>
+          <time className={large ? "text-base text-gray-500" : "text-sm text-gray-500"}>{formatDate(event.event_date)}</time>
           {event.location && (
-            <p className={large ? "text-base text-gray-500" : "text-xs text-gray-500"}>{event.location}</p>
+            <p className={large ? "text-base text-gray-500" : "text-sm text-gray-500"}>{event.location}</p>
           )}
           {event.description && (
-            <p className={`whitespace-pre-line text-gray-600 ${large ? "mt-2 text-base" : "mt-1 text-xs"}`}>
+            <p className={`whitespace-pre-line text-gray-600 ${large ? "mt-2 text-base" : "mt-1.5 text-sm"}`}>
               {linkify(event.description)}
             </p>
           )}
@@ -55,7 +55,7 @@ export function RecruitmentTimeline({ events, large }: RecruitmentTimelineProps)
               href={event.link_url}
               target="_blank"
               rel="noopener noreferrer"
-              className={`inline-flex items-center gap-1.5 rounded-md bg-cba-green font-semibold text-white transition-colors hover:bg-cba-dark ${large ? "mt-4 px-6 py-3 text-base" : "mt-2 px-3 py-1.5 text-xs"}`}
+              className={`inline-flex items-center gap-1.5 rounded-md bg-cba-green font-semibold text-white transition-colors hover:bg-cba-dark ${large ? "mt-4 px-6 py-3 text-base" : "mt-3 px-4 py-2 text-sm"}`}
             >
               {event.link_label ?? "Sign up"}
               <svg
@@ -66,7 +66,7 @@ export function RecruitmentTimeline({ events, large }: RecruitmentTimelineProps)
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className={large ? "h-4 w-4" : "h-3 w-3"}
+                className={large ? "h-4 w-4" : "h-3.5 w-3.5"}
               >
                 <path d="M7 17 17 7M9 7h8v8" />
               </svg>
