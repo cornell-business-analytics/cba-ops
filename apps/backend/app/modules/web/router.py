@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 import boto3
 from botocore.config import Config
@@ -139,7 +140,12 @@ async def get_events(
     type: EventType | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Event).where(Event.is_published == True).order_by(Event.event_date)
+    now = datetime.now(timezone.utc)
+    query = (
+        select(Event)
+        .where(Event.is_published == True, Event.event_date >= now)
+        .order_by(Event.event_date)
+    )
     if type:
         query = query.where(Event.type == type)
 
