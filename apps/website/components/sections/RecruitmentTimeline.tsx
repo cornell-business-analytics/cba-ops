@@ -43,12 +43,12 @@ export function RecruitmentTimeline({ events, large }: RecruitmentTimelineProps)
             </span>
             <h3 className={`font-semibold text-cba-dark ${large ? "text-2xl" : "text-lg"}`}>{event.title}</h3>
           </div>
-          <time className={large ? "text-base text-gray-500" : "text-sm text-gray-500"}>{formatDate(event.event_date)}</time>
+          <time className="text-base text-gray-500">{formatDate(event.event_date)}</time>
           {event.location && (
-            <p className={large ? "text-base text-gray-500" : "text-sm text-gray-500"}>{event.location}</p>
+            <p className="text-base text-gray-500">{event.location}</p>
           )}
           {event.description && (
-            <p className={`whitespace-pre-line text-gray-600 ${large ? "mt-2 text-base" : "mt-1.5 text-sm"}`}>
+            <p className={`whitespace-pre-line text-gray-600 ${large ? "mt-2 text-base" : "mt-1.5 text-base"}`}>
               {linkify(event.description)}
             </p>
           )}

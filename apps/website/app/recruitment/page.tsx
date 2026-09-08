@@ -78,8 +78,8 @@ export default async function RecruitmentPage() {
                             <span className="text-base font-bold">{step_number}</span>
                           </div>
                         ) : (
-                          <div className="h-10 w-10 flex items-center justify-center">
-                            <div className="h-2 w-2 rounded-full bg-gray-300" />
+                          <div className="h-10 w-10 rounded-full border-2 border-cba-green/40 bg-white flex items-center justify-center">
+                            <div className="h-2 w-2 rounded-full bg-cba-green/40" />
                           </div>
                         )}
                       </div>
@@ -90,7 +90,7 @@ export default async function RecruitmentPage() {
                             Round {step_number}
                           </p>
                         )}
-                        <p className={`text-lg font-semibold leading-snug ${hasNumber ? "text-cba-dark" : "text-gray-600"}`}>
+                        <p className="text-lg font-semibold leading-snug text-cba-dark">
                           {title}
                         </p>
                         {desc && (
