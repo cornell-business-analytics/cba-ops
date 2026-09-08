@@ -430,6 +430,10 @@ export default function EventsPage() {
                       <Input {...stepsForm.register(`steps.${i}.title`, { required: true })} placeholder="Step title" />
                     </div>
                     <Textarea {...stepsForm.register(`steps.${i}.desc`)} placeholder="Brief description (optional)" rows={3} className="resize-y" />
+                    <div className="flex gap-2">
+                      <Input {...stepsForm.register(`steps.${i}.link_url`)} placeholder="Link URL (optional, e.g. forms.gle/…)" className="flex-1" />
+                      <Input {...stepsForm.register(`steps.${i}.link_label`)} placeholder="Button label" className="w-36 shrink-0" />
+                    </div>
                   </div>
                   <div className="flex gap-0.5 shrink-0">
                     <Button type="button" variant="ghost" size="sm" onClick={() => move(i, i - 1)} disabled={i === 0} className="h-7 w-7 p-0">
@@ -445,7 +449,7 @@ export default function EventsPage() {
                 </li>
               ))}
             </ol>
-            <Button type="button" variant="outline" size="sm" onClick={() => append({ title: "", desc: "", step_number: "" })}>
+            <Button type="button" variant="outline" size="sm" onClick={() => append({ title: "", desc: "", step_number: "", link_url: "", link_label: "" })}>
               <Plus className="h-4 w-4 mr-1" /> Add step
             </Button>
             <div className="flex items-center gap-3">
