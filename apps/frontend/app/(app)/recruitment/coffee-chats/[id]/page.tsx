@@ -147,7 +147,9 @@ export default function CycleDetailPage() {
   const canManageRecruitment = session?.role === "recruitment" || session?.role === "eboard" || session?.role === "director";
 
   const [activeTab, setActiveTab] = useState<"applicants" | "participants" | "evaluations">("applicants");
+  const [applicantSearch, setApplicantSearch] = useState("");
   const [evalSearch, setEvalSearch] = useState("");
+  const [evalSort, setEvalSort] = useState<"score_desc" | "score_asc" | "name_asc">("score_desc");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
@@ -596,6 +598,15 @@ export default function CycleDetailPage() {
       {/* Applicant table */}
       {activeTab === "applicants" && <>
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-8 h-8 w-56 text-xs"
+              placeholder="Search applicants…"
+              value={applicantSearch}
+              onChange={(e) => setApplicantSearch(e.target.value)}
+            />
+          </div>
           <Select value={yearFilter} onValueChange={setYearFilter}>
             <SelectTrigger className="w-36 h-8 text-xs">
               <SelectValue placeholder="All years" />
@@ -688,7 +699,14 @@ export default function CycleDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {applicants.filter(a => yearFilter === "all" || gradDateToYear(a.grad_date) === yearFilter).map((a) => {
+              {applicants.filter(a => {
+                if (yearFilter !== "all" && gradDateToYear(a.grad_date) !== yearFilter) return false;
+                if (applicantSearch) {
+                  const q = applicantSearch.toLowerCase();
+                  return a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q) || a.netid.toLowerCase().includes(q);
+                }
+                return true;
+              }).map((a) => {
                 const suggestion = suggestionMap.get(a.id);
                 return (
                 <tr key={a.id} className={suggestion ? "bg-violet-50/60 hover:bg-violet-50" : "hover:bg-muted/10"}>
@@ -896,6 +914,16 @@ export default function CycleDetailPage() {
                 onChange={(e) => setEvalSearch(e.target.value)}
               />
             </div>
+            <Select value={evalSort} onValueChange={(v) => setEvalSort(v as typeof evalSort)}>
+              <SelectTrigger className="w-40 h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="score_desc">Score: high → low</SelectItem>
+                <SelectItem value="score_asc">Score: low → high</SelectItem>
+                <SelectItem value="name_asc">Name A → Z</SelectItem>
+              </SelectContent>
+            </Select>
             {evaluations.length > 0 && (
               <p className="text-xs text-muted-foreground">
                 avg score: {(evaluations.filter(e => e.score !== null).reduce((s, e) => s + (e.score ?? 0), 0) / (evaluations.filter(e => e.score !== null).length || 1)).toFixed(1)} / {evaluations.filter(e => e.score !== null).length} rated
@@ -928,6 +956,12 @@ export default function CycleDetailPage() {
                         || e.applicant_name.toLowerCase().includes(q)
                         || e.applicant_email.toLowerCase().includes(q)
                         || e.member_name.toLowerCase().includes(q);
+                    })
+                    .slice()
+                    .sort((a, b) => {
+                      if (evalSort === "score_desc") return (b.score ?? -1) - (a.score ?? -1);
+                      if (evalSort === "score_asc") return (a.score ?? Infinity) - (b.score ?? Infinity);
+                      return a.applicant_name.localeCompare(b.applicant_name);
                     })
                     .map(e => (
                       <tr key={e.id} className="hover:bg-muted/10">
