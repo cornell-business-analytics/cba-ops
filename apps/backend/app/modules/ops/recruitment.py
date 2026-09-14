@@ -437,19 +437,25 @@ async def import_from_sheet(
     sheet_id = _extract_sheet_id(cycle.sheet_id)
     token = await _get_valid_token(db, current_user.id)
 
-    async with httpx.AsyncClient() as client:
-        # Use A:ZZ to capture all rows regardless of which columns have data
-        resp = await client.get(
-            f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/A:ZZ",
-            headers={"Authorization": f"Bearer {token.access_token}"},
-        )
+    try:
+        async with httpx.AsyncClient(timeout=45.0) as client:
+            resp = await client.get(
+                f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/A:ZZ",
+                headers={"Authorization": f"Bearer {token.access_token}"},
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Google Sheets request timed out. The sheet may be too large or slow to respond — try again.")
+    if resp.status_code == 401:
+        raise HTTPException(status_code=503, detail="Google token rejected. Please reconnect Gmail in Recruitment settings.")
     if resp.status_code == 403:
         raise HTTPException(
             status_code=502,
             detail="Permission denied — make sure the sheet is shared with the connected Gmail account.",
         )
+    if resp.status_code == 404:
+        raise HTTPException(status_code=502, detail="Sheet not found — check that the Sheet ID in settings is correct.")
     if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"Google Sheets error: {resp.text}")
+        raise HTTPException(status_code=502, detail=f"Google Sheets error {resp.status_code}: {resp.text[:200]}")
 
     values = resp.json().get("values", [])
     if len(values) < 2:

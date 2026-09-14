@@ -630,7 +630,7 @@ async def import_candidates(
     if not cycle.sheet_url:
         raise HTTPException(status_code=400, detail="No sheet URL configured for this cycle")
 
-    token = await _get_valid_token(current_user.id, db)
+    token = await _get_valid_token(db, current_user.id)
     sheet_id = _extract_sheet_id(cycle.sheet_url)
 
     # Overlay stored column mapping onto defaults
@@ -639,7 +639,7 @@ async def import_candidates(
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(
             f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/A:ZZ",
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"Bearer {token.access_token}"},
         )
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail=f"Google Sheets error: {resp.text[:200]}")
@@ -667,6 +667,22 @@ async def import_candidates(
             return ""
         return row[idx].strip()
 
+    # Build an all-occurrences index for duplicate headers (e.g. two "How do you identify?" columns)
+    def col_nth(name: str, occurrence: int = 0) -> int | None:
+        """Return the nth (0-indexed) occurrence of a header name."""
+        name_lower = name.lower()
+        found = 0
+        for i, h in enumerate(headers):
+            if h == name or h.lower().startswith(name_lower):
+                if found == occurrence:
+                    return i
+                found += 1
+        return None
+
+    gender_col_name = col_map.gender_col
+    # ethnicity_col may use a ".1" suffix convention — strip it and find second occurrence
+    ethnicity_col_name = col_map.ethnicity_col.removesuffix(".1")
+
     # Find all column indices
     col_indices = {
         "timestamp": col(col_map.timestamp_col),
@@ -680,8 +696,8 @@ async def import_candidates(
         "college": col(col_map.college_col),
         "major": col(col_map.major_col),
         "headshot": col(col_map.headshot_col),
-        "gender": col(col_map.gender_col),
-        "ethnicity": col(col_map.ethnicity_col),
+        "gender": col_nth(gender_col_name, 0),
+        "ethnicity": col_nth(ethnicity_col_name, 1) if ethnicity_col_name == gender_col_name else col(col_map.ethnicity_col),
     }
 
     missing_cols = [
@@ -725,7 +741,7 @@ async def import_candidates(
         headshot_url: str | None = candidate.headshot_url if candidate else None
         headshot_raw = val(row, col_indices["headshot"])
         if headshot_raw and ("drive.google.com" in headshot_raw):
-            new_url = await _download_and_store_headshot(headshot_raw, str(cycle_id), token)
+            new_url = await _download_and_store_headshot(headshot_raw, str(cycle_id), token.access_token)
             if new_url:
                 headshot_url = new_url
 
