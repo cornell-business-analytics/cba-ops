@@ -1,14 +1,18 @@
+import asyncio
 import base64
 import re
 import uuid
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
+from io import BytesIO
 from typing import Any
 
 import httpx
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1014,3 +1018,272 @@ async def purge_headshots(
 
     await db.commit()
     return HeadshotPurgeResult(deleted=deleted)
+
+
+# ---------------------------------------------------------------------------
+# Deliberation deck (PPTX)
+# ---------------------------------------------------------------------------
+
+@router.get("/cycles/{cycle_id}/delib-deck")
+async def generate_delib_deck(
+    cycle_id: uuid.UUID,
+    _: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from PIL import Image as PILImage
+
+    # --- Data loading ---
+    cycle_result = await db.execute(select(ApplicationCycle).where(ApplicationCycle.id == cycle_id))
+    cycle = cycle_result.scalar_one_or_none()
+    if not cycle:
+        raise HTTPException(status_code=404, detail="Cycle not found")
+
+    cands_result = await db.execute(
+        select(Candidate)
+        .where(
+            Candidate.cycle_id == cycle_id,
+            Candidate.status.notin_([CandidateStatus.rejected, CandidateStatus.withdrawn]),
+        )
+        .options(
+            selectinload(Candidate.coffee_chats),
+            selectinload(Candidate.interview_scores),
+        )
+        .order_by(Candidate.status, Candidate.name)
+    )
+    candidates = list(cands_result.scalars().all())
+
+    rounds_result = await db.execute(
+        select(InterviewRound)
+        .where(InterviewRound.cycle_id == cycle_id)
+        .options(selectinload(InterviewRound.categories))
+        .order_by(InterviewRound.round_number)
+    )
+    rounds = list(rounds_result.scalars().all())
+    round_map: dict[uuid.UUID, InterviewRound] = {r.id: r for r in rounds}
+
+    sessions_result = await db.execute(
+        select(InterviewSession)
+        .join(InterviewRound, InterviewSession.round_id == InterviewRound.id)
+        .where(InterviewRound.cycle_id == cycle_id)
+    )
+    session_to_round: dict[uuid.UUID, uuid.UUID] = {
+        s.id: s.round_id for s in sessions_result.scalars().all()
+    }
+
+    cat_name: dict[uuid.UUID, str] = {}
+    for r in rounds:
+        for c in r.categories:
+            cat_name[c.id] = c.name
+
+    # --- Fetch headshots concurrently ---
+    headshot_bytes: dict[str, bytes] = {}
+    hs_pairs = [(str(c.id), c.headshot_url) for c in candidates if c.headshot_url]
+    if hs_pairs:
+        async def _fetch(client: httpx.AsyncClient, cid: str, url: str) -> tuple[str, bytes | None]:
+            try:
+                r = await client.get(url, follow_redirects=True)
+                if r.status_code == 200 and r.headers.get("content-type", "").startswith("image/"):
+                    return cid, r.content
+            except Exception:
+                pass
+            return cid, None
+
+        async with httpx.AsyncClient(timeout=10) as client:
+            results = await asyncio.gather(*[_fetch(client, cid, url) for cid, url in hs_pairs])
+        headshot_bytes = {cid: data for cid, data in results if data}
+
+    # --- PPTX helpers ---
+    STATUS_COLORS: dict[str, tuple[int, int, int]] = {
+        "applied":      (0x64, 0x74, 0x8B),
+        "coffee_chat":  (0x0E, 0xA5, 0xE9),
+        "interviewing": (0xF5, 0x9E, 0x0B),
+        "offer":        (0x8B, 0x5C, 0xF6),
+        "accepted":     (0x10, 0xB9, 0x81),
+    }
+    DEFAULT_COLOR = (0x64, 0x74, 0x8B)
+
+    def rgb(t: tuple[int, int, int]) -> RGBColor:
+        return RGBColor(*t)
+
+    def add_text(
+        slide: Any, x: float, y: float, w: float, h: float,
+        text: str, size: float, bold: bool = False,
+        color: tuple[int, int, int] = (0x1A, 0x1A, 0x2E),
+        align: Any = PP_ALIGN.LEFT,
+    ) -> None:
+        tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.alignment = align
+        run = p.add_run()
+        run.text = text
+        run.font.size = Pt(size)
+        run.font.bold = bold
+        run.font.color.rgb = rgb(color)
+
+    def add_rect(slide: Any, x: float, y: float, w: float, h: float, color: tuple[int, int, int]) -> None:
+        shape = slide.shapes.add_shape(1, Inches(x), Inches(y), Inches(w), Inches(h))
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = rgb(color)
+        shape.line.fill.background()
+
+    prs = Presentation()
+    prs.slide_width = Inches(10)
+    prs.slide_height = Inches(5.625)
+    blank = prs.slide_layouts[6]
+
+    # ---- Title slide ----
+    ts = prs.slides.add_slide(blank)
+    ts.background.fill.solid()
+    ts.background.fill.fore_color.rgb = rgb((0x1B, 0x7A, 0x3C))
+    add_text(ts, 1, 1.3, 8, 1.1, "CBA Deliberation Deck", 36, bold=True,
+             color=(0xFF, 0xFF, 0xFF), align=PP_ALIGN.CENTER)
+    add_text(ts, 1, 2.65, 8, 0.65, cycle.name, 22, color=(0xC8, 0xFF, 0xD0), align=PP_ALIGN.CENTER)
+    n = len(candidates)
+    add_text(ts, 1, 3.45, 8, 0.5, f"{n} candidate{'s' if n != 1 else ''}", 13,
+             color=(0x90, 0xC8, 0x98), align=PP_ALIGN.CENTER)
+
+    # ---- One slide per candidate ----
+    for idx, cand in enumerate(candidates, 1):
+        slide = prs.slides.add_slide(blank)
+        sc = STATUS_COLORS.get(cand.status, DEFAULT_COLOR)
+
+        # Status color bar
+        add_rect(slide, 0, 0, 10, 0.12, sc)
+
+        # Headshot (top-right, 2.1" square, cropped)
+        hs = headshot_bytes.get(str(cand.id))
+        if hs:
+            try:
+                img = PILImage.open(BytesIO(hs))
+                img_w, img_h = img.size
+                side = min(img_w, img_h)
+                img = img.crop((
+                    (img_w - side) // 2, (img_h - side) // 2,
+                    (img_w + side) // 2, (img_h + side) // 2,
+                ))
+                buf = BytesIO()
+                img.convert("RGB").save(buf, format="JPEG", quality=85)
+                buf.seek(0)
+                slide.shapes.add_picture(buf, Inches(7.67), Inches(0.28), Inches(2.1), Inches(2.1))
+            except Exception:
+                pass
+
+        # Name
+        add_text(slide, 0.28, 0.18, 7.2, 0.6, cand.name, 24, bold=True)
+
+        # Status label + info row (mixed runs)
+        tb_info = slide.shapes.add_textbox(Inches(0.28), Inches(0.83), Inches(7.2), Inches(0.3))
+        pi = tb_info.text_frame.paragraphs[0]
+        r_status = pi.add_run()
+        r_status.text = cand.status.replace("_", " ").title()
+        r_status.font.size = Pt(10)
+        r_status.font.bold = True
+        r_status.font.color.rgb = rgb(sc)
+        info_parts = [p for p in [
+            cand.major,
+            cand.grad_year,
+            f"({cand.pronouns})" if cand.pronouns else None,
+            "Transfer" if cand.is_transfer else None,
+        ] if p]
+        if info_parts:
+            r_info = pi.add_run()
+            r_info.text = "  ·  " + "  ·  ".join(info_parts)
+            r_info.font.size = Pt(10)
+            r_info.font.color.rgb = rgb((0x44, 0x44, 0x55))
+
+        # College(s)
+        colleges = cand.college if isinstance(cand.college, list) else []
+        if colleges:
+            add_text(slide, 0.28, 1.16, 7.2, 0.27, " · ".join(colleges), 9.5, color=(0x55, 0x55, 0x77))
+
+        # Divider
+        add_rect(slide, 0.28, 1.5, 7.2, 0.018, (0xDD, 0xDD, 0xEE))
+
+        y = 1.6
+        lh = 0.27
+
+        # Coffee chats
+        chats = list(cand.coffee_chats)
+        if chats:
+            completed = [c for c in chats if c.completed and c.score is not None]
+            avg = f"  ·  Avg {sum(c.score for c in completed) / len(completed):.1f}/3" if completed else ""
+            add_text(slide, 0.28, y, 7.2, lh,
+                     f"Coffee chats: {len(completed)}/{len(chats)} completed{avg}",
+                     10, color=(0x92, 0x5F, 0x1A))
+            y += lh
+
+        # Interview scores grouped by round
+        scores = list(cand.interview_scores)
+        if scores:
+            by_round: dict[uuid.UUID, list[InterviewScore]] = {}
+            for s in scores:
+                rid = session_to_round.get(s.session_id)
+                if rid:
+                    by_round.setdefault(rid, []).append(s)
+
+            for rid, rscore_list in sorted(
+                by_round.items(),
+                key=lambda kv: round_map[kv[0]].round_number if kv[0] in round_map else 99,
+            ):
+                rnd = round_map.get(rid)
+                if not rnd or y > 4.5:
+                    break
+                add_text(slide, 0.28, y, 7.2, lh, f"● {rnd.name}", 10, bold=True, color=(0x33, 0x33, 0x55))
+                y += lh
+
+                cat_groups: dict[uuid.UUID, list[InterviewScore]] = {}
+                for s in rscore_list:
+                    cat_groups.setdefault(s.category_id, []).append(s)
+
+                parts: list[str] = []
+                for cid_key, cscores in sorted(cat_groups.items(), key=lambda kv: cat_name.get(kv[0], "")):
+                    cname = cat_name.get(cid_key, "?")
+                    nums = [s.numeric_score for s in cscores if s.numeric_score is not None]
+                    ynms = [s.ynm_score for s in cscores if s.ynm_score]
+                    if nums:
+                        parts.append(f"{cname}: {sum(nums) / len(nums):.1f}")
+                    elif ynms:
+                        top = Counter(ynms).most_common(1)[0][0]
+                        parts.append(f"{cname}: {top}")
+
+                if parts and y <= 4.5:
+                    add_text(slide, 0.55, y, 6.9, lh, "  |  ".join(parts), 9.5, color=(0x22, 0x55, 0x33))
+                    y += lh
+
+        # Internal notes
+        if cand.notes and y < 5.2:
+            note_y = max(y + 0.08, 4.1)
+            tb_n = slide.shapes.add_textbox(Inches(0.28), Inches(note_y), Inches(9.4), Inches(0.75))
+            tf_n = tb_n.text_frame
+            tf_n.word_wrap = True
+            pn = tf_n.paragraphs[0]
+            rn1 = pn.add_run()
+            rn1.text = "Notes: "
+            rn1.font.bold = True
+            rn1.font.size = Pt(9)
+            rn1.font.color.rgb = rgb((0x55, 0x55, 0x55))
+            rn2 = pn.add_run()
+            rn2.text = cand.notes[:300]
+            rn2.font.size = Pt(9)
+            rn2.font.color.rgb = rgb((0x55, 0x55, 0x55))
+
+        # Slide counter
+        add_text(slide, 8.8, 5.3, 1.0, 0.22, f"{idx} / {n}", 8,
+                 color=(0xBB, 0xBB, 0xBB), align=PP_ALIGN.RIGHT)
+
+    # --- Return as download ---
+    out = BytesIO()
+    prs.save(out)
+    out.seek(0)
+    safe_name = re.sub(r"[^\w\-]", "_", cycle.name)
+    return StreamingResponse(
+        out,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        headers={"Content-Disposition": f'attachment; filename="delib_{safe_name}.pptx"'},
+    )
