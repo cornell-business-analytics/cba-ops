@@ -901,11 +901,12 @@ async def _send_gmail(token_str: str, sender: str, subject: str, body: str, bcc:
 class BulkAdvanceRequest(BaseModel):
     candidate_ids: list[uuid.UUID]
     new_status: CandidateStatus
-    interview_date: str
-    interview_time: str
-    location: str
-    rsvp_link: str
-    deadline: str
+    custom_body: str | None = None   # if set, used directly instead of the generated template
+    interview_date: str = ""
+    interview_time: str = ""
+    location: str = ""
+    rsvp_link: str = ""
+    deadline: str = ""
 
 
 class BulkAdvanceResult(BaseModel):
@@ -939,18 +940,21 @@ async def bulk_advance_candidates(
     emails = [c.email for c in candidates if c.email]
     cc_emails = await _get_cc_emails(db)
 
-    email_body = (
-        f"Hi,\n\n"
-        f"Congratulations! We are excited to invite you to the next round of the Cornell Business Analytics recruitment process.\n\n"
-        f"Please sign up for your interview slot here: {body.rsvp_link}\n\n"
-        f"Interview Details:\n"
-        f"  Date: {body.interview_date}\n"
-        f"  Time: {body.interview_time}\n"
-        f"  Location: {body.location}\n\n"
-        f"Please sign up by {body.deadline}.\n\n"
-        f"We look forward to seeing you!\n\n"
-        f"Best,\nCBA Recruitment Team"
-    )
+    if body.custom_body:
+        email_body = body.custom_body
+    else:
+        email_body = (
+            f"Hi,\n\n"
+            f"Congratulations! We are excited to invite you to the next round of the Cornell Business Analytics recruitment process.\n\n"
+            f"Please sign up for your interview slot here: {body.rsvp_link}\n\n"
+            f"Interview Details:\n"
+            f"  Date: {body.interview_date}\n"
+            f"  Time: {body.interview_time}\n"
+            f"  Location: {body.location}\n\n"
+            f"Please sign up by {body.deadline}.\n\n"
+            f"We look forward to seeing you!\n\n"
+            f"Best,\nCBA Recruitment Team"
+        )
 
     email_sent, error = await _send_gmail(
         token.access_token,

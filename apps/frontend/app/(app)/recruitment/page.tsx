@@ -246,6 +246,7 @@ export default function RecruitmentPage() {
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [advanceStatus, setAdvanceStatus] = useState<"idle" | "done" | "error">("idle");
   const [advanceMsg, setAdvanceMsg] = useState<string | null>(null);
+  const [advanceTemplate, setAdvanceTemplate] = useState<"general" | "round">("general");
   const [advanceForm, setAdvanceForm] = useState({
     new_status: "coffee_chat" as CandidateStatus,
     interview_date: "",
@@ -254,11 +255,40 @@ export default function RecruitmentPage() {
     rsvp_link: "",
     deadline: "",
   });
+  const [roundForm, setRoundForm] = useState({
+    semester: "",
+    round_name: "Round 1",
+    round_description: "",
+    date: "",
+    time_slots: "",
+    location: "",
+    dress_code: "Business Professional",
+    slot_duration: "20",
+    rsvp_link: "",
+    deadline: "",
+    conflict_emails: "",
+    sign_off: "",
+  });
+
+  function buildRoundBody(f: typeof roundForm) {
+    return (
+      `Dear Applicant,\n\n` +
+      `Congratulations on making it to ${f.round_name} of CBA's ${f.semester} application process. This round will be ${f.round_description}, and the details of this round can be found below:\n\n` +
+      `Date: ${f.date}\n` +
+      `Interview Time Slots: ${f.time_slots}\n` +
+      `Location: ${f.location}\n` +
+      `Dress Code: ${f.dress_code}\n\n` +
+      `Please comment on one cell for a ${f.slot_duration}-minute slot by typing your name and netID here: ${f.rsvp_link}\n\n` +
+      `Please sign up BY ${f.deadline} or else you will not be advancing past ${f.round_name}. Please note that this is first-come, first-serve. Unfortunately, we have limited capacity in each time slot, so if you have a conflict please contact all three of us at ${f.conflict_emails} as soon as possible.\n\n` +
+      `We look forward to meeting you virtually!\n\n` +
+      `Best,\n${f.sign_off}`
+    );
+  }
 
   const bulkAdvance = useMutation({
     mutationFn: () => api().post<{ advanced: number; email_sent: boolean; error: string | null }>(
       `/ops/v1/cycles/${selectedCycleId}/bulk-advance`,
-      { candidate_ids: Array.from(selectedIds), ...advanceForm }
+      { candidate_ids: Array.from(selectedIds), ...advanceForm, ...(advanceTemplate === "round" ? { custom_body: buildRoundBody(roundForm) } : {}) }
     ),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["candidates", selectedCycleId] });
@@ -883,12 +913,32 @@ export default function RecruitmentPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ChevronRight className="h-4 w-4 text-emerald-600" />
-              {emailStep === "form" ? `Advance ${selectedIds.size} candidate${selectedIds.size !== 1 ? "s" : ""} to next round` : "Review email before sending"}
+              {emailStep === "form" ? `Advance ${selectedIds.size} candidate${selectedIds.size !== 1 ? 's' : ''} to next round` : "Review email before sending"}
+
             </DialogTitle>
           </DialogHeader>
 
           {emailStep === "form" ? (
-            <div className="space-y-3 py-1">
+            <div className="space-y-3 py-1 max-h-[60vh] overflow-y-auto pr-1">
+              {/* Template selector */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${advanceTemplate === "general" ? "bg-emerald-600 text-white border-emerald-600" : "border-input hover:bg-muted"}`}
+                  onClick={() => setAdvanceTemplate("general")}
+                >
+                  General
+                </button>
+                <button
+                  type="button"
+                  className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${advanceTemplate === "round" ? "bg-emerald-600 text-white border-emerald-600" : "border-input hover:bg-muted"}`}
+                  onClick={() => setAdvanceTemplate("round")}
+                >
+                  Interview Round
+                </button>
+              </div>
+
+              {/* Move to status — shared */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Move to status</Label>
                 <select className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm" value={advanceForm.new_status} onChange={e => setAdvanceForm(f => ({ ...f, new_status: e.target.value as CandidateStatus }))}>
@@ -898,28 +948,90 @@ export default function RecruitmentPage() {
                   <option value="accepted">Accepted</option>
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Interview date</Label>
-                  <Input className="h-8 text-sm" placeholder="e.g. Monday, September 15" value={advanceForm.interview_date} onChange={e => setAdvanceForm(f => ({ ...f, interview_date: e.target.value }))} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Interview time</Label>
-                  <Input className="h-8 text-sm" placeholder="e.g. 5:00 PM – 7:00 PM" value={advanceForm.interview_time} onChange={e => setAdvanceForm(f => ({ ...f, interview_time: e.target.value }))} />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Location</Label>
-                <Input className="h-8 text-sm" placeholder="e.g. Statler Hall Room 196" value={advanceForm.location} onChange={e => setAdvanceForm(f => ({ ...f, location: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Sign-up link ("here")</Label>
-                <Input className="h-8 text-sm" placeholder="https://…" value={advanceForm.rsvp_link} onChange={e => setAdvanceForm(f => ({ ...f, rsvp_link: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Sign-up deadline</Label>
-                <Input className="h-8 text-sm" placeholder="e.g. tonight by 6:00 PM" value={advanceForm.deadline} onChange={e => setAdvanceForm(f => ({ ...f, deadline: e.target.value }))} />
-              </div>
+
+              {advanceTemplate === "general" ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Interview date</Label>
+                      <Input className="h-8 text-sm" placeholder="e.g. Monday, September 15" value={advanceForm.interview_date} onChange={e => setAdvanceForm(f => ({ ...f, interview_date: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Interview time</Label>
+                      <Input className="h-8 text-sm" placeholder="e.g. 5:00 PM – 7:00 PM" value={advanceForm.interview_time} onChange={e => setAdvanceForm(f => ({ ...f, interview_time: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Location</Label>
+                    <Input className="h-8 text-sm" placeholder="e.g. Statler Hall Room 196" value={advanceForm.location} onChange={e => setAdvanceForm(f => ({ ...f, location: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Sign-up link (&quot;here&quot;)</Label>
+                    <Input className="h-8 text-sm" placeholder="https://…" value={advanceForm.rsvp_link} onChange={e => setAdvanceForm(f => ({ ...f, rsvp_link: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Sign-up deadline</Label>
+                    <Input className="h-8 text-sm" placeholder="e.g. tonight by 6:00 PM" value={advanceForm.deadline} onChange={e => setAdvanceForm(f => ({ ...f, deadline: e.target.value }))} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Semester</Label>
+                      <Input className="h-8 text-sm" placeholder="e.g. Fall 2025" value={roundForm.semester} onChange={e => setRoundForm(f => ({ ...f, semester: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Round name</Label>
+                      <Input className="h-8 text-sm" placeholder="e.g. Round 1" value={roundForm.round_name} onChange={e => setRoundForm(f => ({ ...f, round_name: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Round description</Label>
+                    <Input className="h-8 text-sm" placeholder="e.g. a Social Round held over Zoom" value={roundForm.round_description} onChange={e => setRoundForm(f => ({ ...f, round_description: e.target.value }))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Date</Label>
+                      <Input className="h-8 text-sm" placeholder="e.g. Monday, September 15" value={roundForm.date} onChange={e => setRoundForm(f => ({ ...f, date: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Time slots</Label>
+                      <Input className="h-8 text-sm" placeholder="e.g. 5:00–7:00 PM" value={roundForm.time_slots} onChange={e => setRoundForm(f => ({ ...f, time_slots: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Location / platform</Label>
+                    <Input className="h-8 text-sm" placeholder="e.g. Zoom / Statler Hall 196" value={roundForm.location} onChange={e => setRoundForm(f => ({ ...f, location: e.target.value }))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Dress code</Label>
+                      <Input className="h-8 text-sm" placeholder="e.g. Business Professional" value={roundForm.dress_code} onChange={e => setRoundForm(f => ({ ...f, dress_code: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Slot duration (min)</Label>
+                      <Input className="h-8 text-sm" placeholder="e.g. 20" value={roundForm.slot_duration} onChange={e => setRoundForm(f => ({ ...f, slot_duration: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Sign-up spreadsheet link</Label>
+                    <Input className="h-8 text-sm" placeholder="https://…" value={roundForm.rsvp_link} onChange={e => setRoundForm(f => ({ ...f, rsvp_link: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Sign-up deadline</Label>
+                    <Input className="h-8 text-sm" placeholder="e.g. TONIGHT 6:00 PM" value={roundForm.deadline} onChange={e => setRoundForm(f => ({ ...f, deadline: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Conflict contact emails</Label>
+                    <Input className="h-8 text-sm" placeholder="e.g. a@cornell.edu, b@cornell.edu" value={roundForm.conflict_emails} onChange={e => setRoundForm(f => ({ ...f, conflict_emails: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Sign-off (names)</Label>
+                    <Input className="h-8 text-sm" placeholder="e.g. Alice, Bob, and Carol" value={roundForm.sign_off} onChange={e => setRoundForm(f => ({ ...f, sign_off: e.target.value }))} />
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <EmailPreview
@@ -927,9 +1039,7 @@ export default function RecruitmentPage() {
               cc={emailRecipients?.cc ?? []}
               bcc={candidates.filter(c => selectedIds.has(c.id)).map(c => ({ name: c.name, email: c.email }))}
               subject="[CBA] Application Update"
-              body={
-                `Hi,\n\nCongratulations! We are excited to invite you to the next round of the Cornell Business Analytics recruitment process.\n\nPlease sign up for your interview slot here: ${advanceForm.rsvp_link}\n\nInterview Details:\n  Date: ${advanceForm.interview_date}\n  Time: ${advanceForm.interview_time}\n  Location: ${advanceForm.location}\n\nPlease sign up by ${advanceForm.deadline}.\n\nWe look forward to seeing you!\n\nBest,\nCBA Recruitment Team`
-              }
+              body={advanceTemplate === "round" ? buildRoundBody(roundForm) : `Hi,\n\nCongratulations! We are excited to invite you to the next round of the Cornell Business Analytics recruitment process.\n\nPlease sign up for your interview slot here: ${advanceForm.rsvp_link}\n\nInterview Details:\n  Date: ${advanceForm.interview_date}\n  Time: ${advanceForm.interview_time}\n  Location: ${advanceForm.location}\n\nPlease sign up by ${advanceForm.deadline}.\n\nWe look forward to seeing you!\n\nBest,\nCBA Recruitment Team`}
             />
           )}
 
@@ -940,7 +1050,9 @@ export default function RecruitmentPage() {
             {emailStep === "form" ? (
               <Button
                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                disabled={!advanceForm.interview_date || !advanceForm.interview_time || !advanceForm.location || !advanceForm.rsvp_link || !advanceForm.deadline}
+                disabled={advanceTemplate === "round"
+                  ? !roundForm.semester || !roundForm.rsvp_link || !roundForm.deadline || !roundForm.conflict_emails || !roundForm.sign_off
+                  : !advanceForm.interview_date || !advanceForm.interview_time || !advanceForm.location || !advanceForm.rsvp_link || !advanceForm.deadline}
                 onClick={() => setEmailStep("preview")}
               >
                 Review email →
@@ -971,7 +1083,7 @@ export default function RecruitmentPage() {
           {emailStep === "form" ? (
             <div className="space-y-4 py-1">
               <div className="space-y-1.5">
-                <Label className="text-xs">Email body (BCC'd to all selected)</Label>
+                <Label className="text-xs">Email body (BCC&apos;d to all selected)</Label>
                 <Textarea className="text-sm min-h-[180px] resize-y" value={rejectBody} onChange={(e) => setRejectBody(e.target.value)} />
               </div>
             </div>
