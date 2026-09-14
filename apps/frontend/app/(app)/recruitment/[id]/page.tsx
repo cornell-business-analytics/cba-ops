@@ -2,15 +2,14 @@
 
 import Image from "next/image";
 import { useAppSession } from "@/hooks/session-context";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, MessageSquare, UserRound } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/recruitment/StatusBadge";
 import { createApi } from "@/lib/api";
-import type { CandidateStatus, CoffeeChat } from "@cba/types";
+import type { CandidateStatus } from "@cba/types";
 
 interface Candidate {
   id: string;
@@ -36,19 +35,12 @@ interface Candidate {
 export default function CandidatePage() {
   const { id } = useParams<{ id: string }>();
   const session = useAppSession();
-  const qc = useQueryClient();
   const router = useRouter();
   const api = () => createApi(session?.accessToken);
 
   const { data: candidate, isLoading } = useQuery<Candidate>({
     queryKey: ["candidate", id],
     queryFn: () => api().get(`/ops/v1/candidates/${id}`),
-    enabled: !!session?.accessToken,
-  });
-
-  const { data: coffeeChats = [] } = useQuery<CoffeeChat[]>({
-    queryKey: ["candidate", id, "coffee-chats"],
-    queryFn: () => api().get(`/ops/v1/candidates/${id}/coffee-chats`),
     enabled: !!session?.accessToken,
   });
 
@@ -93,13 +85,6 @@ export default function CandidatePage() {
     enabled: !!session?.accessToken,
   });
 
-  const autoAssign = useMutation({
-    mutationFn: () => api().post(`/ops/v1/candidates/${id}/coffee-chats/auto`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["candidate", id, "coffee-chats"] }),
-  });
-
-  const [headshotOpen, setHeadshotOpen] = useState(false);
-
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
   if (!candidate) return <div className="p-6 text-sm text-muted-foreground">Not found.</div>;
 
@@ -112,45 +97,23 @@ export default function CandidatePage() {
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
-      {/* Headshot lightbox */}
-      {headshotOpen && candidate.headshot_url && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"
-          onClick={() => setHeadshotOpen(false)}
-        >
+      {candidate.headshot_url && (
+        <div className="rounded-xl overflow-hidden border bg-muted/20 w-full max-h-[420px] flex items-center justify-center">
           <Image
             src={candidate.headshot_url}
             alt={candidate.name}
-            width={480}
-            height={480}
+            width={800}
+            height={420}
             unoptimized
-            className="rounded-2xl object-cover max-h-[80vh] max-w-[80vw] shadow-2xl"
+            className="w-full object-contain max-h-[420px]"
           />
         </div>
       )}
 
       <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          {candidate.headshot_url ? (
-            <button onClick={() => setHeadshotOpen(true)} className="shrink-0 rounded-full ring-2 ring-transparent hover:ring-foreground/20 transition-all">
-              <Image
-                src={candidate.headshot_url}
-                alt=""
-                width={96}
-                height={96}
-                unoptimized
-                className="rounded-full object-cover h-24 w-24"
-              />
-            </button>
-          ) : (
-            <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center shrink-0">
-              <UserRound className="h-10 w-10 text-muted-foreground" />
-            </div>
-          )}
-          <div>
-            <h1 className="text-xl font-semibold">{candidate.name}</h1>
-            <p className="text-sm text-muted-foreground">{candidate.cornell_email} · {candidate.net_id}</p>
-          </div>
+        <div>
+          <h1 className="text-xl font-semibold">{candidate.name}</h1>
+          <p className="text-sm text-muted-foreground">{candidate.cornell_email} · {candidate.net_id}</p>
         </div>
         <StatusBadge status={candidate.status} />
       </div>
@@ -174,81 +137,6 @@ export default function CandidatePage() {
         ))}
       </div>
 
-
-      {/* Coffee chats */}
-      <div className="rounded-lg border bg-white p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" /> Coffee Chats ({coffeeChats.length}/3)
-          </h2>
-          {coffeeChats.length < 3 && (
-            <Button size="sm" variant="outline" onClick={() => autoAssign.mutate()} disabled={autoAssign.isPending}>
-              Auto-assign
-            </Button>
-          )}
-        </div>
-        {coffeeChats.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No coffee chats assigned yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {coffeeChats.map((chat) => (
-              <li key={chat.id} className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2 text-sm">
-                <span className="text-muted-foreground">{chat.member_name ?? chat.member_id.slice(0, 8)}</span>
-                <div className="flex items-center gap-2">
-                  {chat.score !== null && (
-                    <Badge variant="secondary">Score: {chat.score}/3</Badge>
-                  )}
-                  <Badge variant={chat.completed ? "success" : "outline"}>
-                    {chat.completed ? "Done" : "Pending"}
-                  </Badge>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* Coffee chat evaluations */}
-      <div className="rounded-lg border bg-white p-4 space-y-3">
-        <h2 className="text-sm font-semibold">Coffee Chat Evaluations</h2>
-        {evaluations.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No evaluations imported yet.</p>
-        ) : (
-          <ul className="space-y-3">
-            {evaluations.map((ev) => {
-              const score = ev.score;
-              const scoreBg =
-                score === null ? "bg-muted text-muted-foreground"
-                : score < 2 ? "bg-red-100 text-red-700"
-                : score < 3 ? "bg-yellow-100 text-yellow-700"
-                : "bg-green-100 text-green-700";
-              const scoreLabel =
-                score === null ? "No score"
-                : score < 2 ? "Unacceptable"
-                : score < 3 ? "Would interview"
-                : "Outstanding";
-              return (
-                <li key={ev.id} className="rounded-md bg-muted/40 px-3 py-3 text-sm space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{ev.member_name}</span>
-                    <div className="flex items-center gap-2">
-                      {ev.chat_date && (
-                        <span className="text-xs text-muted-foreground">{ev.chat_date}</span>
-                      )}
-                      <span className={`text-xs font-medium rounded px-2 py-0.5 ${scoreBg}`}>
-                        {score !== null ? `${score} — ${scoreLabel}` : scoreLabel}
-                      </span>
-                    </div>
-                  </div>
-                  {ev.comments && (
-                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">{ev.comments}</p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
 
       {/* Interview scores */}
       {scoresError && (scoresErrorObj as any)?.status !== 404 && (
@@ -348,6 +236,46 @@ export default function CandidatePage() {
           </div>
         );
       })()}
+
+      {/* Coffee chat evaluations */}
+      {evaluations.length > 0 && (
+        <div className="rounded-lg border bg-white p-4 space-y-3">
+          <h2 className="text-sm font-semibold">Coffee Chat Evaluations</h2>
+          <ul className="space-y-3">
+            {evaluations.map((ev) => {
+              const score = ev.score;
+              const scoreBg =
+                score === null ? "bg-muted text-muted-foreground"
+                : score < 2 ? "bg-red-100 text-red-700"
+                : score < 3 ? "bg-yellow-100 text-yellow-700"
+                : "bg-green-100 text-green-700";
+              const scoreLabel =
+                score === null ? "No score"
+                : score < 2 ? "Unacceptable"
+                : score < 3 ? "Would interview"
+                : "Outstanding";
+              return (
+                <li key={ev.id} className="rounded-md bg-muted/40 px-3 py-3 text-sm space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{ev.member_name}</span>
+                    <div className="flex items-center gap-2">
+                      {ev.chat_date && (
+                        <span className="text-xs text-muted-foreground">{ev.chat_date}</span>
+                      )}
+                      <span className={`text-xs font-medium rounded px-2 py-0.5 ${scoreBg}`}>
+                        {score !== null ? `${score} — ${scoreLabel}` : scoreLabel}
+                      </span>
+                    </div>
+                  </div>
+                  {ev.comments && (
+                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">{ev.comments}</p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* Internal notes */}
       {candidate.notes && (
