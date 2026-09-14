@@ -537,7 +537,7 @@ class CandidateColumnMapping(BaseModel):
     transfer_col: str = "Are you a transfer student?"
     college_col: str = "College"
     major_col: str = "Major(s)"
-    headshot_col: str = "Please upload a headshot"
+    headshot_col: str = "[Optional] Please upload a headshot"
     gender_col: str = "How do you identify?"
     ethnicity_col: str = "How do you identify?.1"
 

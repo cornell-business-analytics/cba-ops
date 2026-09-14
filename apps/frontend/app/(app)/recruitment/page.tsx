@@ -595,7 +595,7 @@ export default function RecruitmentPage() {
               ["transfer_col", "Transfer student?", "Are you a transfer student?"],
               ["college_col", "College", "College"],
               ["major_col", "Major(s)", "Major(s)"],
-              ["headshot_col", "Headshot upload", "Please upload a headshot"],
+              ["headshot_col", "Headshot upload", "[Optional] Please upload a headshot"],
               ["gender_col", "Gender identity", "How do you identify?"],
               ["ethnicity_col", "Ethnicity", "How do you identify?.1"],
             ] as [string, string, string][]).map(([key, label, placeholder]) => (
