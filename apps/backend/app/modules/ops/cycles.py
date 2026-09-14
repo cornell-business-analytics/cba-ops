@@ -784,6 +784,26 @@ async def import_candidates(
 
 
 # ---------------------------------------------------------------------------
+# Email recipients preview
+# ---------------------------------------------------------------------------
+
+class EmailRecipientsPreview(BaseModel):
+    sender_email: str | None
+    cc: list[str]
+
+
+@router.get("/cycles/{cycle_id}/email-recipients", response_model=EmailRecipientsPreview)
+async def get_email_recipients(
+    cycle_id: uuid.UUID,
+    current_user: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    token = await _get_valid_token(db, current_user.id)
+    cc_emails = await _get_cc_emails(db)
+    return EmailRecipientsPreview(sender_email=token.account_email, cc=sorted(cc_emails))
+
+
+# ---------------------------------------------------------------------------
 # Bulk reject + email
 # ---------------------------------------------------------------------------
 
@@ -821,18 +841,29 @@ async def bulk_reject_candidates(
 
     token = await _get_valid_token(db, current_user.id)
     emails = [c.email for c in candidates if c.email]
+    cc_emails = await _get_cc_emails(db)
 
-    # CC active eboard + recruitment directors
-    cc_result = await db.execute(
+    email_sent, error = await _send_gmail(
+        token.access_token,
+        token.account_email or "me",
+        "[CBA] Application Update",
+        body.email_body,
+        bcc=emails,
+        cc=cc_emails,
+    )
+    return BulkRejectResult(rejected=len(candidates), email_sent=email_sent, error=error)
+
+
+async def _get_cc_emails(db: AsyncSession) -> list[str]:
+    """Return emails of active eboard members and recruitment directors."""
+    result = await db.execute(
         select(User.email)
         .join(Membership, Membership.user_id == User.id)
         .where(
             Membership.is_active == True,
             or_(
-                # Eboard (website_role takes precedence, fall back to user.role)
                 Membership.website_role == "eboard",
                 and_(Membership.website_role.is_(None), User.role == "eboard"),
-                # Recruitment directors: director-level with "recruitment" in their title
                 and_(
                     or_(
                         Membership.website_role == "director",
@@ -843,32 +874,93 @@ async def bulk_reject_candidates(
             ),
         )
     )
-    cc_emails = list({row[0] for row in cc_result.all() if row[0]})
+    return list({row[0] for row in result.all() if row[0]})
 
-    sender = token.account_email or "me"
-    msg = MIMEText(body.email_body, "plain", "utf-8")
-    msg["Subject"] = "[CBA] Application Update"
+
+async def _send_gmail(token_str: str, sender: str, subject: str, body: str, bcc: list[str], cc: list[str]) -> tuple[bool, str | None]:
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = subject
     msg["To"] = sender
-    if cc_emails:
-        msg["Cc"] = ", ".join(cc_emails)
-    msg["Bcc"] = ", ".join(emails)
-
+    if cc:
+        msg["Cc"] = ", ".join(cc)
+    if bcc:
+        msg["Bcc"] = ", ".join(bcc)
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             resp = await client.post(
                 "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-                headers={"Authorization": f"Bearer {token.access_token}"},
+                headers={"Authorization": f"Bearer {token_str}"},
                 json={"raw": raw},
             )
-        email_sent = resp.status_code == 200
-        error = None if email_sent else f"Gmail {resp.status_code}: {resp.text[:200]}"
+        return resp.status_code == 200, (None if resp.status_code == 200 else f"Gmail {resp.status_code}: {resp.text[:200]}")
     except Exception as e:
-        email_sent = False
-        error = str(e)
+        return False, str(e)
 
-    return BulkRejectResult(rejected=len(candidates), email_sent=email_sent, error=error)
+
+class BulkAdvanceRequest(BaseModel):
+    candidate_ids: list[uuid.UUID]
+    new_status: CandidateStatus
+    interview_date: str
+    interview_time: str
+    location: str
+    rsvp_link: str
+    deadline: str
+
+
+class BulkAdvanceResult(BaseModel):
+    advanced: int
+    email_sent: bool
+    error: str | None = None
+
+
+@router.post("/cycles/{cycle_id}/bulk-advance", response_model=BulkAdvanceResult)
+async def bulk_advance_candidates(
+    cycle_id: uuid.UUID,
+    body: BulkAdvanceRequest,
+    current_user: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Candidate).where(
+            Candidate.id.in_(body.candidate_ids),
+            Candidate.cycle_id == cycle_id,
+        )
+    )
+    candidates = result.scalars().all()
+    if not candidates:
+        raise HTTPException(status_code=404, detail="No matching candidates found")
+
+    for c in candidates:
+        c.status = body.new_status
+    await db.commit()
+
+    token = await _get_valid_token(db, current_user.id)
+    emails = [c.email for c in candidates if c.email]
+    cc_emails = await _get_cc_emails(db)
+
+    email_body = (
+        f"Hi,\n\n"
+        f"Congratulations! We are excited to invite you to the next round of the Cornell Business Analytics recruitment process.\n\n"
+        f"Please sign up for your interview slot here: {body.rsvp_link}\n\n"
+        f"Interview Details:\n"
+        f"  Date: {body.interview_date}\n"
+        f"  Time: {body.interview_time}\n"
+        f"  Location: {body.location}\n\n"
+        f"Please sign up by {body.deadline}.\n\n"
+        f"We look forward to seeing you!\n\n"
+        f"Best,\nCBA Recruitment Team"
+    )
+
+    email_sent, error = await _send_gmail(
+        token.access_token,
+        token.account_email or "me",
+        "[CBA] Application Update",
+        email_body,
+        bcc=emails,
+        cc=cc_emails,
+    )
+    return BulkAdvanceResult(advanced=len(candidates), email_sent=email_sent, error=error)
 
 
 # ---------------------------------------------------------------------------

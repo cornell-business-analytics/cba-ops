@@ -132,6 +132,13 @@ export default function RecruitmentPage() {
     enabled: !!session?.accessToken && !!selectedCycleId,
   });
 
+  interface EmailRecipients { sender_email: string | null; cc: string[] }
+  const { data: emailRecipients } = useQuery<EmailRecipients>({
+    queryKey: ["email-recipients", selectedCycleId],
+    queryFn: () => api().get(`/ops/v1/cycles/${selectedCycleId}/email-recipients`),
+    enabled: !!session?.accessToken && !!selectedCycleId && (canManage || session?.role === "director"),
+  });
+
   // Auto-select active cycle (or first) on load
   useEffect(() => {
     if (selectedCycleId || cycles.length === 0) return;
@@ -234,6 +241,39 @@ export default function RecruitmentPage() {
   const [rejectStatus, setRejectStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [rejectMsg, setRejectMsg] = useState<string | null>(null);
 
+  const [emailStep, setEmailStep] = useState<"form" | "preview">("form");
+
+  const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [advanceStatus, setAdvanceStatus] = useState<"idle" | "done" | "error">("idle");
+  const [advanceMsg, setAdvanceMsg] = useState<string | null>(null);
+  const [advanceForm, setAdvanceForm] = useState({
+    new_status: "coffee_chat" as CandidateStatus,
+    interview_date: "",
+    interview_time: "",
+    location: "",
+    rsvp_link: "",
+    deadline: "",
+  });
+
+  const bulkAdvance = useMutation({
+    mutationFn: () => api().post<{ advanced: number; email_sent: boolean; error: string | null }>(
+      `/ops/v1/cycles/${selectedCycleId}/bulk-advance`,
+      { candidate_ids: Array.from(selectedIds), ...advanceForm }
+    ),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["candidates", selectedCycleId] });
+      setSelectedIds(new Set());
+      setAdvanceStatus("done");
+      setAdvanceMsg(
+        data.email_sent
+          ? `${data.advanced} advanced · email sent`
+          : `${data.advanced} advanced · email failed: ${data.error}`
+      );
+      setAdvanceOpen(false);
+    },
+    onError: (err: Error) => { setAdvanceStatus("error"); setAdvanceMsg(err.message); },
+  });
+
   const bulkReject = useMutation({
     mutationFn: () => api().post<{ rejected: number; email_sent: boolean; error: string | null }>(
       `/ops/v1/cycles/${selectedCycleId}/bulk-reject`,
@@ -298,15 +338,21 @@ export default function RecruitmentPage() {
     }
   }
 
-  const filtered = candidates.filter((c) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      c.name.toLowerCase().includes(q)
-      || c.cornell_email.toLowerCase().includes(q)
-      || (c.net_id ?? "").toLowerCase().includes(q)
-    );
-  });
+  const filtered = candidates
+    .filter((c) => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return (
+        c.name.toLowerCase().includes(q)
+        || c.cornell_email.toLowerCase().includes(q)
+        || (c.net_id ?? "").toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      const aRej = a.status === "rejected" || a.status === "withdrawn" ? 1 : 0;
+      const bRej = b.status === "rejected" || b.status === "withdrawn" ? 1 : 0;
+      return aRej - bRej;
+    });
 
   // ─── Empty state ──────────────────────────────────────────────────────────
   if (!cyclesLoading && cycles.length === 0) {
@@ -509,13 +555,28 @@ export default function RecruitmentPage() {
               />
             </div>
             {selectedIds.size > 0 && (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => { setRejectStatus("idle"); setRejectMsg(null); setRejectOpen(true); }}
-              >
-                <XCircle className="h-4 w-4 mr-1" /> Reject {selectedIds.size}
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => { setAdvanceStatus("idle"); setAdvanceMsg(null); setAdvanceOpen(true); }}
+                >
+                  <ChevronRight className="h-4 w-4 mr-1" /> Advance {selectedIds.size}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => { setRejectStatus("idle"); setRejectMsg(null); setRejectOpen(true); }}
+                >
+                  <XCircle className="h-4 w-4 mr-1" /> Reject {selectedIds.size}
+                </Button>
+              </>
+            )}
+            {advanceStatus !== "idle" && (
+              <span className={`text-xs flex items-center gap-1 ${advanceStatus === "error" ? "text-destructive" : "text-emerald-700"}`}>
+                {advanceStatus === "done" && <Check className="h-3 w-3" />}
+                {advanceMsg}
+              </span>
             )}
             {rejectStatus !== "idle" && (
               <span className={`text-xs flex items-center gap-1 ${rejectStatus === "error" ? "text-destructive" : "text-emerald-700"}`}>
@@ -815,37 +876,128 @@ export default function RecruitmentPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk reject dialog */}
-      <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
-        <DialogContent className="max-w-lg">
+      {/* Bulk advance dialog */}
+      {/* Bulk advance dialog */}
+      <Dialog open={advanceOpen} onOpenChange={(o) => { setAdvanceOpen(o); if (!o) setEmailStep("form"); }}>
+        <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-destructive" /> Reject {selectedIds.size} candidate{selectedIds.size !== 1 ? "s" : ""}
+              <ChevronRight className="h-4 w-4 text-emerald-600" />
+              {emailStep === "form" ? `Advance ${selectedIds.size} candidate${selectedIds.size !== 1 ? "s" : ""} to next round` : "Review email before sending"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-1">
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Subject</p>
-              <p className="text-sm px-3 py-2 rounded-md bg-muted/40 font-mono">[CBA] Application Update</p>
+
+          {emailStep === "form" ? (
+            <div className="space-y-3 py-1">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Move to status</Label>
+                <select className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm" value={advanceForm.new_status} onChange={e => setAdvanceForm(f => ({ ...f, new_status: e.target.value as CandidateStatus }))}>
+                  <option value="coffee_chat">Coffee Chat</option>
+                  <option value="interviewing">Interviewing</option>
+                  <option value="offer">Offer</option>
+                  <option value="accepted">Accepted</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Interview date</Label>
+                  <Input className="h-8 text-sm" placeholder="e.g. Monday, September 15" value={advanceForm.interview_date} onChange={e => setAdvanceForm(f => ({ ...f, interview_date: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Interview time</Label>
+                  <Input className="h-8 text-sm" placeholder="e.g. 5:00 PM – 7:00 PM" value={advanceForm.interview_time} onChange={e => setAdvanceForm(f => ({ ...f, interview_time: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Location</Label>
+                <Input className="h-8 text-sm" placeholder="e.g. Statler Hall Room 196" value={advanceForm.location} onChange={e => setAdvanceForm(f => ({ ...f, location: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Sign-up link ("here")</Label>
+                <Input className="h-8 text-sm" placeholder="https://…" value={advanceForm.rsvp_link} onChange={e => setAdvanceForm(f => ({ ...f, rsvp_link: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Sign-up deadline</Label>
+                <Input className="h-8 text-sm" placeholder="e.g. tonight by 6:00 PM" value={advanceForm.deadline} onChange={e => setAdvanceForm(f => ({ ...f, deadline: e.target.value }))} />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Email body (sent via BCC to all selected)</Label>
-              <Textarea
-                className="text-sm min-h-[180px] resize-y"
-                value={rejectBody}
-                onChange={(e) => setRejectBody(e.target.value)}
-              />
-            </div>
-          </div>
+          ) : (
+            <EmailPreview
+              sender={emailRecipients?.sender_email ?? null}
+              cc={emailRecipients?.cc ?? []}
+              bcc={candidates.filter(c => selectedIds.has(c.id)).map(c => ({ name: c.name, email: c.email }))}
+              subject="[CBA] Application Update"
+              body={
+                `Hi,\n\nCongratulations! We are excited to invite you to the next round of the Cornell Business Analytics recruitment process.\n\nPlease sign up for your interview slot here: ${advanceForm.rsvp_link}\n\nInterview Details:\n  Date: ${advanceForm.interview_date}\n  Time: ${advanceForm.interview_time}\n  Location: ${advanceForm.location}\n\nPlease sign up by ${advanceForm.deadline}.\n\nWe look forward to seeing you!\n\nBest,\nCBA Recruitment Team`
+              }
+            />
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectOpen(false)}>Cancel</Button>
-            <Button
-              variant="destructive"
-              disabled={bulkReject.isPending || !rejectBody.trim()}
-              onClick={() => bulkReject.mutate()}
-            >
-              {bulkReject.isPending ? "Sending…" : `Reject & send email`}
+            <Button variant="outline" onClick={() => emailStep === "preview" ? setEmailStep("form") : setAdvanceOpen(false)}>
+              {emailStep === "preview" ? "← Back" : "Cancel"}
             </Button>
+            {emailStep === "form" ? (
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={!advanceForm.interview_date || !advanceForm.interview_time || !advanceForm.location || !advanceForm.rsvp_link || !advanceForm.deadline}
+                onClick={() => setEmailStep("preview")}
+              >
+                Review email →
+              </Button>
+            ) : (
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={bulkAdvance.isPending}
+                onClick={() => bulkAdvance.mutate()}
+              >
+                {bulkAdvance.isPending ? "Sending…" : "Confirm & send"}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk reject dialog */}
+      <Dialog open={rejectOpen} onOpenChange={(o) => { setRejectOpen(o); if (!o) setEmailStep("form"); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-destructive" />
+              {emailStep === "form" ? `Reject ${selectedIds.size} candidate${selectedIds.size !== 1 ? "s" : ""}` : "Review email before sending"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {emailStep === "form" ? (
+            <div className="space-y-4 py-1">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Email body (BCC'd to all selected)</Label>
+                <Textarea className="text-sm min-h-[180px] resize-y" value={rejectBody} onChange={(e) => setRejectBody(e.target.value)} />
+              </div>
+            </div>
+          ) : (
+            <EmailPreview
+              sender={emailRecipients?.sender_email ?? null}
+              cc={emailRecipients?.cc ?? []}
+              bcc={candidates.filter(c => selectedIds.has(c.id)).map(c => ({ name: c.name, email: c.email }))}
+              subject="[CBA] Application Update"
+              body={rejectBody}
+            />
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => emailStep === "preview" ? setEmailStep("form") : setRejectOpen(false)}>
+              {emailStep === "preview" ? "← Back" : "Cancel"}
+            </Button>
+            {emailStep === "form" ? (
+              <Button variant="destructive" disabled={!rejectBody.trim()} onClick={() => setEmailStep("preview")}>
+                Review email →
+              </Button>
+            ) : (
+              <Button variant="destructive" disabled={bulkReject.isPending} onClick={() => bulkReject.mutate()}>
+                {bulkReject.isPending ? "Sending…" : "Confirm & send"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -904,5 +1056,49 @@ function NewCycleDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function EmailPreview({
+  sender, cc, bcc, subject, body,
+}: {
+  sender: string | null;
+  cc: string[];
+  bcc: { name: string; email: string }[];
+  subject: string;
+  body: string;
+}) {
+  return (
+    <div className="space-y-3 py-1 text-sm">
+      <div className="rounded-lg border divide-y text-sm">
+        <div className="flex gap-3 px-4 py-2.5">
+          <span className="text-xs font-medium text-muted-foreground w-12 shrink-0 pt-0.5">From</span>
+          <span>{sender ?? "Connected Gmail account"}</span>
+        </div>
+        <div className="flex gap-3 px-4 py-2.5">
+          <span className="text-xs font-medium text-muted-foreground w-12 shrink-0 pt-0.5">Subject</span>
+          <span className="font-medium">{subject}</span>
+        </div>
+        <div className="flex gap-3 px-4 py-2.5">
+          <span className="text-xs font-medium text-muted-foreground w-12 shrink-0 pt-0.5">CC</span>
+          <span className="text-muted-foreground">
+            {cc.length > 0 ? cc.join(", ") : <span className="italic">none found</span>}
+          </span>
+        </div>
+        <div className="flex gap-3 px-4 py-2.5">
+          <span className="text-xs font-medium text-muted-foreground w-12 shrink-0 pt-0.5">BCC</span>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            {bcc.map(r => (
+              <span key={r.email} className="text-muted-foreground truncate">
+                {r.name} <span className="text-xs opacity-70">&lt;{r.email}&gt;</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="rounded-lg border px-4 py-3 bg-muted/20 max-h-52 overflow-y-auto">
+        <pre className="text-xs whitespace-pre-wrap font-sans text-foreground leading-relaxed">{body}</pre>
+      </div>
+    </div>
   );
 }

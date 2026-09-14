@@ -108,6 +108,8 @@ export default function CandidatePage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["candidate", id, "coffee-chats"] }),
   });
 
+  const [headshotOpen, setHeadshotOpen] = useState(false);
+
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
   if (!candidate) return <div className="p-6 text-sm text-muted-foreground">Not found.</div>;
 
@@ -120,17 +122,36 @@ export default function CandidatePage() {
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
+      {/* Headshot lightbox */}
+      {headshotOpen && candidate.headshot_url && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"
+          onClick={() => setHeadshotOpen(false)}
+        >
+          <Image
+            src={candidate.headshot_url}
+            alt={candidate.name}
+            width={480}
+            height={480}
+            unoptimized
+            className="rounded-2xl object-cover max-h-[80vh] max-w-[80vw] shadow-2xl"
+          />
+        </div>
+      )}
+
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
           {candidate.headshot_url ? (
-            <Image
-              src={candidate.headshot_url}
-              alt=""
-              width={96}
-              height={96}
-              unoptimized
-              className="rounded-full object-cover shrink-0 h-24 w-24"
-            />
+            <button onClick={() => setHeadshotOpen(true)} className="shrink-0 rounded-full ring-2 ring-transparent hover:ring-foreground/20 transition-all">
+              <Image
+                src={candidate.headshot_url}
+                alt=""
+                width={96}
+                height={96}
+                unoptimized
+                className="rounded-full object-cover h-24 w-24"
+              />
+            </button>
           ) : (
             <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center shrink-0">
               <UserRound className="h-10 w-10 text-muted-foreground" />
