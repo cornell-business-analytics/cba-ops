@@ -252,12 +252,16 @@ export default function CandidatePage() {
               const score = ev.score;
               const scoreBg =
                 score === null ? "bg-muted text-muted-foreground"
-                : score < 2 ? "bg-red-100 text-red-700"
-                : score < 3 ? "bg-yellow-100 text-yellow-700"
+                : score <= 1.2 ? "bg-red-100 text-red-700"
+                : score < 2 ? "bg-orange-100 text-orange-700"
+                : score < 2.5 ? "bg-yellow-100 text-yellow-700"
+                : score < 3 ? "bg-sky-100 text-sky-700"
                 : "bg-green-100 text-green-700";
               const scoreLabel =
                 score === null ? "No score"
-                : score < 2 ? "Unacceptable"
+                : score <= 1.2 ? "Unacceptable"
+                : score < 2 ? "Below average"
+                : score < 2.5 ? "Average"
                 : score < 3 ? "Would interview"
                 : "Outstanding";
               return (
