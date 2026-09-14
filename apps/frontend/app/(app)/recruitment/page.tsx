@@ -243,6 +243,7 @@ export default function RecruitmentPage() {
 
   const [rejectStatus, setRejectStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [rejectMsg, setRejectMsg] = useState<string | null>(null);
+  const [rejectSubject, setRejectSubject] = useState("[CBA] Application Update");
 
   const [emailStep, setEmailStep] = useState<"form" | "preview">("form");
 
@@ -250,11 +251,13 @@ export default function RecruitmentPage() {
   const [advanceStatus, setAdvanceStatus] = useState<"idle" | "done" | "error">("idle");
   const [advanceMsg, setAdvanceMsg] = useState<string | null>(null);
   const [advanceTemplate, setAdvanceTemplate] = useState<"general" | "round">("general");
+  const [advanceSubject, setAdvanceSubject] = useState("[CBA] Application Update");
   const [advanceForm, setAdvanceForm] = useState({
     interview_date: "",
     interview_time: "",
     location: "",
     rsvp_link: "",
+    link_text: "here",
     deadline: "",
   });
   const [roundForm, setRoundForm] = useState({
@@ -267,30 +270,55 @@ export default function RecruitmentPage() {
     dress_code: "Business Professional",
     slot_duration: "20",
     rsvp_link: "",
+    link_text: "here",
     deadline: "",
     conflict_emails: "",
     sign_off: "",
   });
 
-  function buildRoundBody(f: typeof roundForm) {
-    return (
-      `Dear Applicant,\n\n` +
-      `Congratulations on making it to ${f.round_name} of CBA's ${f.semester} application process. This round will be ${f.round_description}, and the details of this round can be found below:\n\n` +
-      `Date: ${f.date}\n` +
-      `Interview Time Slots: ${f.time_slots}\n` +
-      `Location: ${f.location}\n` +
-      `Dress Code: ${f.dress_code}\n\n` +
-      `Please comment on one cell for a ${f.slot_duration}-minute slot by typing your name and netID here: ${f.rsvp_link}\n\n` +
-      `Please sign up BY ${f.deadline} or else you will not be advancing past ${f.round_name}. Please note that this is first-come, first-serve. Unfortunately, we have limited capacity in each time slot, so if you have a conflict please contact all three of us at ${f.conflict_emails} as soon as possible.\n\n` +
-      `We look forward to meeting you virtually!\n\n` +
-      `Best,\n${f.sign_off}`
-    );
+  function textToHtml(text: string): string {
+    return "<p>" + text.split(/\n\n+/).map(para => para.replace(/\n/g, "<br>")).join("</p><p>") + "</p>";
+  }
+
+  function buildGeneralBody(f: typeof advanceForm): string {
+    const link = f.rsvp_link
+      ? `<a href="${f.rsvp_link}" style="color:#1B7A3C;text-decoration:underline">${f.link_text || "here"}</a>`
+      : (f.link_text || "here");
+    return [
+      "<p>Hi,</p>",
+      "<p>Congratulations! We are excited to invite you to the next round of the Cornell Business Analytics recruitment process.</p>",
+      `<p>Please sign up for your interview slot ${link}</p>`,
+      `<p><strong>Interview Details:</strong><br>Date: ${f.interview_date}<br>Time: ${f.interview_time}<br>Location: ${f.location}</p>`,
+      `<p>Please sign up by ${f.deadline}.</p>`,
+      "<p>We look forward to seeing you!</p>",
+      "<p>Best,<br>CBA Recruitment Team</p>",
+    ].join("");
+  }
+
+  function buildRoundBody(f: typeof roundForm): string {
+    const link = f.rsvp_link
+      ? `<a href="${f.rsvp_link}" style="color:#1B7A3C;text-decoration:underline">${f.link_text || "here"}</a>`
+      : (f.link_text || "here");
+    return [
+      "<p>Dear Applicant,</p>",
+      `<p>Congratulations on making it to ${f.round_name} of CBA's ${f.semester} application process. This round will be ${f.round_description}, and the details of this round can be found below:</p>`,
+      `<p>Date: ${f.date}<br>Interview Time Slots: ${f.time_slots}<br>Location: ${f.location}<br>Dress Code: ${f.dress_code}</p>`,
+      `<p>Please comment on one cell for a ${f.slot_duration}-minute slot by typing your name and netID ${link}</p>`,
+      `<p>Please sign up BY ${f.deadline} or else you will not be advancing past ${f.round_name}. Please note that this is first-come, first-serve. Unfortunately, we have limited capacity in each time slot, so if you have a conflict please contact all three of us at ${f.conflict_emails} as soon as possible.</p>`,
+      "<p>We look forward to meeting you virtually!</p>",
+      `<p>Best,<br>${f.sign_off}</p>`,
+    ].join("");
   }
 
   const bulkAdvance = useMutation({
     mutationFn: () => api().post<{ advanced: number; email_sent: boolean; error: string | null }>(
       `/ops/v1/cycles/${selectedCycleId}/bulk-advance`,
-      { candidate_ids: Array.from(selectedIds), ...advanceForm, ...(advanceTemplate === "round" ? { custom_body: buildRoundBody(roundForm) } : {}) }
+      {
+        candidate_ids: Array.from(selectedIds),
+        subject: advanceSubject,
+        custom_body: advanceTemplate === "round" ? buildRoundBody(roundForm) : buildGeneralBody(advanceForm),
+        ...advanceForm,
+      }
     ),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["candidates", selectedCycleId] });
@@ -309,7 +337,7 @@ export default function RecruitmentPage() {
   const bulkReject = useMutation({
     mutationFn: () => api().post<{ rejected: number; email_sent: boolean; error: string | null }>(
       `/ops/v1/cycles/${selectedCycleId}/bulk-reject`,
-      { candidate_ids: Array.from(selectedIds), email_body: rejectBody }
+      { candidate_ids: Array.from(selectedIds), subject: rejectSubject, email_body: textToHtml(rejectBody) }
     ),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["candidates", selectedCycleId] });
@@ -929,7 +957,7 @@ export default function RecruitmentPage() {
                   className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${advanceTemplate === "general" ? "bg-emerald-600 text-white border-emerald-600" : "border-input hover:bg-muted"}`}
                   onClick={() => setAdvanceTemplate("general")}
                 >
-                  General
+                  Round 1
                 </button>
                 <button
                   type="button"
@@ -938,6 +966,12 @@ export default function RecruitmentPage() {
                 >
                   Interview Round
                 </button>
+              </div>
+
+              {/* Subject — shared */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Email subject</Label>
+                <Input className="h-8 text-sm" value={advanceSubject} onChange={e => setAdvanceSubject(e.target.value)} />
               </div>
 
               {advanceTemplate === "general" ? (
@@ -956,9 +990,15 @@ export default function RecruitmentPage() {
                     <Label className="text-xs">Location</Label>
                     <Input className="h-8 text-sm" placeholder="e.g. Statler Hall Room 196" value={advanceForm.location} onChange={e => setAdvanceForm(f => ({ ...f, location: e.target.value }))} />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Sign-up link (&quot;here&quot;)</Label>
-                    <Input className="h-8 text-sm" placeholder="https://…" value={advanceForm.rsvp_link} onChange={e => setAdvanceForm(f => ({ ...f, rsvp_link: e.target.value }))} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Sign-up link (URL)</Label>
+                      <Input className="h-8 text-sm" placeholder="https://…" value={advanceForm.rsvp_link} onChange={e => setAdvanceForm(f => ({ ...f, rsvp_link: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Link display text</Label>
+                      <Input className="h-8 text-sm" placeholder='e.g. "here"' value={advanceForm.link_text} onChange={e => setAdvanceForm(f => ({ ...f, link_text: e.target.value }))} />
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Sign-up deadline</Label>
@@ -1005,9 +1045,15 @@ export default function RecruitmentPage() {
                       <Input className="h-8 text-sm" placeholder="e.g. 20" value={roundForm.slot_duration} onChange={e => setRoundForm(f => ({ ...f, slot_duration: e.target.value }))} />
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Sign-up spreadsheet link</Label>
-                    <Input className="h-8 text-sm" placeholder="https://…" value={roundForm.rsvp_link} onChange={e => setRoundForm(f => ({ ...f, rsvp_link: e.target.value }))} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Sign-up spreadsheet link</Label>
+                      <Input className="h-8 text-sm" placeholder="https://…" value={roundForm.rsvp_link} onChange={e => setRoundForm(f => ({ ...f, rsvp_link: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Link display text</Label>
+                      <Input className="h-8 text-sm" placeholder='e.g. "here"' value={roundForm.link_text} onChange={e => setRoundForm(f => ({ ...f, link_text: e.target.value }))} />
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Sign-up deadline</Label>
@@ -1029,8 +1075,8 @@ export default function RecruitmentPage() {
               sender={emailRecipients?.sender_email ?? null}
               cc={emailRecipients?.cc ?? []}
               bcc={candidates.filter(c => selectedIds.has(c.id)).map(c => ({ name: c.name, email: c.email }))}
-              subject="[CBA] Application Update"
-              body={advanceTemplate === "round" ? buildRoundBody(roundForm) : `Hi,\n\nCongratulations! We are excited to invite you to the next round of the Cornell Business Analytics recruitment process.\n\nPlease sign up for your interview slot here: ${advanceForm.rsvp_link}\n\nInterview Details:\n  Date: ${advanceForm.interview_date}\n  Time: ${advanceForm.interview_time}\n  Location: ${advanceForm.location}\n\nPlease sign up by ${advanceForm.deadline}.\n\nWe look forward to seeing you!\n\nBest,\nCBA Recruitment Team`}
+              subject={advanceSubject}
+              body={advanceTemplate === "round" ? buildRoundBody(roundForm) : buildGeneralBody(advanceForm)}
             />
           )}
 
@@ -1072,10 +1118,14 @@ export default function RecruitmentPage() {
           </DialogHeader>
 
           {emailStep === "form" ? (
-            <div className="space-y-4 py-1">
+            <div className="space-y-3 py-1">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Email subject</Label>
+                <Input className="h-8 text-sm" value={rejectSubject} onChange={e => setRejectSubject(e.target.value)} />
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Email body (BCC&apos;d to all selected)</Label>
-                <Textarea className="text-sm min-h-[180px] resize-y" value={rejectBody} onChange={(e) => setRejectBody(e.target.value)} />
+                <Textarea className="text-sm min-h-[160px] resize-y" value={rejectBody} onChange={(e) => setRejectBody(e.target.value)} />
               </div>
             </div>
           ) : (
@@ -1083,8 +1133,8 @@ export default function RecruitmentPage() {
               sender={emailRecipients?.sender_email ?? null}
               cc={emailRecipients?.cc ?? []}
               bcc={candidates.filter(c => selectedIds.has(c.id)).map(c => ({ name: c.name, email: c.email }))}
-              subject="[CBA] Application Update"
-              body={rejectBody}
+              subject={rejectSubject}
+              body={textToHtml(rejectBody)}
             />
           )}
 
@@ -1199,9 +1249,10 @@ function EmailPreview({
           </div>
         </div>
       </div>
-      <div className="rounded-lg border px-4 py-3 bg-muted/20 max-h-52 overflow-y-auto">
-        <pre className="text-xs whitespace-pre-wrap font-sans text-foreground leading-relaxed">{body}</pre>
-      </div>
+      <div
+        className="rounded-lg border px-4 py-3 bg-muted/20 max-h-52 overflow-y-auto text-xs text-foreground leading-relaxed [&_p]:mb-2 [&_a]:text-green-700 [&_a]:underline"
+        dangerouslySetInnerHTML={{ __html: body }}
+      />
     </div>
   );
 }

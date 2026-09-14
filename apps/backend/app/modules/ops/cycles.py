@@ -813,6 +813,7 @@ async def get_email_recipients(
 
 class BulkRejectRequest(BaseModel):
     candidate_ids: list[uuid.UUID]
+    subject: str = "[CBA] Application Update"
     email_body: str
 
 
@@ -850,7 +851,7 @@ async def bulk_reject_candidates(
     email_sent, error = await _send_gmail(
         token.access_token,
         token.account_email or "me",
-        "[CBA] Application Update",
+        body.subject,
         body.email_body,
         bcc=emails,
         cc=cc_emails,
@@ -882,7 +883,7 @@ async def _get_cc_emails(db: AsyncSession) -> list[str]:
 
 
 async def _send_gmail(token_str: str, sender: str, subject: str, body: str, bcc: list[str], cc: list[str]) -> tuple[bool, str | None]:
-    msg = MIMEText(body, "plain", "utf-8")
+    msg = MIMEText(body, "html", "utf-8")
     msg["Subject"] = subject
     msg["To"] = sender
     if cc:
@@ -915,7 +916,8 @@ _NEXT_STATUS: dict[CandidateStatus, CandidateStatus] = {
 
 class BulkAdvanceRequest(BaseModel):
     candidate_ids: list[uuid.UUID]
-    custom_body: str | None = None   # if set, used directly instead of the generated template
+    subject: str = "[CBA] Application Update"
+    custom_body: str | None = None   # HTML body built by the frontend
     interview_date: str = ""
     interview_time: str = ""
     location: str = ""
@@ -973,7 +975,7 @@ async def bulk_advance_candidates(
     email_sent, error = await _send_gmail(
         token.access_token,
         token.account_email or "me",
-        "[CBA] Application Update",
+        body.subject,
         email_body,
         bcc=emails,
         cc=cc_emails,
