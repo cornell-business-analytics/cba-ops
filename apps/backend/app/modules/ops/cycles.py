@@ -33,7 +33,7 @@ from app.models.membership import Membership
 from app.models.user import User as UserModel
 from app.models.user import User, UserRole
 from app.modules.ops.deps import get_current_user, require_role
-from app.modules.ops.recruitment import _extract_sheet_id, _get_valid_token
+from app.modules.ops.recruitment import _extract_sheet_id, _get_valid_token, _get_canonical_token
 from app.schemas.cycle import (
     CycleCreate,
     CyclePublic,
@@ -802,7 +802,7 @@ async def get_email_recipients(
     current_user: User = Depends(require_role(UserRole.director)),
     db: AsyncSession = Depends(get_db),
 ):
-    token = await _get_valid_token(db, current_user.id)
+    token = await _get_canonical_token(db, current_user.id)
     cc_emails = await _get_cc_emails(db)
     return EmailRecipientsPreview(sender_email=token.account_email, cc=sorted(cc_emails))
 
@@ -843,7 +843,7 @@ async def bulk_reject_candidates(
         c.status = CandidateStatus.rejected
     await db.commit()
 
-    token = await _get_valid_token(db, current_user.id)
+    token = await _get_canonical_token(db, current_user.id)
     emails = [c.email for c in candidates if c.email]
     cc_emails = await _get_cc_emails(db)
 
@@ -902,9 +902,19 @@ async def _send_gmail(token_str: str, sender: str, subject: str, body: str, bcc:
         return False, str(e)
 
 
+_NEXT_STATUS: dict[CandidateStatus, CandidateStatus] = {
+    CandidateStatus.applied:      CandidateStatus.round_1,
+    CandidateStatus.round_1:      CandidateStatus.round_2,
+    CandidateStatus.round_2:      CandidateStatus.round_3,
+    CandidateStatus.round_3:      CandidateStatus.offer,
+    # legacy statuses fall through to round_1
+    CandidateStatus.coffee_chat:  CandidateStatus.round_1,
+    CandidateStatus.interviewing: CandidateStatus.round_2,
+}
+
+
 class BulkAdvanceRequest(BaseModel):
     candidate_ids: list[uuid.UUID]
-    new_status: CandidateStatus
     custom_body: str | None = None   # if set, used directly instead of the generated template
     interview_date: str = ""
     interview_time: str = ""
@@ -937,10 +947,10 @@ async def bulk_advance_candidates(
         raise HTTPException(status_code=404, detail="No matching candidates found")
 
     for c in candidates:
-        c.status = body.new_status
+        c.status = _NEXT_STATUS.get(c.status, CandidateStatus.round_1)
     await db.commit()
 
-    token = await _get_valid_token(db, current_user.id)
+    token = await _get_canonical_token(db, current_user.id)
     emails = [c.email for c in candidates if c.email]
     cc_emails = await _get_cc_emails(db)
 

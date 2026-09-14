@@ -9,7 +9,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/recruitment/StatusBadge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createApi } from "@/lib/api";
 import type { CandidateStatus, CoffeeChat } from "@cba/types";
 
@@ -33,9 +32,6 @@ interface Candidate {
   notes: string | null;
 }
 
-const ALL_STATUSES: CandidateStatus[] = [
-  "applied", "coffee_chat", "interviewing", "offer", "accepted", "rejected", "withdrawn",
-];
 
 export default function CandidatePage() {
   const { id } = useParams<{ id: string }>();
@@ -95,12 +91,6 @@ export default function CandidatePage() {
     queryKey: ["candidate", id, "evaluations"],
     queryFn: () => api().get(`/ops/v1/candidates/${id}/coffee-chat-evaluations`),
     enabled: !!session?.accessToken,
-  });
-
-  const updateStatus = useMutation({
-    mutationFn: (status: CandidateStatus) =>
-      api().patch(`/ops/v1/candidates/${id}/status`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["candidate", id] }),
   });
 
   const autoAssign = useMutation({
@@ -184,23 +174,6 @@ export default function CandidatePage() {
         ))}
       </div>
 
-      {/* Status update */}
-      <div className="flex items-center gap-3 rounded-lg border bg-white p-4">
-        <p className="text-sm font-medium">Move to</p>
-        <Select
-          value={candidate.status}
-          onValueChange={(v) => updateStatus.mutate(v as CandidateStatus)}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ALL_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
       {/* Coffee chats */}
       <div className="rounded-lg border bg-white p-4 space-y-3">

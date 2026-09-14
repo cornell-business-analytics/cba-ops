@@ -95,6 +95,36 @@ async def _get_valid_token(db: AsyncSession, user_id: uuid.UUID) -> GmailToken:
     return token
 
 
+SHARED_SENDER = "cornellbusinessanalytics@gmail.com"
+
+
+async def _get_canonical_token(db: AsyncSession, fallback_user_id: uuid.UUID) -> GmailToken:
+    """Return the shared CBA Gmail token when it's connected, else the user's own token."""
+    result = await db.execute(select(GmailToken).where(GmailToken.account_email == SHARED_SENDER))
+    token = result.scalar_one_or_none()
+    if not token:
+        return await _get_valid_token(db, fallback_user_id)
+
+    if token.token_expiry and datetime.now(timezone.utc) >= token.token_expiry:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(GOOGLE_TOKEN_URL, data={
+                "client_id": settings.GMAIL_CLIENT_ID,
+                "client_secret": settings.GMAIL_CLIENT_SECRET,
+                "refresh_token": token.refresh_token,
+                "grant_type": "refresh_token",
+            })
+        if resp.status_code != 200:
+            raise HTTPException(status_code=503, detail="Failed to refresh shared Gmail token. Please reconnect cornellbusinessanalytics@gmail.com in Recruitment settings.")
+        data = resp.json()
+        token.access_token = data["access_token"]
+        if "expires_in" in data:
+            from datetime import timedelta
+            token.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=data["expires_in"] - 60)
+        await db.commit()
+
+    return token
+
+
 def _build_email(to: str, cc: str | None, subject: str, body_html: str) -> str:
     msg = MIMEMultipart()
     msg["to"] = "".join(to.split())

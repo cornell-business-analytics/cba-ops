@@ -58,10 +58,13 @@ interface Candidate {
 
 const STATUS_BORDER: Record<CandidateStatus, string> = {
   applied:      "border-l-slate-400",
-  coffee_chat:  "border-l-sky-400",
-  interviewing: "border-l-amber-400",
-  offer:        "border-l-violet-400",
-  accepted:     "border-l-emerald-500",
+  round_1:      "border-l-sky-400",
+  round_2:      "border-l-amber-400",
+  round_3:      "border-l-violet-400",
+  offer:        "border-l-emerald-500",
+  accepted:     "border-l-emerald-600",
+  coffee_chat:  "border-l-sky-300",
+  interviewing: "border-l-amber-300",
   rejected:     "border-l-red-400",
   withdrawn:    "border-l-gray-300",
 };
@@ -248,7 +251,6 @@ export default function RecruitmentPage() {
   const [advanceMsg, setAdvanceMsg] = useState<string | null>(null);
   const [advanceTemplate, setAdvanceTemplate] = useState<"general" | "round">("general");
   const [advanceForm, setAdvanceForm] = useState({
-    new_status: "coffee_chat" as CandidateStatus,
     interview_date: "",
     interview_time: "",
     location: "",
@@ -936,17 +938,6 @@ export default function RecruitmentPage() {
                 >
                   Interview Round
                 </button>
-              </div>
-
-              {/* Move to status — shared */}
-              <div className="space-y-1.5">
-                <Label className="text-xs">Move to status</Label>
-                <select className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm" value={advanceForm.new_status} onChange={e => setAdvanceForm(f => ({ ...f, new_status: e.target.value as CandidateStatus }))}>
-                  <option value="coffee_chat">Coffee Chat</option>
-                  <option value="interviewing">Interviewing</option>
-                  <option value="offer">Offer</option>
-                  <option value="accepted">Accepted</option>
-                </select>
               </div>
 
               {advanceTemplate === "general" ? (

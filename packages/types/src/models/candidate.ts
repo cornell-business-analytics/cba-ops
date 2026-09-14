@@ -1,9 +1,12 @@
 export type CandidateStatus =
   | "applied"
-  | "coffee_chat"
-  | "interviewing"
+  | "round_1"
+  | "round_2"
+  | "round_3"
   | "offer"
   | "accepted"
+  | "coffee_chat"   // legacy
+  | "interviewing"  // legacy
   | "rejected"
   | "withdrawn";
 

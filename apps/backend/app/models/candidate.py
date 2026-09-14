@@ -10,10 +10,13 @@ from app.db.base import Base, TimestampMixin, UUIDMixin
 
 class CandidateStatus(str, enum.Enum):
     applied = "applied"
-    coffee_chat = "coffee_chat"
-    interviewing = "interviewing"
+    round_1 = "round_1"
+    round_2 = "round_2"
+    round_3 = "round_3"
     offer = "offer"
     accepted = "accepted"
+    coffee_chat = "coffee_chat"    # legacy
+    interviewing = "interviewing"  # legacy
     rejected = "rejected"
     withdrawn = "withdrawn"
 
