@@ -92,7 +92,6 @@ export default function RecruitmentPage() {
 
   const [selectedCycleId, setSelectedCycleId] = useState<string>("");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // New cycle dialog
   const [newCycleOpen, setNewCycleOpen] = useState(false);
@@ -281,13 +280,13 @@ export default function RecruitmentPage() {
   }
 
   const filtered = candidates.filter((c) => {
+    if (!search) return true;
     const q = search.toLowerCase();
-    const matchSearch = !search
-      || c.name.toLowerCase().includes(q)
+    return (
+      c.name.toLowerCase().includes(q)
       || c.cornell_email.toLowerCase().includes(q)
-      || (c.net_id ?? "").toLowerCase().includes(q);
-    const matchStatus = statusFilter === "all" || c.status === statusFilter;
-    return matchSearch && matchStatus;
+      || (c.net_id ?? "").toLowerCase().includes(q)
+    );
   });
 
   const stageCounts = PIPELINE_STAGES.map((s) => ({
@@ -349,7 +348,7 @@ export default function RecruitmentPage() {
         {cycles.map((c) => (
           <button
             key={c.id}
-            onClick={() => { setSelectedCycleId(c.id); setStatusFilter("all"); setSearch(""); }}
+            onClick={() => { setSelectedCycleId(c.id); setSearch(""); }}
             className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
               selectedCycleId === c.id
                 ? "border-foreground bg-foreground text-background"
@@ -434,12 +433,9 @@ export default function RecruitmentPage() {
               </div>
               <div className="flex items-stretch gap-1">
                 {stageCounts.map((s, i) => (
-                  <button
+                  <div
                     key={s.status}
-                    onClick={() => setStatusFilter(statusFilter === s.status ? "all" : s.status)}
-                    className={`flex-1 rounded-md px-2 py-2.5 text-left transition-all hover:opacity-90 ${s.bg} ${
-                      statusFilter === s.status ? "ring-2 ring-offset-1 ring-foreground/30" : ""
-                    }`}
+                    className={`flex-1 rounded-md px-2 py-2.5 text-left ${s.bg}`}
                   >
                     <p className={`text-xl font-bold ${s.color}`}>{s.count}</p>
                     <p className={`text-xs mt-0.5 font-medium ${s.color} opacity-80`}>{s.label}</p>
@@ -447,32 +443,21 @@ export default function RecruitmentPage() {
                       <div className={`mt-1.5 h-0.5 rounded-full ${s.count > 0 ? "bg-current opacity-20" : "bg-border"}`}
                         style={{ width: `${Math.round((s.count / maxStageCount) * 100)}%` }} />
                     )}
-                  </button>
+                  </div>
                 ))}
                 {otherCounts.length > 0 && (
                   <div className="flex flex-col gap-1 justify-center pl-2 border-l ml-1">
                     {otherCounts.map((s) => (
-                      <button
+                      <div
                         key={s.status}
-                        onClick={() => setStatusFilter(statusFilter === s.status ? "all" : s.status)}
-                        className={`flex items-center gap-2 px-2 py-1 rounded text-xs text-muted-foreground hover:bg-muted/50 ${
-                          statusFilter === s.status ? "bg-muted font-medium text-foreground" : ""
-                        }`}
+                        className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground"
                       >
                         <span className="font-semibold text-foreground">{s.count}</span> {s.label}
-                      </button>
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
-              {statusFilter !== "all" && (
-                <button
-                  onClick={() => setStatusFilter("all")}
-                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                >
-                  Clear filter
-                </button>
-              )}
             </div>
           )}
 
