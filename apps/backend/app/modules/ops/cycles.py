@@ -1,14 +1,16 @@
+import base64
 import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from email.mime.text import MIMEText
 from typing import Any
 
 import httpx
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,11 +19,13 @@ from app.db.session import get_db
 from app.models.candidate import (
     ApplicationCycle,
     Candidate,
+    CandidateStatus,
     InterviewCategory,
     InterviewRound,
     InterviewScore,
     InterviewSession,
 )
+from app.models.membership import Membership
 from app.models.user import User as UserModel
 from app.models.user import User, UserRole
 from app.modules.ops.deps import get_current_user, require_role
@@ -777,6 +781,94 @@ async def import_candidates(
 
     await db.commit()
     return ImportResult(imported=imported, updated=updated, skipped=skipped, missing_cols=missing_cols, headshots_downloaded=headshots_downloaded, headshot_errors=headshot_errors)
+
+
+# ---------------------------------------------------------------------------
+# Bulk reject + email
+# ---------------------------------------------------------------------------
+
+class BulkRejectRequest(BaseModel):
+    candidate_ids: list[uuid.UUID]
+    email_body: str
+
+
+class BulkRejectResult(BaseModel):
+    rejected: int
+    email_sent: bool
+    error: str | None = None
+
+
+@router.post("/cycles/{cycle_id}/bulk-reject", response_model=BulkRejectResult)
+async def bulk_reject_candidates(
+    cycle_id: uuid.UUID,
+    body: BulkRejectRequest,
+    current_user: User = Depends(require_role(UserRole.director)),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Candidate).where(
+            Candidate.id.in_(body.candidate_ids),
+            Candidate.cycle_id == cycle_id,
+        )
+    )
+    candidates = result.scalars().all()
+    if not candidates:
+        raise HTTPException(status_code=404, detail="No matching candidates found")
+
+    for c in candidates:
+        c.status = CandidateStatus.rejected
+    await db.commit()
+
+    token = await _get_valid_token(db, current_user.id)
+    emails = [c.email for c in candidates if c.email]
+
+    # CC active eboard + recruitment directors
+    cc_result = await db.execute(
+        select(User.email)
+        .join(Membership, Membership.user_id == User.id)
+        .where(
+            Membership.is_active == True,
+            or_(
+                # Eboard (website_role takes precedence, fall back to user.role)
+                Membership.website_role == "eboard",
+                and_(Membership.website_role.is_(None), User.role == "eboard"),
+                # Recruitment directors: director-level with "recruitment" in their title
+                and_(
+                    or_(
+                        Membership.website_role == "director",
+                        and_(Membership.website_role.is_(None), User.role == "director"),
+                    ),
+                    Membership.role_title.ilike("%recruitment%"),
+                ),
+            ),
+        )
+    )
+    cc_emails = list({row[0] for row in cc_result.all() if row[0]})
+
+    sender = token.account_email or "me"
+    msg = MIMEText(body.email_body, "plain", "utf-8")
+    msg["Subject"] = "[CBA] Application Update"
+    msg["To"] = sender
+    if cc_emails:
+        msg["Cc"] = ", ".join(cc_emails)
+    msg["Bcc"] = ", ".join(emails)
+
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+                headers={"Authorization": f"Bearer {token.access_token}"},
+                json={"raw": raw},
+            )
+        email_sent = resp.status_code == 200
+        error = None if email_sent else f"Gmail {resp.status_code}: {resp.text[:200]}"
+    except Exception as e:
+        email_sent = False
+        error = str(e)
+
+    return BulkRejectResult(rejected=len(candidates), email_sent=email_sent, error=error)
 
 
 # ---------------------------------------------------------------------------

@@ -126,14 +126,14 @@ export default function CandidatePage() {
             <Image
               src={candidate.headshot_url}
               alt=""
-              width={64}
-              height={64}
+              width={96}
+              height={96}
               unoptimized
-              className="rounded-full object-cover shrink-0"
+              className="rounded-full object-cover shrink-0 h-24 w-24"
             />
           ) : (
-            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center shrink-0">
-              <UserRound className="h-8 w-8 text-muted-foreground" />
+            <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center shrink-0">
+              <UserRound className="h-10 w-10 text-muted-foreground" />
             </div>
           )}
           <div>

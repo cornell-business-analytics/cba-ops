@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { useAppSession } from "@/hooks/session-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { Search, Plus, FileSpreadsheet, ChevronRight, Users, Check, ExternalLink, FileDown, RefreshCw, Settings, Trash2, ClipboardList, AlertCircle } from "lucide-react";
+import Image from "next/image";
+import { Search, Plus, FileSpreadsheet, ChevronRight, Users, Check, ExternalLink, FileDown, RefreshCw, Settings, Trash2, ClipboardList, AlertCircle, XCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/recruitment/StatusBadge";
 import { createApi } from "@/lib/api";
@@ -51,6 +53,7 @@ interface Candidate {
   major: string | null;
   grad_year: string | null;
   status: CandidateStatus;
+  headshot_url: string | null;
 }
 
 const STATUS_BORDER: Record<CandidateStatus, string> = {
@@ -79,6 +82,11 @@ export default function RecruitmentPage() {
 
   const [selectedCycleId, setSelectedCycleId] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectBody, setRejectBody] = useState(
+    `Hi,\n\nThank you for your interest in Cornell Business Analytics and for taking the time to apply. After careful consideration, we regret that we are unable to extend an offer at this time.\n\nWe appreciate the effort you put into your application and hope you'll consider applying again in the future.\n\nBest,\nCBA Recruitment Team`
+  );
 
   // New cycle dialog
   const [newCycleOpen, setNewCycleOpen] = useState(false);
@@ -223,6 +231,28 @@ export default function RecruitmentPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["app-cycles"] }); setColMapOpen(false); },
   });
 
+  const [rejectStatus, setRejectStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
+  const [rejectMsg, setRejectMsg] = useState<string | null>(null);
+
+  const bulkReject = useMutation({
+    mutationFn: () => api().post<{ rejected: number; email_sent: boolean; error: string | null }>(
+      `/ops/v1/cycles/${selectedCycleId}/bulk-reject`,
+      { candidate_ids: Array.from(selectedIds), email_body: rejectBody }
+    ),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["candidates", selectedCycleId] });
+      setSelectedIds(new Set());
+      setRejectStatus("done");
+      setRejectMsg(
+        data.email_sent
+          ? `${data.rejected} rejected · email sent`
+          : `${data.rejected} rejected · email failed: ${data.error}`
+      );
+      setRejectOpen(false);
+    },
+    onError: (err: Error) => { setRejectStatus("error"); setRejectMsg(err.message); },
+  });
+
   const purgeHeadshots = useMutation({
     mutationFn: () => api().delete<{ deleted: number }>(`/ops/v1/cycles/${selectedCycleId}/headshots`),
     onSuccess: (data) => { qc.invalidateQueries({ queryKey: ["candidates", selectedCycleId] }); setDeleteHsOpen(false); alert(`Deleted ${data.deleted} headshot(s) from storage.`); },
@@ -323,7 +353,7 @@ export default function RecruitmentPage() {
         {cycles.map((c) => (
           <button
             key={c.id}
-            onClick={() => { setSelectedCycleId(c.id); setSearch(""); }}
+            onClick={() => { setSelectedCycleId(c.id); setSearch(""); setSelectedIds(new Set()); }}
             className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
               selectedCycleId === c.id
                 ? "border-foreground bg-foreground text-background"
@@ -478,6 +508,21 @@ export default function RecruitmentPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+            {selectedIds.size > 0 && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => { setRejectStatus("idle"); setRejectMsg(null); setRejectOpen(true); }}
+              >
+                <XCircle className="h-4 w-4 mr-1" /> Reject {selectedIds.size}
+              </Button>
+            )}
+            {rejectStatus !== "idle" && (
+              <span className={`text-xs flex items-center gap-1 ${rejectStatus === "error" ? "text-destructive" : "text-emerald-700"}`}>
+                {rejectStatus === "done" && <Check className="h-3 w-3" />}
+                {rejectMsg}
+              </span>
+            )}
             <div className="flex items-center gap-2 ml-auto">
               <Button
                 size="sm"
@@ -529,6 +574,16 @@ export default function RecruitmentPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 border-b">
                   <tr>
+                    <th className="pl-4 pr-2 py-2.5 w-8">
+                      <input
+                        type="checkbox"
+                        className="rounded"
+                        checked={filtered.length > 0 && filtered.every(c => selectedIds.has(c.id))}
+                        onChange={(e) => {
+                          setSelectedIds(e.target.checked ? new Set(filtered.map(c => c.id)) : new Set());
+                        }}
+                      />
+                    </th>
                     {["Name", "NetID", "Major", "Grad Year", "Status", ""].map((h) => (
                       <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground tracking-wide">
                         {h}
@@ -538,10 +593,40 @@ export default function RecruitmentPage() {
                 </thead>
                 <tbody className="divide-y">
                   {filtered.map((c) => (
-                    <tr key={c.id} className={`border-l-2 ${STATUS_BORDER[c.status]} hover:bg-muted/20 transition-colors`}>
+                    <tr key={c.id} className={`border-l-2 ${STATUS_BORDER[c.status]} hover:bg-muted/20 transition-colors ${selectedIds.has(c.id) ? "bg-muted/30" : ""}`}>
+                      <td className="pl-4 pr-2 py-2.5 w-8">
+                        <input
+                          type="checkbox"
+                          className="rounded"
+                          checked={selectedIds.has(c.id)}
+                          onChange={(e) => {
+                            setSelectedIds(prev => {
+                              const next = new Set(prev);
+                              e.target.checked ? next.add(c.id) : next.delete(c.id);
+                              return next;
+                            });
+                          }}
+                        />
+                      </td>
                       <td className="px-4 py-2.5">
-                        <p className="font-medium">{c.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{c.cornell_email}</p>
+                        <div className="flex items-center gap-3">
+                          {c.headshot_url ? (
+                            <Image
+                              src={c.headshot_url}
+                              alt=""
+                              width={36}
+                              height={36}
+                              unoptimized
+                              className="rounded-full object-cover shrink-0 h-9 w-9"
+                            />
+                          ) : (
+                            <div className="h-9 w-9 rounded-full bg-muted shrink-0" />
+                          )}
+                          <div>
+                            <p className="font-medium">{c.name}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{c.cornell_email}</p>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 text-muted-foreground text-xs">{c.net_id ?? "—"}</td>
                       <td className="px-4 py-2.5">{c.major ?? "—"}</td>
@@ -726,6 +811,41 @@ export default function RecruitmentPage() {
                 {saveSheetUrl.isPending ? "Saving…" : "Save"}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk reject dialog */}
+      <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-destructive" /> Reject {selectedIds.size} candidate{selectedIds.size !== 1 ? "s" : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Subject</p>
+              <p className="text-sm px-3 py-2 rounded-md bg-muted/40 font-mono">[CBA] Application Update</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Email body (sent via BCC to all selected)</Label>
+              <Textarea
+                className="text-sm min-h-[180px] resize-y"
+                value={rejectBody}
+                onChange={(e) => setRejectBody(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={bulkReject.isPending || !rejectBody.trim()}
+              onClick={() => bulkReject.mutate()}
+            >
+              {bulkReject.isPending ? "Sending…" : `Reject & send email`}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
