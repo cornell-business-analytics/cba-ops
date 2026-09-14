@@ -199,7 +199,7 @@ export default function RecruitmentPage() {
   });
 
   const importMutation = useMutation({
-    mutationFn: () => api().post<{ imported: number; updated: number; skipped: number; missing_cols: string[] }>(
+    mutationFn: () => api().post<{ imported: number; updated: number; skipped: number; missing_cols: string[]; headshots_downloaded: number; headshot_errors: string[] }>(
       `/ops/v1/cycles/${selectedCycleId}/import`, {}
     ),
     onSuccess: (data) => {
@@ -210,7 +210,9 @@ export default function RecruitmentPage() {
       if (data.updated > 0) parts.push(`${data.updated} updated`);
       if (data.skipped > 0) parts.push(`${data.skipped} skipped`);
       setImportMsg(parts.length ? parts.join(", ") : "Up to date");
-      if (data.missing_cols.length > 0) setImportMsg(m => `${m} · missing: ${data.missing_cols.join(", ")}`);
+      if (data.headshots_downloaded > 0) setImportMsg(m => `${m} · ${data.headshots_downloaded} headshots`);
+      if (data.headshot_errors.length > 0) setImportMsg(m => `${m} · headshot error: ${data.headshot_errors[0]}`);
+      if (data.missing_cols.length > 0) setImportMsg(m => `${m} · missing cols: ${data.missing_cols.join(", ")}`);
     },
     onError: (err: Error) => { setImportStatus("error"); setImportMsg(err.message); },
   });

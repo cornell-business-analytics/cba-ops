@@ -547,6 +547,8 @@ class ImportResult(BaseModel):
     updated: int
     skipped: int
     missing_cols: list[str]
+    headshots_downloaded: int = 0
+    headshot_errors: list[str] = []
 
 
 def _extract_drive_file_id(url: str) -> str | None:
@@ -581,11 +583,13 @@ def _get_r2_client() -> Any:
 
 async def _download_and_store_headshot(
     drive_url: str, cycle_id: str, token: str
-) -> str | None:
-    """Download headshot from Drive, normalize, upload to R2. Returns public URL or None."""
+) -> tuple[str | None, str | None]:
+    """Download headshot from Drive, normalize, upload to R2. Returns (url, error)."""
     file_id = _extract_drive_file_id(drive_url)
     if not file_id:
-        return None
+        return None, f"could not extract Drive file ID from: {drive_url[:80]}"
+    if not settings.R2_ACCESS_KEY_ID:
+        return None, "R2 not configured (R2_ACCESS_KEY_ID missing)"
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             r = await client.get(
@@ -594,27 +598,25 @@ async def _download_and_store_headshot(
                 follow_redirects=True,
             )
         if r.status_code != 200:
-            return None
+            return None, f"Drive API {r.status_code} for file {file_id}: {r.text[:120]}"
         content_type = r.headers.get("content-type", "image/jpeg").split(";")[0]
         if not content_type.startswith("image/"):
-            return None
+            return None, f"unexpected content-type '{content_type}' for file {file_id}"
         try:
             normalized, stored_type = normalize_image(r.content, content_type, "headshot")
-        except ValueError:
-            return None
+        except ValueError as e:
+            return None, f"image normalize failed for {file_id}: {e}"
         ext = "webp" if stored_type == "image/webp" else "jpg"
         key = f"uploads/candidates/{cycle_id}/{uuid.uuid4()}.{ext}"
-        if not settings.R2_ACCESS_KEY_ID:
-            return None
         _get_r2_client().put_object(
             Bucket=settings.R2_BUCKET_NAME,
             Key=key,
             Body=normalized,
             ContentType=stored_type or "image/webp",
         )
-        return f"{settings.R2_PUBLIC_URL}/{key}"
-    except Exception:
-        return None
+        return f"{settings.R2_PUBLIC_URL}/{key}", None
+    except Exception as e:
+        return None, f"exception for {file_id}: {type(e).__name__}: {e}"
 
 
 @router.post("/cycles/{cycle_id}/import", response_model=ImportResult)
@@ -711,7 +713,8 @@ async def import_candidates(
         if col_indices[field] is None
     ]
 
-    imported = updated = skipped = 0
+    imported = updated = skipped = headshots_downloaded = 0
+    headshot_errors: list[str] = []
 
     for i, row in enumerate(rows[1:], start=1):
         netid_raw = val(row, col_indices["netid"]).lower().split("@")[0]
@@ -741,9 +744,12 @@ async def import_candidates(
         headshot_url: str | None = candidate.headshot_url if candidate else None
         headshot_raw = val(row, col_indices["headshot"])
         if headshot_raw and ("drive.google.com" in headshot_raw):
-            new_url = await _download_and_store_headshot(headshot_raw, str(cycle_id), token.access_token)
+            new_url, hs_err = await _download_and_store_headshot(headshot_raw, str(cycle_id), token.access_token)
             if new_url:
                 headshot_url = new_url
+                headshots_downloaded += 1
+            elif hs_err and len(headshot_errors) < 3:
+                headshot_errors.append(hs_err)
 
         fields = {
             "name": val(row, col_indices["name"]) or (candidate.name if candidate else ""),
@@ -770,7 +776,7 @@ async def import_candidates(
             imported += 1
 
     await db.commit()
-    return ImportResult(imported=imported, updated=updated, skipped=skipped, missing_cols=missing_cols)
+    return ImportResult(imported=imported, updated=updated, skipped=skipped, missing_cols=missing_cols, headshots_downloaded=headshots_downloaded, headshot_errors=headshot_errors)
 
 
 # ---------------------------------------------------------------------------
