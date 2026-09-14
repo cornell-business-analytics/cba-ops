@@ -53,19 +53,6 @@ interface Candidate {
   status: CandidateStatus;
 }
 
-const PIPELINE_STAGES: { status: CandidateStatus; label: string; color: string; bg: string }[] = [
-  { status: "applied",      label: "Applied",      color: "text-slate-600",   bg: "bg-slate-100" },
-  { status: "coffee_chat",  label: "Coffee Chat",  color: "text-sky-700",     bg: "bg-sky-100" },
-  { status: "interviewing", label: "Interviewing", color: "text-amber-700",   bg: "bg-amber-100" },
-  { status: "offer",        label: "Offer",        color: "text-violet-700",  bg: "bg-violet-100" },
-  { status: "accepted",     label: "Accepted",     color: "text-emerald-700", bg: "bg-emerald-100" },
-];
-
-const OTHER_STATUSES: { status: CandidateStatus; label: string }[] = [
-  { status: "rejected",  label: "Rejected" },
-  { status: "withdrawn", label: "Withdrawn" },
-];
-
 const STATUS_BORDER: Record<CandidateStatus, string> = {
   applied:      "border-l-slate-400",
   coffee_chat:  "border-l-sky-400",
@@ -289,20 +276,6 @@ export default function RecruitmentPage() {
     );
   });
 
-  const stageCounts = PIPELINE_STAGES.map((s) => ({
-    ...s,
-    count: candidates.filter((c) => c.status === s.status).length,
-  }));
-
-  const otherCounts = OTHER_STATUSES.map((s) => ({
-    ...s,
-    count: candidates.filter((c) => c.status === s.status).length,
-  })).filter((s) => s.count > 0);
-
-  // Total pipeline (applied → accepted)
-  const pipelineTotal = stageCounts.reduce((sum, s) => sum + s.count, 0);
-  const maxStageCount = Math.max(...stageCounts.map((s) => s.count), 1);
-
   // ─── Empty state ──────────────────────────────────────────────────────────
   if (!cyclesLoading && cycles.length === 0) {
     return (
@@ -424,42 +397,6 @@ export default function RecruitmentPage() {
             )}
           </div>
 
-          {/* Pipeline funnel */}
-          {candidates.length > 0 && (
-            <div className="rounded-lg border bg-white p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pipeline</p>
-                <p className="text-xs text-muted-foreground">{pipelineTotal} active · {candidates.length} total</p>
-              </div>
-              <div className="flex items-stretch gap-1">
-                {stageCounts.map((s, i) => (
-                  <div
-                    key={s.status}
-                    className={`flex-1 rounded-md px-2 py-2.5 text-left ${s.bg}`}
-                  >
-                    <p className={`text-xl font-bold ${s.color}`}>{s.count}</p>
-                    <p className={`text-xs mt-0.5 font-medium ${s.color} opacity-80`}>{s.label}</p>
-                    {i < stageCounts.length - 1 && (
-                      <div className={`mt-1.5 h-0.5 rounded-full ${s.count > 0 ? "bg-current opacity-20" : "bg-border"}`}
-                        style={{ width: `${Math.round((s.count / maxStageCount) * 100)}%` }} />
-                    )}
-                  </div>
-                ))}
-                {otherCounts.length > 0 && (
-                  <div className="flex flex-col gap-1 justify-center pl-2 border-l ml-1">
-                    {otherCounts.map((s) => (
-                      <div
-                        key={s.status}
-                        className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground"
-                      >
-                        <span className="font-semibold text-foreground">{s.count}</span> {s.label}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Interview rounds */}
           {(session?.role === "director" || session?.role === "eboard") && (
