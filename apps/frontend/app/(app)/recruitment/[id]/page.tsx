@@ -251,13 +251,15 @@ export default function CandidatePage() {
       </div>
 
       {/* Interview scores */}
-      {scoresError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 space-y-1">
-          <p className="text-sm font-medium text-red-700">Interview scores failed to load</p>
-          <p className="text-xs text-red-600 font-mono break-all">
+      {scoresError && (scoresErrorObj as any)?.status !== 404 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 space-y-1">
+          <p className="text-sm font-medium text-amber-800">
+            Interview scores failed to load
+            {(scoresErrorObj as any)?.status ? ` (${(scoresErrorObj as any).status})` : ""}
+          </p>
+          <p className="text-xs text-amber-700 font-mono break-all">
             {scoresErrorObj instanceof Error ? scoresErrorObj.message : String(scoresErrorObj)}
           </p>
-          <p className="text-xs text-red-500">Endpoint: <span className="font-mono">/ops/v1/candidates/{id}/scores</span></p>
         </div>
       )}
       {interviewScores.length > 0 && (() => {

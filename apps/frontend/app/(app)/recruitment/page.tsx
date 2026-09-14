@@ -188,23 +188,33 @@ export default function RecruitmentPage() {
   });
 
   const [delibLoading, setDelibLoading] = useState(false);
+  const [delibError, setDelibError] = useState<string | null>(null);
 
   async function downloadDelibDeck() {
     if (!session?.accessToken || !selectedCycleId) return;
     setDelibLoading(true);
+    setDelibError(null);
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL ?? ""}/ops/v1/cycles/${selectedCycleId}/delib-deck`,
         { headers: { Authorization: `Bearer ${session.accessToken}` } }
       );
-      if (!res.ok) throw new Error("Failed to generate deck");
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        setDelibError(`${res.status} ${res.statusText}${text ? `: ${text}` : ""}`);
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `delib_${selectedCycle?.name ?? "deck"}.pptx`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    } catch (e) {
+      setDelibError(e instanceof Error ? e.message : String(e));
     } finally {
       setDelibLoading(false);
     }
@@ -645,16 +655,21 @@ export default function RecruitmentPage() {
               </span>
             )}
             <div className="flex items-center gap-2 ml-auto">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={downloadDelibDeck}
-                disabled={delibLoading || candidates.length === 0}
-                title="Download PowerPoint delib deck for interviewing/offer/accepted candidates"
-              >
-                <FileDown className="h-4 w-4 mr-1" />
-                {delibLoading ? "Generating…" : "Delib Deck"}
-              </Button>
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={downloadDelibDeck}
+                  disabled={delibLoading || candidates.length === 0}
+                  title="Download PowerPoint delib deck for interviewing/offer/accepted candidates"
+                >
+                  <FileDown className="h-4 w-4 mr-1" />
+                  {delibLoading ? "Generating…" : "Delib Deck"}
+                </Button>
+                {delibError && (
+                  <span className="text-xs text-destructive max-w-xs text-right font-mono">{delibError}</span>
+                )}
+              </div>
               {canManage && (
                 <Button
                   size="sm"
