@@ -79,7 +79,7 @@ export default function CandidatePage() {
     comments: string | null;
   }
 
-  const { data: evaluations = [] } = useQuery<CoffeeChatEvaluation[]>({
+  const { data: evaluations = [], isError: evalsError, error: evalsErrorObj } = useQuery<CoffeeChatEvaluation[]>({
     queryKey: ["candidate", id, "evaluations"],
     queryFn: () => api().get(`/ops/v1/candidates/${id}/coffee-chat-evaluations`),
     enabled: !!session?.accessToken,
@@ -238,6 +238,12 @@ export default function CandidatePage() {
       })()}
 
       {/* Coffee chat evaluations */}
+      {evalsError && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Coffee chat evaluations failed to load
+          {(evalsErrorObj as any)?.status ? ` (${(evalsErrorObj as any).status})` : ""}: {evalsErrorObj instanceof Error ? evalsErrorObj.message : String(evalsErrorObj)}
+        </div>
+      )}
       {evaluations.length > 0 && (
         <div className="rounded-lg border bg-white p-4 space-y-3">
           <h2 className="text-sm font-semibold">Coffee Chat Evaluations</h2>
