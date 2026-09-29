@@ -71,6 +71,8 @@ async def get_member(
     m = result.scalar_one_or_none()
     if not m:
         raise HTTPException(status_code=404, detail="Member not found")
+    if (m.website_role or m.user.role.value) == "hidden":
+        raise HTTPException(status_code=404, detail="Member not found")
     return MemberPublic(
         id=m.user.id,
         name=m.user.name,
