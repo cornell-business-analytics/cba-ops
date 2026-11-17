@@ -39,7 +39,7 @@ export default async function RecruitmentPage() {
     <>
       <Hero
         heading="Join CBA"
-        subheading="See below for our fall recruitment details and events!"
+        subheading="See below for our recruitment details and events!"
         image="/recruitment/recruitFront.webp"
         compact
       />
